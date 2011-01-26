@@ -4,9 +4,12 @@ import scipy.optimize
 from mask import convert_to_array
 
 
-def test_all(n=1000):
+def test_all(n=100):
 
+    test_softThreshold(n)
+    test_mult_Lbeta(n)
     test_opt()
+    test_gen_adj(n)
     print "\n\n Congratulations - nothing exploded!"
 
     
@@ -21,6 +24,7 @@ def test_opt():
     
     cwpathtol = 1e-7
 
+    test_col_inner(X,Xlist,Y)
     for l1 in l1vec:
         test_lasso(X,Xlist,Y,l1,tol=cwpathtol)
         #test_lasso_wts(X,Xlist,Y,l1,tol=cwpathtol)
@@ -29,7 +33,91 @@ def test_opt():
                 test_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 test_lin_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 #test_graphnet_wts(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
+                
 
+
+def test_softThreshold(n=1):
+    
+    p = 1500
+    def m(x,y):
+        if x >= y:
+            return x
+        else:
+            return y
+    m = np.vectorize(m)
+    for i in range(n):
+        l = np.random.normal(5)**2
+        v = np.random.normal(0,10,p)
+        signs = np.sign(v)
+        s = signs*m(np.fabs(v)-l,0.)
+        vec = regreg.softThreshold(v,l)
+        assert(np.sum((vec-s)**2)<1e-6)
+
+def test_col_inner(X,Xlist,Y):
+
+    v1 = regreg.col_inner(Xlist,Y)
+    v2 = np.dot(X.T,Y)
+    assert(np.allclose(v1,v2))
+
+def test_mult_Lbeta(n):
+
+    p = 20
+
+    for i in range(n):
+        A, Afull = gen_adj(p)
+        regreg._check_adj(A)
+        nadj = regreg._create_nadj(A)
+        beta = np.random.normal(0,1,p)
+        s1 = regreg._mult_Lbeta(A,nadj,beta)
+        s2 = 2*np.dot(beta,np.dot(Afull,beta))
+        assert(np.allclose(s1,s2))
+                
+
+def test_gen_adj(n):
+
+
+    for i in range(n):
+        p = np.random.randint(100)+2
+        A, Afull = gen_adj(p)
+
+        regreg._check_adj(A)
+        v1 =  np.diag(Afull)
+        v2 =  np.array([np.sum(r>=0) for r in A],dtype=int)
+
+        assert(np.sum((v1-v2)**2)==0)
+        v = np.unique(np.triu(Afull,1)+np.tril(Afull,-1))
+        if len(v) == 1:
+            assert(np.product(np.unique(np.triu(Afull,1)) in  [-1,0]))
+        else:
+            assert(np.product(np.unique(np.triu(Afull,1)) ==  [-1,0]))
+        assert(np.unique([np.sum(r) for r in Afull])==[0])
+        assert(np.sum(np.fabs(Afull-Afull.T))==0.)
+        for j in range(A.shape[0]):
+            for k in range(A.shape[1]):
+                if A[j,k] > -1:
+                    assert(Afull[j,A[j,k]]==-1)
+    
+def gen_adj(p):
+
+    Afull = np.zeros((p,p),dtype=int)
+    A = - np.ones((p,p),dtype=int)
+    counts = np.zeros(p)
+    for i in range(p):
+        for j in range(p):
+            if np.random.uniform(0,1) < 0.3:
+                if i != j:
+                    if Afull[i,j] == 0:
+                        Afull[i,j] = -1
+                        Afull[j,i] = -1
+                        Afull[i,i] += 1
+                        Afull[j,j] += 1
+                        A[i,counts[i]] = j
+                        A[j,counts[j]] = i
+                        counts[i] += 1
+                        counts[j] += 1
+    return A, Afull
+
+        
 def test_lasso(X,Xlist,Y,l1=500.,tol=1e-4):
 
     print "LASSO", l1
@@ -62,7 +150,7 @@ def test_lasso_wts(X,Xlist,Y,l1=500.,tol=1e-4):
     print "lasso_wts", l1
     n = len(Xlist)
     wts = np.random.normal(0,1,n)
-    l = scca.lasso.lasso_wts(Xlist, Y,update_resids=False)#, initial_coefs= np.array([7.]*10))
+    l = regreg.lasso.lasso_wts(Xlist, Y,update_resids=False)#, initial_coefs= np.array([7.]*10))
     l.weights = wts
     l.assign_penalty(l1=l1)
     l.update_residuals()
@@ -92,16 +180,12 @@ def test_lasso_wts(X,Xlist,Y,l1=500.,tol=1e-4):
 def test_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
 
     print "GraphNet", l1,l2,l3
-    A = convert_to_array(regreg._create_adj(X.shape[1]))
-    Afull = np.zeros((X.shape[1], X.shape[1]))
-    for i, a in enumerate(A):
-        Afull[i,a] = -1
-        Afull[a,i] = -1
-        Afull[i,i] += 2
+    A, Afull = gen_adj(X.shape[1])
 
-    l = regreg.regreg((Xlist, Y,A),regreg.graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
+    l = regreg.regreg((Xlist, Y, A),regreg.graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
     l.problem.assign_penalty(l1=l1,l2=l2,l3=l3)
-    l.fit(tol=tol, inner_its=40)
+
+    l.fit(tol=tol, inner_its=50,max_its=5000)
     beta = l.problem.coefficients
 
     
@@ -112,7 +196,8 @@ def test_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
     v = np.asarray(v)
 
 
-    print np.round(100*v)/100,'\n', np.round(100*beta)/100
+    #print np.round(100*v)/100,'\n', np.round(100*beta)/100
+    #print f(v), f(beta)
     if f(v) < f(beta):
         assert(np.fabs(f(v) - f(beta)) / np.fabs(f(v) + f(beta)) < 1.0e-04)
         if np.linalg.norm(v) > 1e-8:
@@ -125,16 +210,11 @@ def test_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
 def test_lin_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
 
     print "lin_graphnet", l1,l2,l3
-    A = convert_to_array(regreg._create_adj(X.shape[1]))
-    Afull = np.zeros((X.shape[1], X.shape[1]))
-    for i, a in enumerate(A):
-        Afull[i,a] = -1
-        Afull[a,i] = -1
-        Afull[i,i] += 2
+    A, Afull = gen_adj(X.shape[1])
 
-    l = regreg.regreg((Xlist, Y,A),regreg.lin_graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
+    l = regreg.regreg((Xlist, Y, A),regreg.lin_graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
     l.problem.assign_penalty(l1=l1,l2=l2,l3=l3)
-    l.fit(tol=tol,max_its=500)
+    l.fit(tol=tol,max_its=5000)
     beta = l.problem.coefficients
 
     
@@ -146,7 +226,7 @@ def test_lin_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
     v = np.asarray(v)
 
 
-    print np.round(100*v)/100,'\n', np.round(100*beta)/100
+    #print np.round(100*v)/100,'\n', np.round(100*beta)/100
     if f(v) < f(beta):
         assert(np.fabs(f(v) - f(beta)) / np.fabs(f(v) + f(beta)) < 1.0e-04)
         if np.linalg.norm(v) > 1e-8:
@@ -162,12 +242,7 @@ def test_graphnet_wts(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
     print "graphnet_wts", l1,l2,l3
     n = len(Xlist)
     wts = np.random.normal(0,1,n)
-    A = convert_to_array(scca.lasso._create_adj(X.shape[1]))
-    Afull = np.zeros((X.shape[1], X.shape[1]))
-    for i, a in enumerate(A):
-        Afull[i,a] = -1
-        Afull[a,i] = -1
-        Afull[i,i] += 2
+    A, Afull = gen_adj(X.shape[1])
 
     l = scca.lasso.graphnet_wts(Xlist,Y,A,weights=wts)# initial_coefs = np.array([7.]*10))
     l.assign_penalty(l1=l1,l2=l2,l3=l3)
@@ -191,23 +266,6 @@ def test_graphnet_wts(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
             assert(np.linalg.norm(beta) < 1e-8)
 
 
-
-def test_softThreshold(n=1):
-    
-    p = 1500
-    def m(x,y):
-        if x >= y:
-            return x
-        else:
-            return y
-    m = np.vectorize(m)
-    for i in range(n):
-        l = np.random.normal(5)**2
-        v = np.random.normal(0,10,p)
-        signs = np.sign(v)
-        s = signs*m(np.fabs(v)-l,0.)
-        vec = scca.softThreshold(v,l)
-        assert(np.sum((vec-s)**2)<1e-6)
 
 def test_deltaSoft(n=1):
 
