@@ -1,10 +1,8 @@
 
 class cwpath(object):
 
-    def __init__(self, data, problemtype, **kwargs):
-        self.problem = problemtype(data, **kwargs)
-        self.problem.initialize_cwpath(**kwargs)
-
+    def __init__(self, problem, **kwargs):
+        self.problem = problem
             
     def stop(self,
              previous,

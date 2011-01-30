@@ -5,7 +5,7 @@ cimport numpy as np
 import time
 
 ## Local imports
-
+import nesterov_smooth
 
 ## Compile-time datatypes
 DTYPE_float = np.float
@@ -18,7 +18,9 @@ ctypedef np.int_t DTYPE_int_t
 include "subfunctions.pxi"
 include "cwpath.pxi"
 include "direct.pxi"
+include "nesterov.pxi"
 include "problems.pxi"
+#include "nesterov_smooth.py"
 
 def regreg(data, problemtype, algorithm, **kwargs):
     #Create optimization algorithm

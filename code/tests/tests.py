@@ -6,7 +6,7 @@ from mask import convert_to_array
 
 def test_all(n=100):
 
-    test_softThreshold(n)
+    test_soft_threshold(n)
     test_mult_Lbeta(n)
     test_opt()
     test_gen_adj(n)
@@ -18,6 +18,9 @@ def test_opt():
     Y = np.load('Y.npy')
     Xlist = [x for x in X]
 
+    XtX = np.dot(X.T, X)
+    M = np.linalg.eigvalsh(XtX).max() / len(Y)
+
     l1vec = [1,10,100,1000,10000][::-1]
     l2vec = [1,10,100][::-1]
     l3vec = [1,10,100][::-1]
@@ -26,17 +29,20 @@ def test_opt():
 
     test_col_inner(X,Xlist,Y)
     for l1 in l1vec:
-        test_lasso(X,Xlist,Y,l1,tol=cwpathtol)
+        test_lasso(X,Xlist,Y,l1,tol=cwpathtol,M=M)
         #test_lasso_wts(X,Xlist,Y,l1,tol=cwpathtol)
+        """
         for l2 in l2vec:
             for l3 in l3vec:
                 test_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 test_lin_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 #test_graphnet_wts(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
-                
+        """
 
 
-def test_softThreshold(n=1):
+
+
+def test_soft_threshold(n=1):
     
     p = 1500
     def m(x,y):
@@ -50,7 +56,7 @@ def test_softThreshold(n=1):
         v = np.random.normal(0,10,p)
         signs = np.sign(v)
         s = signs*m(np.fabs(v)-l,0.)
-        vec = regreg.softThreshold(v,l)
+        vec = regreg.soft_threshold(v,l)
         assert(np.sum((vec-s)**2)<1e-6)
 
 def test_col_inner(X,Xlist,Y):
@@ -118,31 +124,50 @@ def gen_adj(p):
     return A, Afull
 
         
-def test_lasso(X,Xlist,Y,l1=500.,tol=1e-4):
+def test_lasso(X,Xlist,Y,l1=500.,tol=1e-4,M=0.):
 
     print "LASSO", l1
-    l = regreg.regreg((Xlist, Y),regreg.lasso,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
-    l.problem.assign_penalty(l1=l1)
-    l.fit(tol=tol, max_its=50)
-    beta = l.problem.coefficients
+    #l = regreg.regreg((Xlist, Y),regreg.lasso,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
 
+    p1 = regreg.lasso((Xlist, Y))
+    p1.assign_penalty(l1=l1)
+    
+    p2 = regreg.lasso((Xlist, Y))
+    p2.assign_penalty(l1=l1)
+    
+    o1 = regreg.cwpath(p1)
+    o1.fit(tol=tol, max_its=50)
+    beta1 = o1.problem.coefficients
+
+    o2 = regreg.nesterov(p2)
+    o2.fit(M,tol=1e-10, max_its=1500)
+    beta2 = o2.problem.coefficients
 
     def f(beta):
         return np.linalg.norm(Y - np.dot(X, beta))**2/(2*len(Y)) + np.fabs(beta).sum()*l1
+
     v = scipy.optimize.fmin_powell(f, np.zeros(X.shape[1]), ftol=1.0e-10, xtol=1.0e-10, maxfun=100000)
     v = np.asarray(v)
 
-    """
-    print np.round(1000*beta)/1000
+    print np.round(1000*beta1)/1000
+    print np.round(1000*beta2)/1000
     print np.round(1000*v)/1000
-    """
 
-    if f(v) < f(beta):
-        assert(np.fabs(f(v) - f(beta)) / np.fabs(f(v) + f(beta)) < 1.0e-04)
+    assert(np.fabs(f(beta1) - f(beta2)) / np.fabs(f(beta1) + f(beta1)) < 1.0e-04)
+    if np.linalg.norm(beta1) > 1e-8:
+        assert(np.linalg.norm(beta2 - beta1) / np.linalg.norm(beta1) < 1.0e-04)
+    else:
+        assert(np.linalg.norm(beta2) < 1e-8)
+
+
+    if f(v) < f(beta1):
+        assert(np.fabs(f(v) - f(beta1)) / np.fabs(f(v) + f(beta1)) < 1.0e-04)
         if np.linalg.norm(v) > 1e-8:
-            assert(np.linalg.norm(v - beta) / np.linalg.norm(v) < 1.0e-04)
+            assert(np.linalg.norm(v - beta1) / np.linalg.norm(v) < 1.0e-04)
         else:
-            assert(np.linalg.norm(beta) < 1e-8)
+            assert(np.linalg.norm(beta1) < 1e-8)
+
+
 
 
 def test_lasso_wts(X,Xlist,Y,l1=500.,tol=1e-4):
@@ -182,7 +207,8 @@ def test_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
     print "GraphNet", l1,l2,l3
     A, Afull = gen_adj(X.shape[1])
 
-    l = regreg.regreg((Xlist, Y, A),regreg.graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
+    #l = regreg.regreg((Xlist, Y, A),regreg.graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
+    l = regreg.cwpath(regreg.graphnet((Xlist, Y, A)))
     l.problem.assign_penalty(l1=l1,l2=l2,l3=l3)
 
     l.fit(tol=tol, inner_its=50,max_its=5000)
@@ -212,7 +238,8 @@ def test_lin_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
     print "lin_graphnet", l1,l2,l3
     A, Afull = gen_adj(X.shape[1])
 
-    l = regreg.regreg((Xlist, Y, A),regreg.lin_graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
+    #l = regreg.regreg((Xlist, Y, A),regreg.lin_graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
+    l = regreg.cwpath(regreg.lin_graphnet((Xlist, Y, A)))
     l.problem.assign_penalty(l1=l1,l2=l2,l3=l3)
     l.fit(tol=tol,max_its=5000)
     beta = l.problem.coefficients

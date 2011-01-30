@@ -1,9 +1,8 @@
 
 class direct(object):
 
-    def __init__(self, data, problemtype, **kwargs):
-
-        self.problem = problemtype(data, **kwargs)
+    def __init__(self, problem, **kwargs):
+        self.problem = problem
         self.problem.initialize_direct(**kwargs)
 
     def output(self):

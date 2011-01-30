@@ -1,5 +1,5 @@
 
-class regression(object):
+class linmodel(object):
 
     def __init__(self, data, **kwargs):
 
@@ -25,6 +25,7 @@ class regression(object):
         if 'rowweights' in kwargs:
             self.set_rowweights(kwargs['rowweights'])
 
+        self.initialize(**kwargs)
     
     def assign_penalty(self, **params):
         """
@@ -37,9 +38,9 @@ class regression(object):
         
     def set_coefficients(self, coefs):
         if coefs is not None:
-            self.beta = coefs.copy()	
-        if self.update_resids:    
-            self.update_residuals()
+            self.beta = coefs.copy()
+            if self.update_resids:    
+                self.update_residuals()
 
     def get_coefficients(self):
         return self.beta.copy()
@@ -90,7 +91,7 @@ class regression(object):
 
 
     
-class lasso(regression):
+class lasso(linmodel):
 
     """
     LASSO problem with one penalty parameter
@@ -106,7 +107,7 @@ class lasso(regression):
 
     name = 'lasso'
 
-    def initialize_cwpath(self, **kwargs):
+    def initialize(self, **kwargs):
         """
         Generate initial tuple of arguments for update.
         """
@@ -124,6 +125,16 @@ class lasso(regression):
 
     def set_default_coefficients(self):
         self.set_coefficients(np.zeros(len(self.X[0])))
+
+    def obj(self):
+        return ((self.Y - np.dot(self.X,self.beta))**2).sum() / (2.*len(self.Y)) + np.sum(np.fabs(self.beta)) * self.penalties['l1']
+
+    def grad(self):
+        return (multlist(self.X,np.dot(self.X, self.beta),transpose=True) - np.dot(self.Y,self.X))/(1.*len(self.Y))
+
+    def soft_thresh(self, x, g, L):
+        v = x - g / L
+        return np.sign(v) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
 
     def update_cwpath(self,
                       active,
@@ -149,7 +160,7 @@ class lasso(regression):
                                  update_nonzero)
 
                 
-class lasso_wts(regression):
+class lasso_wts(linmodel):
 
     """
     LASSO problem with one penalty parameter
@@ -204,7 +215,7 @@ class lasso_wts(regression):
                              inner_its)
 
 
-class graphnet(regression):
+class graphnet(linmodel):
 
     """
     The Naive Laplace problem with three penalty parameters
@@ -222,7 +233,7 @@ class graphnet(regression):
  
     name = "graphnet"
 
-    def initialize_cwpath(self):
+    def initialize(self):
         """
         Generate initial tuple of arguments for update.
         """
@@ -267,7 +278,7 @@ class graphnet(regression):
                                     inner_its,
                                     update_nonzero)
 
-class lin_graphnet(regression):
+class lin_graphnet(linmodel):
 
     """
     The Naive Laplace problem with three penalty parameters
@@ -285,7 +296,7 @@ class lin_graphnet(regression):
  
     name = "lin_graphnet"
 
-    def initialize_cwpath(self):
+    def initialize(self):
         """
         Generate initial tuple of arguments for update.
         """
@@ -338,7 +349,7 @@ class lin_graphnet(regression):
 
 
 
-class graphnet_wts(regression):
+class graphnet_wts(linmodel):
 
     """
     The Naive Laplace problem with three penalty parameters
@@ -393,7 +404,7 @@ class graphnet_wts(regression):
                                  inner_its)
 
 
-class univariate(regression):
+class univariate(linmodel):
 
     """
     LASSO problem with one penalty parameter

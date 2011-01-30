@@ -214,3 +214,36 @@ def soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
         if v[i] > 0:
             pos[i] = 1
     return signs * v * pos
+
+
+def multlist(list X,
+             np.ndarray[DTYPE_float_t, ndim=1] b,
+             DTYPE_int_t transpose=False):
+    
+    """
+    Multiply a matrix whose rows are stored in a list with a vector b.
+    
+    If transpose, then multiply the transpose of the matrix and b
+    """
+    
+    cdef long n = len(X)
+    cdef long p = len(X[0])
+    cdef np.ndarray[DTYPE_float_t, ndim=1] results
+    cdef np.ndarray[DTYPE_float_t, ndim=1] row
+    cdef long i, j
+    
+    if transpose:
+        results = np.zeros(p)
+        for i in range(n):
+            row = X[i]
+            for j in range(p):
+                results[j] = results[j] + row[j]*b[i]
+    else:
+        results = np.zeros(n)
+        for i in range(n):
+            row = X[i]
+            for j in range(p):
+                results[i] = results[i] + row[j]*b[j]
+    return results
+
+                                                                                                                    
