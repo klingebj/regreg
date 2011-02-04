@@ -29,15 +29,16 @@ def test_opt():
 
     test_col_inner(X,Xlist,Y)
     for l1 in l1vec:
-        test_lasso(X,Xlist,Y,l1,tol=cwpathtol,M=M)
+        #test_lasso(X,Xlist,Y,l1,tol=cwpathtol,M=M)
         #test_lasso_wts(X,Xlist,Y,l1,tol=cwpathtol)
-        """
+
         for l2 in l2vec:
             for l3 in l3vec:
-                test_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
+                #test_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 test_lin_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
+                #test_v_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 #test_graphnet_wts(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
-        """
+
 
 
 
@@ -192,7 +193,7 @@ def test_lasso_wts(X,Xlist,Y,l1=500.,tol=1e-4):
 
     print np.round(1000*beta)/1000
     print np.round(1000*v)/1000
-
+    print f(beta), f(v)
 
     if f(v) < f(beta):
         assert(np.fabs(f(v) - f(beta)) / np.fabs(f(v) + f(beta)) < 1.0e-04)
@@ -238,16 +239,61 @@ def test_lin_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
     print "lin_graphnet", l1,l2,l3
     A, Afull = gen_adj(X.shape[1])
 
+    orth = np.random.normal(0,1,X.shape[1])
+    eta = np.random.normal(0,1,1)[0]
+
     #l = regreg.regreg((Xlist, Y, A),regreg.lin_graphnet,regreg.cwpath)#, initial_coefs= np.array([7.]*10))
     l = regreg.cwpath(regreg.lin_graphnet((Xlist, Y, A)))
-    l.problem.assign_penalty(l1=l1,l2=l2,l3=l3)
+    l.problem.assign_penalty(l1=l1,l2=l2,l3=l3,eta=eta)
+    l.problem.orth = orth
     l.fit(tol=tol,max_its=5000)
     beta = l.problem.coefficients
 
     
     def f(beta):
         q = np.dot(X,beta)
-        return -np.dot(Y,q) + np.fabs(beta).sum()*l1 + l2 * np.linalg.norm(beta)**2/2 + l3 * np.dot(beta, np.dot(Afull, beta))/2
+        return -np.dot(Y,q) + np.fabs(beta).sum()*l1 + l2 * np.linalg.norm(beta)**2/2 + l3 * np.dot(beta, np.dot(Afull, beta))/2 + eta*np.dot(beta,orth)
+    
+    v = scipy.optimize.fmin_powell(f, np.zeros(X.shape[1]), ftol=1.0e-10, xtol=1.0e-10,maxfun=100000)
+    v = np.asarray(v)
+
+
+    print np.round(100*v)/100,'\n', np.round(100*beta)/100
+    print eta, np.sum(beta), np.sum(v)
+    if f(v) < f(beta):
+        assert(np.fabs(f(v) - f(beta)) / np.fabs(f(v) + f(beta)) < 1.0e-04)
+        if np.linalg.norm(v) > 1e-8:
+            assert(np.linalg.norm(v - beta) / np.linalg.norm(v) < 1.0e-04)
+        else:
+            assert(np.linalg.norm(beta) < 1e-8)
+
+
+
+
+def test_v_graphnet(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
+
+    print "v_graphnet", l1,l2,l3
+    A, Afull = gen_adj(X.shape[1])
+
+    vec = np.dot(Y,X)
+    l = regreg.cwpath(regreg.v_graphnet((vec,A)))
+    l.problem.assign_penalty(l1=l1,l2=l2,l3=l3)
+    l.fit(tol=tol,max_its=5000)
+    beta = l.problem.coefficients
+
+    lv2 = regreg.cwpath(regreg.lin_graphnet((Xlist,Y,A)))
+    lv2.problem.assign_penalty(l1=l1,l2=l2,l3=l3)
+    lv2.fit(tol=tol,max_its=5000)
+    beta2 = lv2.problem.coefficients
+
+    if np.linalg.norm(beta) > 1e-8:
+        assert(np.linalg.norm(beta - beta2) / np.linalg.norm(beta) < 1.0e-04)
+    else:
+        assert(np.linalg.norm(beta2) < 1e-8)
+
+    
+    def f(beta):
+        return -np.dot(vec,beta) + np.fabs(beta).sum()*l1 + l2 * np.linalg.norm(beta)**2/2 + l3 * np.dot(beta, np.dot(Afull, beta))/2
     
     v = scipy.optimize.fmin_powell(f, np.zeros(X.shape[1]), ftol=1.0e-10, xtol=1.0e-10,maxfun=100000)
     v = np.asarray(v)
@@ -269,23 +315,26 @@ def test_graphnet_wts(X,Xlist,Y,l1 = 500., l2 = 2, l3=3.5,tol=1e-4):
     print "graphnet_wts", l1,l2,l3
     n = len(Xlist)
     wts = np.random.normal(0,1,n)
+    Xlist2 = [Xlist[i]*wts[i] for i in range(n)]
     A, Afull = gen_adj(X.shape[1])
 
-    l = scca.lasso.graphnet_wts(Xlist,Y,A,weights=wts)# initial_coefs = np.array([7.]*10))
-    l.assign_penalty(l1=l1,l2=l2,l3=l3)
-    l.fit(tol=tol, max_its=40)
-    beta = l.coefficients
+    l = regreg.cwpath(regreg.graphnet_wts((Xlist,Y,A),rowweights=wts))# initial_coefs = np.array([7.]*10))
+    l.problem.assign_penalty(l1=l1,l2=l2,l3=l3)
+    l.fit(tol=tol, max_its=400)
+    beta = l.problem.coefficients
 
     
     def f(beta):
-        return np.linalg.norm(Y - wts*np.dot(X, beta))**2/(2*len(Y)) + np.fabs(beta).sum()*l1 + l2 * np.linalg.norm(beta)**2/2 + l3 * np.dot(beta, np.dot(Afull, beta))/2
+        return np.linalg.norm(Y - np.dot(np.vstack(Xlist2), beta))**2/(2*len(Y)) + np.fabs(beta).sum()*l1 + l2 * np.linalg.norm(beta)**2/2 + l3 * np.dot(beta, np.dot(Afull, beta))/2
     
     v = scipy.optimize.fmin_powell(f, np.zeros(X.shape[1]), ftol=1.0e-10, xtol=1.0e-10,maxfun=100000)
     v = np.asarray(v)
 
 
-    #print np.round(100*v)/100,'\n', np.round(100*beta)/100
-    if f(v) < f(beta):
+    print np.round(100*v)/100,'\n', np.round(100*beta)/100
+    print f(beta), f(v)
+
+    if f(v) < f(beta)+1e-10:
         assert(np.fabs(f(v) - f(beta)) / np.fabs(f(v) + f(beta)) < 1.0e-04)
         if np.linalg.norm(v) > 1e-8:
             assert(np.linalg.norm(v - beta) / np.linalg.norm(v) < 1.0e-04)

@@ -2,16 +2,6 @@
 class linmodel(object):
 
     def __init__(self, data, **kwargs):
-
-        if len(data) == 2:
-            self.X = data[0]
-            self.Y = data[1]
-        elif len(data) == 3:
-            self.X = data[0]
-            self.Y = data[1]
-            self.adj = data[2]
-        else:
-            raise ValueError("Data tuple not as expected")
         
         self.penalties = self.default_penalty()
         if 'penalties' in kwargs:
@@ -22,10 +12,9 @@ class linmodel(object):
             self.update_resids = kwargs['update_resids']
         else:
             self.update_resids = True
-        if 'rowweights' in kwargs:
-            self.set_rowweights(kwargs['rowweights'])
 
-        self.initialize(**kwargs)
+
+        self.initialize(data, **kwargs)
     
     def assign_penalty(self, **params):
         """
@@ -107,10 +96,17 @@ class lasso(linmodel):
 
     name = 'lasso'
 
-    def initialize(self, **kwargs):
+    def initialize(self, data, **kwargs):
         """
         Generate initial tuple of arguments for update.
         """
+        
+        if len(data) == 2:
+            self.X = data[0]
+            self.Y = data[1]
+        else:
+            raise ValueError("Data tuple not as expected")
+
         self._ssq = col_ssq(self.X)
         self.set_default_coefficients()
         if hasattr(self,'initial_coefs'):
@@ -180,7 +176,7 @@ class lasso_wts(linmodel):
         """
         Generate initial tuple of arguments for update.
         """
-        self._ssq = col_ssq(self.X,self.wts)
+        self._ssq = col_ssq(self.X,self.rowweights)
         self.penalty = self.default_penalty()
         self.set_coefficients(self.initial_coefs)
 
@@ -211,7 +207,7 @@ class lasso_wts(linmodel):
                              self.r,
                              self.X,
                              self._ssq,
-                             self.wts,
+                             self.rowweights,
                              inner_its)
 
 
@@ -233,10 +229,17 @@ class graphnet(linmodel):
  
     name = "graphnet"
 
-    def initialize(self):
+    def initialize(self, data, **kwargs):
         """
         Generate initial tuple of arguments for update.
         """
+        if len(data) == 3:
+            self.X = data[0]
+            self.Y = data[1]
+            self.adj = data[2]
+        else:
+            raise ValueError("Data tuple not as expected")
+
         self._ssq = col_ssq(self.X)
         self.set_default_coefficients()
         if hasattr(self,'initial_coefs'):
@@ -296,10 +299,20 @@ class lin_graphnet(linmodel):
  
     name = "lin_graphnet"
 
-    def initialize(self):
+    def initialize(self, data, **kwargs):
         """
         Generate initial tuple of arguments for update.
         """
+
+        if len(data) == 3:
+            self.X = data[0]
+            self.Y = data[1]
+            self.adj = data[2]
+        elif len(data)==2:
+            self.X = data[0]
+            self.Y = data[1]
+        else:
+            raise ValueError("Data tuple not as expected")
         
         self.inner = col_inner(self.X,self.Y)
         self.set_default_coefficients()
@@ -311,13 +324,17 @@ class lin_graphnet(linmodel):
             #Put in a placeholder for adj, nadj
             self.adj = np.zeros((2,2),dtype=int)
             self.nadj = np.zeros(2,dtype=int)
+        if 'orth' in kwargs:
+            self.orth = kwargs['orth']
+        else:
+            self.orth = np.zeros(self.coefficients.shape)
 
     def default_penalty(self):
         """
         Default penalty for Naive Laplace: a single
         parameter problem.
         """
-        return np.zeros(1, np.dtype([(l, np.float) for l in ['l1', 'l2', 'l3']]))
+        return np.zeros(1, np.dtype([(l, np.float) for l in ['l1', 'l2', 'l3','eta']]))
 
     def set_default_coefficients(self):
         self.set_coefficients(np.zeros(len(self.X[0])))
@@ -344,6 +361,85 @@ class lin_graphnet(linmodel):
                                         self.inner, 
                                         self.adj, 
                                         self.nadj,
+                                        self.orth,
+                                        inner_its,
+                                        update_nonzero)
+
+
+
+class v_graphnet(linmodel):
+
+    """
+    The Naive Laplace problem with three penalty parameters
+    l1, l2 and l3 minimizes
+
+    (np.sum((Y - np.dot(X, beta))**2) + l1 *
+     np.fabs(beta).sum() + l2 * np.sum(beta**2))
+     + l3* np.dot(np.dot(beta,np.dot(D-A)),beta)
+
+     as a function of beta,
+     where D = diag(N_1, ..., N_p) where N_i is the number
+     of neighbors of coefficient i, and A_{ij} = 1(j is i's neighbor)
+
+    """
+ 
+    name = "v_graphnet"
+
+    def initialize(self, data, **kwargs):
+        """
+        Generate initial tuple of arguments for update.
+        """
+
+        if len(data) == 2:
+            self.v = data[0]
+            self.adj = data[1]
+        else:
+            raise ValueError("Data tuple not as expected")
+
+        self.update_resids = False
+        self.r = np.array([0.])
+        self.set_default_coefficients()
+        if hasattr(self,'initial_coefs'):
+            self.set_coefficients(self.initial_coefs)
+        if hasattr(self,'adj'):
+            self.nadj = _create_nadj(self.adj)
+        else:
+            #Put in a placeholder for adj, nadj
+            self.adj = np.zeros((2,2),dtype=int)
+            self.nadj = np.zeros(2,dtype=int)
+
+
+
+    def default_penalty(self):
+        """
+        Default penalty for Naive Laplace: a single
+        parameter problem.
+        """
+        return np.zeros(1, np.dtype([(l, np.float) for l in ['l1', 'l2', 'l3']]))
+
+    def set_default_coefficients(self):
+        self.set_coefficients(np.zeros(len(self.v)))
+        
+    def update_cwpath(self,
+                      active,
+                      nonzero,
+                      inner_its=1,
+                      permute = False,
+                      update_nonzero = False):
+        """
+        Update coefficients in active set, returning
+        nonzero coefficients.
+        """
+        if permute:
+            active = np.random.permutation(active)
+        if len(active):
+            _update_v_graphnet_cwpath(active,
+                                        self.penalties,
+                                        nonzero,
+                                        self.beta,
+                                        self.v,
+                                        self.adj, 
+                                        self.nadj,
                                         inner_its,
                                         update_nonzero)
 
@@ -367,14 +463,29 @@ class graphnet_wts(linmodel):
  
     name = "graphnet_wts"
 
-    def initialize(self):
+    def initialize(self, data, **kwargs):
         """
         Generate initial tuple of arguments for update.
         """
+        if len(data) == 3:
+            self.X = data[0]
+            self.Y = data[1]
+            self.adj = data[2]
+        else:
+            raise ValueError("Data tuple not as expected")
+
+
+        
         self._ssq = col_ssq(self.X)
         self.penalty = self.default_penalty()
         self.nadj = _create_nadj(self.adj)
-        self.set_coefficients(self.initial_coefs)
+        self.set_default_coefficients()
+        if hasattr(self,'initial_coefs'):
+            self.set_coefficients(self.initial_coefs)
+        if 'rowweights' in kwargs:
+            self.set_rowweights(kwargs['rowweights'])
+        else:
+            raise ValueError("No weights given")
 
     def default_penalty(self):
         """
@@ -382,8 +493,18 @@ class graphnet_wts(linmodel):
         parameter problem.
         """
         return np.zeros(1, np.dtype([(l, np.float) for l in ['l1', 'l2', 'l3']]))
-        
-    def update(self, active, nonzero, inner_its=1, permute=False):
+
+    def set_default_coefficients(self):
+        self.set_coefficients(np.zeros(len(self.X[0])))
+
+
+            
+    def update_cwpath(self,
+                      active,
+                      nonzero,
+                      inner_its=1,
+                      permute = False,
+                      update_nonzero = False):
         """
         Update coefficients in active set, returning
         nonzero coefficients.
@@ -391,18 +512,18 @@ class graphnet_wts(linmodel):
         if permute:
             active = np.random.permutation(active)
         if len(active):
-            _update_graphnet_wts(active,
-                                 self.penalty,
-                                 nonzero,
-                                 self.beta,
-                                 self.r,
-                                 self.X,
-                                 self._ssq, 
-                                 self.adj, 
-                                 self.nadj,
-                                 self.wts,
-                                 inner_its)
-
+            _update_graphnet_wts_cwpath(active,
+                                        self.penalties,
+                                        nonzero,
+                                        self.beta,
+                                        self.r,
+                                        self.X,
+                                        self._ssq, 
+                                        self.adj, 
+                                        self.nadj,
+                                        self.rowweights,
+                                        inner_its,
+                                        update_nonzero)
 
 class univariate(linmodel):
 
@@ -420,10 +541,15 @@ class univariate(linmodel):
 
     name = 'univariate'
 
-    def initialize_direct(self, **kwargs):
+    def initialize(self, data, **kwargs):
         """
         Generate initial tuple of arguments for update.
         """
+        if len(data) == 2:
+            self.X = data[0]
+            self.Y = data[1]
+        else:
+            raise ValueError("Data tuple not as expected")
         self.inner = col_inner(self.X, self.Y)
         self.set_default_coefficients()
 
