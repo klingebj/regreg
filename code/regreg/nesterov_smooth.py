@@ -167,28 +167,38 @@ def loop(x0, gradf, L, Qinfo=None, maxiter=100, solver=naive_solver,
         This is the solution to (3.11) after maxiter steps.
     """
 
-    x = x0; y=x0
+    x = x0; y=x0; y_old = y.copy()
     momentum = 0
 
     obj_cur = np.inf
     fvalues = []
+    count = 0
     for itercount, param in enumerate(parameters(maxiter)):
-    #for itercount in range(maxiter):
-        #alpha, tau, A = parameters(itercount)
         alpha, tau, A = param
         if f is not None:
-            f_x = f(x); f_y = f(y)
+            f_x = f(x)
+            f_y = f(y)
+
             if np.fabs((obj_cur - f_x) / f_x) < tol and itercount >= miniter:
-                break
+            #if np.fabs((obj_cur - f_y) / f_y) < tol and itercount >= miniter:
+            #if np.allclose(y,y_old) and itercount >=miniter:
+                count += 1
+                if count > 10:
+                    break
+            else:
+                count = 0
+            obj_cur = f_y
             obj_cur = f_x
+            #y_old = y.copy() 
             if values:
-                fvalues.append(f_x)
+                fvalues.append(f_y)
         gradf_x =  gradf(x) 
         if f is None:
             y = solve_y(gradf_x, x, L)
         else:
             y_prime = solve_y(gradf_x, x, L)
-            fs = [f_y, f_x, f(y_prime)]
+            f_y_prime = f(y_prime)
+            fs = [f_y, f_x, f_y_prime]
             idx = np.argmin(fs)
             y = [y, x, y_prime][idx]
 
@@ -197,8 +207,10 @@ def loop(x0, gradf, L, Qinfo=None, maxiter=100, solver=naive_solver,
                     prox_center=prox_center)
         x = tau * z + (1 - tau) * y
 
+    print "Smoothed used", itercount, "iterations"
+
     if not values:
-        return x
+        return y
     else:
-        return x, np.array(fvalues)
+        return y, np.array(fvalues)
 

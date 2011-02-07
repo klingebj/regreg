@@ -1,5 +1,5 @@
 import numpy as np
-import regreg
+import regreg, time
 import scipy.optimize
 from mask import convert_to_array
 
@@ -29,13 +29,14 @@ def test_opt():
 
     test_col_inner(X,Xlist,Y)
     for l1 in l1vec:
-        #test_lasso(X,Xlist,Y,l1,tol=cwpathtol,M=M)
+        test_lasso(X,Xlist,Y,l1,tol=cwpathtol,M=M)
         #test_lasso_wts(X,Xlist,Y,l1,tol=cwpathtol)
 
         for l2 in l2vec:
             for l3 in l3vec:
+                assert(True)
                 #test_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
-                test_lin_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
+                #test_lin_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 #test_v_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 #test_graphnet_wts(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
 
@@ -135,14 +136,33 @@ def test_lasso(X,Xlist,Y,l1=500.,tol=1e-4,M=0.):
     
     p2 = regreg.lasso((Xlist, Y))
     p2.assign_penalty(l1=l1)
-    
+
+    p3 = regreg.lasso((Xlist, Y))
+    p3.assign_penalty(l1=l1)
+
+    t1 = time.time()
     o1 = regreg.cwpath(p1)
     o1.fit(tol=tol, max_its=50)
     beta1 = o1.problem.coefficients
+    t2 = time.time()
+    print "CWPATH", t2-t1
 
-    o2 = regreg.nesterov(p2)
+    t1 = time.time()
+    o2 = regreg.gengrad(p2)
     o2.fit(M,tol=1e-10, max_its=1500)
     beta2 = o2.problem.coefficients
+    t2 = time.time()
+    print "GENGRAD", t2-t1
+
+    epsvec = [1e-0,1e-3,1e-6]
+    t1 = time.time()
+    o3 = regreg.nesterov(p3)
+    for eps in epsvec:
+        f_s = o3.fit(M, tol=1e-10, max_its=150,epsilon=eps)
+    f_s = o3.fit(M, tol=1e-10, max_its=5000,epsilon=eps)
+    beta3 = o3.problem.coefficients
+    t2 = time.time()
+    print "NEST", t2-t1
 
     def f(beta):
         return np.linalg.norm(Y - np.dot(X, beta))**2/(2*len(Y)) + np.fabs(beta).sum()*l1
@@ -150,9 +170,16 @@ def test_lasso(X,Xlist,Y,l1=500.,tol=1e-4,M=0.):
     v = scipy.optimize.fmin_powell(f, np.zeros(X.shape[1]), ftol=1.0e-10, xtol=1.0e-10, maxfun=100000)
     v = np.asarray(v)
 
-    print np.round(1000*beta1)/1000
-    print np.round(1000*beta2)/1000
-    print np.round(1000*v)/1000
+    vs = scipy.optimize.fmin_powell(f_s, np.zeros(X.shape[1]), ftol=1.0e-10, xtol=1.0e-10, maxfun=100000)
+    vs = np.asarray(vs)
+
+    print np.round(10000*beta1)/10000
+    print np.round(10000*beta2)/10000
+    print np.round(10000*beta3)/10000
+    print "\n",np.round(10000*v)/10000
+    print np.round(10000*vs)/10000
+
+    print f_s(beta3), f_s(vs)
 
     assert(np.fabs(f(beta1) - f(beta2)) / np.fabs(f(beta1) + f(beta1)) < 1.0e-04)
     if np.linalg.norm(beta1) > 1e-8:

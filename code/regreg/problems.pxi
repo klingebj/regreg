@@ -111,6 +111,8 @@ class lasso(linmodel):
         self.set_default_coefficients()
         if hasattr(self,'initial_coefs'):
             self.set_coefficients(self.initial_coefs)
+        if 'L' in kwargs:
+            self._L = kwargs['L']
 
     def default_penalty(self):
         """
@@ -122,15 +124,47 @@ class lasso(linmodel):
     def set_default_coefficients(self):
         self.set_coefficients(np.zeros(len(self.X[0])))
 
-    def obj(self):
-        return ((self.Y - np.dot(self.X,self.beta))**2).sum() / (2.*len(self.Y)) + np.sum(np.fabs(self.beta)) * self.penalties['l1']
+    def obj(self,x):
+        x = np.asarray(x)
+        #return ((self.Y - np.dot(self.X,self.beta))**2).sum() / (2.*len(self.Y)) + np.sum(np.fabs(self.beta)) * self.penalties['l1']
+        return ((self.Y - np.dot(self.X,x))**2).sum() / (2.*len(self.Y)) + np.sum(np.fabs(x)) * self.penalties['l1']
 
-    def grad(self):
-        return (multlist(self.X,np.dot(self.X, self.beta),transpose=True) - np.dot(self.Y,self.X))/(1.*len(self.Y))
+    def f(self,x):
+        #return ((self.Y - np.dot(self.X,self.beta))**2).sum() / (2.*len(self.Y))
+        x = np.asarray(x)
+        return ((self.Y - np.dot(self.X,x))**2).sum() / (2.*len(self.Y))
+
+
+    def gradf(self,x):
+        #return (multlist(self.X,np.dot(self.X, self.beta),transpose=True) - np.dot(self.Y,self.X)) / (1.*len(self.Y))
+        x = np.asarray(x)
+        return (multlist(self.X,np.dot(self.X, x),transpose=True) - np.dot(self.Y,self.X)) / (1.*len(self.Y))
 
     def soft_thresh(self, x, g, L):
         v = x - g / L
         return np.sign(v) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
+
+    def smooth(self, L, epsilon):
+        return l1smooth.l1smooth(self.gradf, L, epsilon, l1=self.penalties['l1'], f=self.f)
+
+    def _get_L(self):
+        if hasattr(self,'_L'):
+            return self._L
+        else:
+            #Power method
+            v = np.random.normal(0,1,len(self.coefficients))
+            change = np.inf
+            norm_old = 0.
+            while change > 0.01:            
+                v = multlist(self.X,np.dot(self.X, v),transpose=True)
+                norm = np.linalg.norm(v)
+                change = np.fabs(norm-norm_old)
+                norm_old = norm
+                v /= norm
+            return 1.01 * norm / (1.*len(self.Y))
+            
+    L = property(_get_L)
+
 
     def update_cwpath(self,
                       active,

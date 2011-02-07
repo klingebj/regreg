@@ -6,6 +6,7 @@ import time
 
 ## Local imports
 import nesterov_smooth
+import l1smooth
 
 ## Compile-time datatypes
 DTYPE_float = np.float
@@ -16,10 +17,14 @@ ctypedef np.int_t DTYPE_int_t
 
 ## Include other cython source files
 include "subfunctions.pxi"
+include "problems.pxi"
+
+## Include algorithm code
 include "cwpath.pxi"
 include "direct.pxi"
-include "nesterov.pxi"
-include "problems.pxi"
+include "ista.pxi"
+include "fista.pxi"
+include "nesterov_eps.pxi"
 #include "nesterov_smooth.py"
 
 def regreg(data, problemtype, algorithm, **kwargs):
