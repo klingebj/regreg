@@ -1,36 +1,60 @@
+# cython: profile=True
 
+import numpy as np
+cimport numpy as np
+import time
 
+## Local imports
 
-def col_inner(list X,
+## Compile-time datatypes
+DTYPE_float = np.float
+ctypedef np.float_t DTYPE_float_t
+DTYPE_int = np.int
+ctypedef np.int_t DTYPE_int_t
+
+def col_inner(X,
               np.ndarray[DTYPE_float_t, ndim=1] Y):
 
+    cdef list listX
     cdef DTYPE_int_t n, p, k, i
     p = len(X[0])
     cdef np.ndarray[DTYPE_float_t, ndim=1] inner = np.zeros(p)
     cdef np.ndarray[DTYPE_float_t, ndim=1] row
     n = len(Y)
 
+    listX = aslist(X)
     for k in range(n):
-        row = X[k]
+        row = listX[k]
         for i in range(p):
             inner[i] = inner[i] + Y[k]*row[i]
     return inner
 
 
-def col_ssq(list X, wts = None):
+def col_ssq(X, wts = None):
+    cdef list listX
     cdef DTYPE_int_t n, p, i, j
     n = len(X)
     p = len(X[0])
     cdef np.ndarray[DTYPE_float_t, ndim=1] ssq = np.zeros(p)
+
+    listX = aslist(X)
     if wts is not None:
         for i in range(p):
             for j in range(n):
-                ssq[i] = ssq[i] + (X[j][i] * wts[j])**2
+                ssq[i] = ssq[i] + (listX[j][i] * wts[j])**2
     else:
         for i in range(p):
             for j in range(n):
-                ssq[i] = ssq[i] + (X[j][i])**2
+                ssq[i] = ssq[i] + (listX[j][i])**2
     return ssq        
+
+def aslist(X):
+    if type(X) == type([]):
+        listX = X
+    else:
+        listX = [x for x in X]
+    return listX    
+
 
 """
 def _create_adj(DTYPE_int_t p):
@@ -105,8 +129,6 @@ def _compute_Lbeta(np.ndarray[DTYPE_int_t, ndim=2] adj,
     return -2*linear_term, quad_term
 
 
-
-
 def _mult_Lbeta(np.ndarray[DTYPE_int_t, ndim=2] adj,
                  np.ndarray[DTYPE_int_t, ndim=1] nadj,
                  np.ndarray[DTYPE_float_t, ndim=1] beta):
@@ -130,9 +152,71 @@ def _mult_Lbeta(np.ndarray[DTYPE_int_t, ndim=2] adj,
 
     return 2*total
 
-cdef DTYPE_int_t coefficientCheck(np.ndarray[DTYPE_float_t, ndim=1] bold,
-                                  np.ndarray[DTYPE_float_t, ndim=1] bnew,
-                                  DTYPE_float_t tol):
+
+def soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
+                  DTYPE_float_t delta):
+
+    """
+    Applies the soft-thresholding operation to a vector x with parameter delta
+    """
+
+    cdef np.ndarray[DTYPE_float_t, ndim=1] signs = np.sign(x)
+    cdef np.ndarray[DTYPE_float_t, ndim=1] v = np.fabs(x)-delta
+    cdef DTYPE_int_t n = v.shape[0]
+    cdef np.ndarray[DTYPE_float_t, ndim=1] pos = np.zeros(n)
+    cdef DTYPE_int_t i
+    for i in range(n):
+        if v[i] > 0:
+            pos[i] = 1
+    return signs * v * pos
+
+
+def multlist(X,
+             np.ndarray[DTYPE_float_t, ndim=1] b,
+             DTYPE_int_t transpose=False):
+    
+    """
+    Multiply a matrix whose rows are stored in a list with a vector b.
+    
+    If transpose, then multiply the transpose of the matrix and b
+    """
+    cdef list listX
+    cdef long n = len(X)
+    cdef long p = len(X[0])
+    cdef np.ndarray[DTYPE_float_t, ndim=1] results
+    cdef np.ndarray[DTYPE_float_t, ndim=1] row
+    cdef long i, j
+    
+    listX = aslist(X)
+
+    if transpose:
+        results = np.zeros(p)
+        for i in range(n):
+            row = listX[i]
+            for j in range(p):
+                results[j] = results[j] + row[j]*b[i]
+    else:
+        results = np.zeros(n)
+        for i in range(n):
+            row = listX[i]
+            for j in range(p):
+                results[i] = results[i] + row[j]*b[j]
+    return results
+
+def select_col(list X,
+               DTYPE_int_t n,
+               DTYPE_int_t i):
+
+    cdef np.ndarray[DTYPE_float_t, ndim=1] col = np.empty(n)
+    cdef DTYPE_int_t k
+    for k in range(n):
+        col[k] = X[k][i]
+    return col
+
+
+def coefficientCheck(np.ndarray[DTYPE_float_t, ndim=1] bold,
+                     np.ndarray[DTYPE_float_t, ndim=1] bnew,
+                     DTYPE_float_t tol):
 
    #Check if all coefficients have relative errors < tol
 
@@ -149,9 +233,9 @@ cdef DTYPE_int_t coefficientCheck(np.ndarray[DTYPE_float_t, ndim=1] bold,
 
 
 
-cdef coefficientCheckVal(np.ndarray[DTYPE_float_t, ndim=1] bold,
-                         np.ndarray[DTYPE_float_t, ndim=1] bnew,
-                         DTYPE_float_t tol):
+def coefficientCheckVal(np.ndarray[DTYPE_float_t, ndim=1] bold,
+                        np.ndarray[DTYPE_float_t, ndim=1] bnew,
+                        DTYPE_float_t tol):
         
         #Check if all coefficients have relative errors < tol
         
@@ -175,75 +259,3 @@ cdef coefficientCheckVal(np.ndarray[DTYPE_float_t, ndim=1] bold,
 
         return max_so_far < tol, max_active
 
-                   
-cdef DTYPE_float_t _solve_plin(DTYPE_float_t a,
-                               DTYPE_float_t b,
-                               DTYPE_float_t c):
-    """
-    Find the minimizer of
-
-    a*x**2 + b*x + c*fabs(x)
-
-    for positive constants a, c and arbitrary b.
-    """
-
-    if b < 0:
-        if b > -c:
-            return 0.
-        else:
-            return -(c + b) / (2.*a)
-    else:
-        if c > b:
-            return 0.
-        else:
-            return (c - b) / (2.*a)
-
-def soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
-                  DTYPE_float_t delta):
-
-    """
-    Applies the soft-thresholding operation to a vector x with parameter delta
-    """
-
-    cdef np.ndarray[DTYPE_float_t, ndim=1] signs = np.sign(x)
-    cdef np.ndarray[DTYPE_float_t, ndim=1] v = np.fabs(x)-delta
-    cdef DTYPE_int_t n = v.shape[0]
-    cdef np.ndarray[DTYPE_float_t, ndim=1] pos = np.zeros(n)
-    cdef DTYPE_int_t i
-    for i in range(n):
-        if v[i] > 0:
-            pos[i] = 1
-    return signs * v * pos
-
-
-def multlist(list X,
-             np.ndarray[DTYPE_float_t, ndim=1] b,
-             DTYPE_int_t transpose=False):
-    
-    """
-    Multiply a matrix whose rows are stored in a list with a vector b.
-    
-    If transpose, then multiply the transpose of the matrix and b
-    """
-    
-    cdef long n = len(X)
-    cdef long p = len(X[0])
-    cdef np.ndarray[DTYPE_float_t, ndim=1] results
-    cdef np.ndarray[DTYPE_float_t, ndim=1] row
-    cdef long i, j
-    
-    if transpose:
-        results = np.zeros(p)
-        for i in range(n):
-            row = X[i]
-            for j in range(p):
-                results[j] = results[j] + row[j]*b[i]
-    else:
-        results = np.zeros(n)
-        for i in range(n):
-            row = X[i]
-            for j in range(p):
-                results[i] = results[i] + row[j]*b[j]
-    return results
-
-                                                                                                                    

@@ -1,3 +1,10 @@
+import numpy as np
+
+# Local imports
+
+import subfunctions as sf
+import updates
+import l1smooth
 
 class linmodel(object):
 
@@ -12,7 +19,6 @@ class linmodel(object):
             self.update_resids = kwargs['update_resids']
         else:
             self.update_resids = True
-
 
         self.initialize(data, **kwargs)
     
@@ -36,14 +42,13 @@ class linmodel(object):
 
     coefficients = property(get_coefficients, set_coefficients)
 
-
     def set_response(self,Y):
         if Y is not None:
             self.Y = Y
             if self.update_resids:    
                 self.update_residuals()
             if hasattr(self,'inner'):
-                self.inner = col_inner(self.X,self.Y)
+                self.inner = sf.col_inner(self.X,self.Y)
 
     def get_response(self):
         return self.Y.copy()
@@ -56,7 +61,7 @@ class linmodel(object):
             if self.update_resids:
                 self.update_residuals()
             if hasattr(self,'_ssq'):
-                self._ssq = col_ssq(self.X,self.rowwts)
+                self._ssq = sf.col_ssq(self.X,self.rowwts)
 
     def get_rowweights(self):
         if hasattr(self,'rowwts'):
@@ -64,7 +69,6 @@ class linmodel(object):
         else:
             return None
     rowweights = property(get_rowweights, set_rowweights)
-
 
     def update_residuals(self):
         if hasattr(self,'rowwts'):
@@ -75,11 +79,7 @@ class linmodel(object):
     def get_total_coefs(self):
         return self.beta.shape[0]
     total_coefs = property(get_total_coefs)
-
-
-
-
-    
+   
 class lasso(linmodel):
 
     """
@@ -94,8 +94,6 @@ class lasso(linmodel):
     as a function of beta.
     """
 
-    name = 'lasso'
-
     def initialize(self, data, **kwargs):
         """
         Generate initial tuple of arguments for update.
@@ -107,12 +105,10 @@ class lasso(linmodel):
         else:
             raise ValueError("Data tuple not as expected")
 
-        self._ssq = col_ssq(self.X)
+        self._ssq = sf.col_ssq(self.X)
         self.set_default_coefficients()
         if hasattr(self,'initial_coefs'):
             self.set_coefficients(self.initial_coefs)
-        if 'L' in kwargs:
-            self._L = kwargs['L']
 
     def default_penalty(self):
         """
@@ -124,54 +120,31 @@ class lasso(linmodel):
     def set_default_coefficients(self):
         self.set_coefficients(np.zeros(len(self.X[0])))
 
-    def obj(self,x):
-        x = np.asarray(x)
-        #return ((self.Y - np.dot(self.X,self.beta))**2).sum() / (2.*len(self.Y)) + np.sum(np.fabs(self.beta)) * self.penalties['l1']
-        return ((self.Y - np.dot(self.X,x))**2).sum() / (2.*len(self.Y)) + np.sum(np.fabs(x)) * self.penalties['l1']
+    def obj(self, beta):
+        beta = np.asarray(beta)
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / (2.*len(self.Y)) + np.sum(np.fabs(beta)) * self.penalties['l1']
 
-    def f(self,x):
-        #return ((self.Y - np.dot(self.X,self.beta))**2).sum() / (2.*len(self.Y))
-        x = np.asarray(x)
-        return ((self.Y - np.dot(self.X,x))**2).sum() / (2.*len(self.Y))
+    def f(self, beta):
+        beta = np.asarray(beta)
+        return ((self.Y - np.dot(self.X,beta))**2).sum() / (2.*len(self.Y))
 
+    def gradf(self,beta):
+        beta = np.asarray(beta)
+        return (sf.multlist(self.X,np.dot(self.X, beta),transpose=True) - np.dot(self.Y,self.X)) / (1.*len(self.Y))
 
-    def gradf(self,x):
-        #return (multlist(self.X,np.dot(self.X, self.beta),transpose=True) - np.dot(self.Y,self.X)) / (1.*len(self.Y))
-        x = np.asarray(x)
-        return (multlist(self.X,np.dot(self.X, x),transpose=True) - np.dot(self.Y,self.X)) / (1.*len(self.Y))
-
-    def soft_thresh(self, x, g, L):
-        v = x - g / L
+    def proximal(self, z, g, L):
+        v = z - g / L
         return np.sign(v) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
 
     def smooth(self, L, epsilon):
         return l1smooth.l1smooth(self.gradf, L, epsilon, l1=self.penalties['l1'], f=self.f)
 
-    def _get_L(self):
-        if hasattr(self,'_L'):
-            return self._L
-        else:
-            #Power method
-            v = np.random.normal(0,1,len(self.coefficients))
-            change = np.inf
-            norm_old = 0.
-            while change > 0.01:            
-                v = multlist(self.X,np.dot(self.X, v),transpose=True)
-                norm = np.linalg.norm(v)
-                change = np.fabs(norm-norm_old)
-                norm_old = norm
-                v /= norm
-            return 1.01 * norm / (1.*len(self.Y))
-            
-    L = property(_get_L)
-
-
     def update_cwpath(self,
                       active,
-                      list nonzero,
-                      DTYPE_int_t inner_its = 1,
-                      DTYPE_int_t permute = False,
-                      DTYPE_int_t update_nonzero = False):
+                      nonzero,
+                      inner_its = 1,
+                      permute = False,
+                      update_nonzero = False):
         """
         Update coefficients in active set, returning
         nonzero coefficients.
@@ -179,15 +152,15 @@ class lasso(linmodel):
         if permute:
             active = np.random.permutation(active)
         if len(active):
-            _update_lasso_cwpath(active,
-                                 self.penalties,
-                                 nonzero,
-                                 self.beta,
-                                 self.r,
-                                 self.X,
-                                 self._ssq,
-                                 inner_its,
-                                 update_nonzero)
+            updates._update_lasso_cwpath(active,
+                                         self.penalties,
+                                         nonzero,
+                                         self.beta,
+                                         self.r,
+                                         self.X,
+                                         self._ssq,
+                                         inner_its,
+                                         update_nonzero)
 
                 
 class lasso_wts(linmodel):
@@ -210,11 +183,9 @@ class lasso_wts(linmodel):
         """
         Generate initial tuple of arguments for update.
         """
-        self._ssq = col_ssq(self.X,self.rowweights)
+        self._ssq = sf.col_ssq(self.X,self.rowweights)
         self.penalty = self.default_penalty()
         self.set_coefficients(self.initial_coefs)
-
-
 
     def default_penalty(self):
         """
@@ -261,8 +232,6 @@ class graphnet(linmodel):
 
     """
  
-    name = "graphnet"
-
     def initialize(self, data, **kwargs):
         """
         Generate initial tuple of arguments for update.
@@ -274,7 +243,7 @@ class graphnet(linmodel):
         else:
             raise ValueError("Data tuple not as expected")
 
-        self._ssq = col_ssq(self.X)
+        self._ssq = sf.col_ssq(self.X)
         self.set_default_coefficients()
         if hasattr(self,'initial_coefs'):
             self.set_coefficients(self.initial_coefs)
@@ -348,7 +317,7 @@ class lin_graphnet(linmodel):
         else:
             raise ValueError("Data tuple not as expected")
         
-        self.inner = col_inner(self.X,self.Y)
+        self.inner = sf.col_inner(self.X,self.Y)
         self.set_default_coefficients()
         if hasattr(self,'initial_coefs'):
             self.set_coefficients(self.initial_coefs)
@@ -510,7 +479,7 @@ class graphnet_wts(linmodel):
 
 
         
-        self._ssq = col_ssq(self.X)
+        self._ssq = sf.col_ssq(self.X)
         self.penalty = self.default_penalty()
         self.nadj = _create_nadj(self.adj)
         self.set_default_coefficients()
@@ -584,7 +553,7 @@ class univariate(linmodel):
             self.Y = data[1]
         else:
             raise ValueError("Data tuple not as expected")
-        self.inner = col_inner(self.X, self.Y)
+        self.inner = sf.col_inner(self.X, self.Y)
         self.set_default_coefficients()
 
     def default_penalty(self):
@@ -597,4 +566,4 @@ class univariate(linmodel):
         self.set_coefficients(np.zeros(len(self.X[0])))
 
     def update_direct(self):
-        self.coefficients = soft_threshold(self.inner,self.penalties['l1'])
+        self.coefficients = sf.soft_threshold(self.inner,self.penalties['l1'])
