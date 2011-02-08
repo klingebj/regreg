@@ -1,7 +1,7 @@
 import numpy as np
-from problems import glasso_dual as glasso_dual_dense
+from problems import glasso_signal_approximator as glasso_dense
 
-class glasso_signal_approximator(glasso_dual_dense):
+class glasso_signal_approximator(glasso_dense):
 
     """
     LASSO problem with one penalty parameter

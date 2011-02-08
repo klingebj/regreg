@@ -141,7 +141,7 @@ def test_linear_trend(n,l1=2.,**control):
 
     beta, _ = opt1.output()
     X = np.arange(n)
-    if plot:
+    if control['plot']:
         pylab.clf()
         pylab.step(X, beta, linewidth=3, c='red')
         pylab.scatter(X, Y)
