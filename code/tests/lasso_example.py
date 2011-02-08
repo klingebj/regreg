@@ -66,7 +66,7 @@ def test_lasso(X=None,Y=None,l1=5., **control):
     print "Times", ts1, ts2, ts3, ts4
 
 
-def test_fused_lasso(n,l1=2.,epsilon=1e-1,**control):
+def test_fused_lasso(n,l1=2.,**control):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     M = np.linalg.eigvalsh(np.dot(D.T, D)).max() 

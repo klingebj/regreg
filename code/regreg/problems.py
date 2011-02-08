@@ -42,7 +42,6 @@ class linmodel(object):
 
     def get_coefficients(self):
         return self.beta.copy()
-
     coefficients = property(get_coefficients, set_coefficients)
 
     def set_response(self,Y):
@@ -79,10 +78,6 @@ class linmodel(object):
         else:
             self.r = self.Y - np.dot(self.X,self.beta)
 
-    def get_total_coefs(self):
-        return self.beta.shape[0]
-    total_coefs = property(get_total_coefs)
-   
 class lasso(linmodel):
 
     """
