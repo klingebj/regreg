@@ -2,23 +2,23 @@ import numpy as np
 import regreg, time
 import scipy.optimize
 
-X = np.load('X.npy')
-Y = np.load('Y.npy')
-N = 50
-p = 1000
-#X = np.random.normal(0,1,p*N).reshape((N,p))
-#Y = np.random.normal(0,1,N)
-Xlist = [x for x in X]
-
-XtX = np.dot(X.T, X)
-M = np.linalg.eigvalsh(XtX).max() / (1*len(Y))
-
 import regreg.regression as regreg
 reload(regreg)
 import regreg.problems as problems
 reload(problems)
         
 def test_lasso(X=X,Y=Y,l1=5.,tol=1e-10,M=M,epsilon=1e-1,testit=False):
+
+    X = np.load('X.npy')
+    Y = np.load('Y.npy')
+    N = 50
+    p = 1000
+    #X = np.random.normal(0,1,p*N).reshape((N,p))
+    #Y = np.random.normal(0,1,N)
+    Xlist = [x for x in X]
+
+    XtX = np.dot(X.T, X)
+    M = np.linalg.eigvalsh(XtX).max() / (1*len(Y))
 
     Y += np.dot(X[:,:5], 10 * np.ones(5))
     p1 = problems.lasso((X, Y))
@@ -66,3 +66,78 @@ def test_lasso(X=X,Y=Y,l1=5.,tol=1e-10,M=M,epsilon=1e-1,testit=False):
 
     print "Times", ts1, ts2, ts3, ts4
     stop
+
+def test_fused_lasso(n,l1=2.,tol=1e-10,epsilon=1e-1,plot=False):
+
+    D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    M = np.linalg.eigvalsh(np.dot(D.T, D)).max() 
+
+    Y = np.random.standard_normal(n)
+    Y[int(0.1*n):int(0.3*n)] += 6.
+    p1 = problems.glasso_dual((D, Y))
+    p1.assign_penalty(l1=l1)
+    
+    p2 = problems.glasso_dual((D, Y))
+    p2.assign_penalty(l1=l1)
+
+    t1 = time.time()
+    opt1 = regreg.ISTA(p1)
+    opt1.fit(M,tol=tol, max_its=1500)
+    beta1 = opt1.problem.coefficients
+    t2 = time.time()
+    ts1 = t2-t1
+
+    t1 = time.time()
+    opt2 = regreg.FISTA(p2)
+    opt2.fit(M,tol=tol, max_its=1500)
+    beta2 = opt2.problem.coefficients
+    t2 = time.time()
+    ts2 = t2-t1
+
+    beta, _ = opt2.output()
+    X = np.arange(n)
+    if plot:
+        pylab.clf()
+        pylab.step(X, beta, linewidth=3, c='red')
+        pylab.scatter(X, Y)
+        pylab.show()
+    print "Times", ts1, ts2
+
+def test_sparse_fused_lasso(n,l1=2.,tol=1e-10,epsilon=1e-1,plot=False,
+                            ratio=1.):
+
+    D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    D = np.vstack([D, ratio*np.identity(n)])
+    M = np.linalg.eigvalsh(np.dot(D.T, D)).max() 
+
+    Y = np.random.standard_normal(n)
+    Y[int(0.1*n):int(0.3*n)] += 3.
+    p1 = problems.glasso_dual((D, Y))
+    p1.assign_penalty(l1=l1)
+    
+    p2 = problems.glasso_dual((D, Y))
+    p2.assign_penalty(l1=l1)
+
+    t1 = time.time()
+    opt1 = regreg.ISTA(p1)
+    opt1.fit(M,tol=tol, max_its=1500)
+    beta1 = opt1.problem.coefficients
+    t2 = time.time()
+    ts1 = t2-t1
+
+    t1 = time.time()
+    opt2 = regreg.FISTA(p2)
+    opt2.fit(M,tol=tol, max_its=1500)
+    beta2 = opt2.problem.coefficients
+    t2 = time.time()
+    ts2 = t2-t1
+
+    beta, _ = opt2.output()
+    X = np.arange(n)
+    if plot:
+        pylab.clf()
+        pylab.step(X, beta, linewidth=3, c='red')
+        pylab.scatter(X, Y)
+        pylab.show()
+    print "Times", ts1, ts2
+
