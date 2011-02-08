@@ -7,15 +7,11 @@ reload(regreg)
 import regreg.problems as problems
 reload(problems)
         
-def test_lasso(X=X,Y=Y,l1=5.,tol=1e-10,M=M,epsilon=1e-1,testit=False):
+def test_lasso(X=None,Y=None,l1=5.,tol=1e-10,epsilon=1e-1,testit=False):
 
-    X = np.load('X.npy')
-    Y = np.load('Y.npy')
-    N = 50
-    p = 1000
-    #X = np.random.normal(0,1,p*N).reshape((N,p))
-    #Y = np.random.normal(0,1,N)
-    Xlist = [x for x in X]
+    if X or Y is None:
+        X = np.load('X.npy')
+        Y = np.load('Y.npy')
 
     XtX = np.dot(X.T, X)
     M = np.linalg.eigvalsh(XtX).max() / (1*len(Y))
