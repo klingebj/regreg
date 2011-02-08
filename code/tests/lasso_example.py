@@ -73,7 +73,7 @@ def test_fused_lasso(n,l1=2.,**control):
 
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 6.
-    p1 = problems.glasso_dual((D, Y))
+    p1 = problems.glasso_signal_approximator((D, Y))
     p1.assign_penalty(l1=l1)
     
     t1 = time.time()
@@ -99,7 +99,7 @@ def test_sparse_fused_lasso(n,l1=2.,ratio=1.,**control):
 
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 3.
-    p1 = problems.glasso_dual((D, Y))
+    p1 = problems.glasso_signal_approximator((D, Y))
     p1.assign_penalty(l1=l1)
     
     t1 = time.time()
@@ -129,7 +129,7 @@ def test_linear_trend(n,l1=2.,**control):
     mu[int(0.1*n):int(0.3*n)] += (X[int(0.1*n):int(0.3*n)] - X[int(0.1*n)]) * 6
     mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 2
     Y += mu
-    p1 = problems.glasso_dual((D2, Y))
+    p1 = problems.glasso_signal_approximator((D2, Y))
     p1.assign_penalty(l1=l1)
     
     t1 = time.time()
@@ -161,7 +161,7 @@ def test_sparse_linear_trend(n,l1=2., ratio=0.1, **control):
     mu[int(0.1*n):int(0.3*n)] += (X[int(0.1*n):int(0.3*n)] - X[int(0.1*n)]) * 6
     mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 1.2
     Y += mu
-    p1 = problems.glasso_dual((D, Y))
+    p1 = problems.glasso_signal_approximator((D, Y))
     p1.assign_penalty(l1=l1)
     
     t1 = time.time()

@@ -157,7 +157,7 @@ class lasso(linmodel):
                                          inner_its,
                                          update_nonzero)
 
-class glasso_dual(linmodel):
+class glasso_signal_approximator(linmodel):
 
     """
     LASSO problem with one penalty parameter
@@ -168,7 +168,7 @@ class glasso_dual(linmodel):
        ||y - D'u||^{2}_{2} s.t. \|u\|_{\infty} \leq  \lambda_{1}
        \end{eqnarray}
 
-    as a function of u.
+    as a function of u and returns (y - u, u) as output.
     """
 
     def output(self):
@@ -198,6 +198,7 @@ class glasso_dual(linmodel):
         self.set_default_coefficients()
         if hasattr(self,'initial_coefs'):
             self.set_coefficients(self.initial_coefs)
+        self.update_resids = False
 
     def default_penalty(self):
         """
@@ -221,5 +222,5 @@ class glasso_dual(linmodel):
     def proximal(self, z, g, L):
         v = z - g / L
         l1 = self.penalties['l1']
-        return np.clip(v, -l1, l1)
+        return np.clip(v, -l1/L, l1/L)
 

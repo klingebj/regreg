@@ -25,10 +25,10 @@ def test_fused_lasso(n,l1=2.,**control):
 
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 6.
-    p1 = sproblems.glasso_dual((Dsp, Y))
+    p1 = sproblems.glasso_signal_approximator((Dsp, Y))
     p1.assign_penalty(l1=l1)
 
-    p2 = problems.glasso_dual((D, Y))
+    p2 = problems.glasso_signal_approximator((D, Y))
     p2.assign_penalty(l1=l1)
     
     t1 = time.time()
@@ -66,10 +66,10 @@ def test_sparse_fused_lasso(n,l1=5.,ratio=0.2,**control):
 
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 6.
-    p1 = sproblems.glasso_dual((Dsp, Y))
+    p1 = sproblems.glasso_signal_approximator((Dsp, Y))
     p1.assign_penalty(l1=l1)
 
-    p2 = problems.glasso_dual((D, Y))
+    p2 = problems.glasso_signal_approximator((D, Y))
     p2.assign_penalty(l1=l1)
     
     t1 = time.time()
