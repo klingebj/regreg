@@ -1,25 +1,13 @@
 import numpy as np
 
 from regression import FISTA
-from problems import glasso_signal_approximator, linmodel
+from problems import linmodel
+from signal_approximator import signal_approximator
 
-class glasso(linmodel):
+class generalized_lasso(linmodel):
 
     dualcontrol = {'max_its':50,
                    'tol':1.0e-06}
-
-    def output(self):
-        r = self.Y - np.dot(self.X, self.coefficients) 
-        return self.coefficients, r
-
-    def set_coefficients(self, coefs):
-        if coefs is not None:
-            self.beta = coefs.copy()
-
-    def get_coefficients(self):
-        return self.beta.copy()
-
-    coefficients = property(get_coefficients, set_coefficients)
 
     def initialize(self, data, **kwargs):
         """
@@ -27,7 +15,6 @@ class glasso(linmodel):
         """
         if len(data) == 3:
             self.X = data[0]
-            self.pinvX = np.linalg.pinv(self.X)
             self.D = data[1]
             self.Y = data[2]
             self.n, self.p = self.X.shape
@@ -35,22 +22,28 @@ class glasso(linmodel):
         else:
             raise ValueError("Data tuple not as expected")
 
-        self.dual = glasso_signal_approximator((self.D, self.Y))
+        self.dual = signal_approximator((self.D, self.Y))
         self.dualopt = FISTA(self.dual)
         self.dualM = np.linalg.eigvalsh(np.dot(self.dual.D.T, self.dual.D)).max() 
-        self.set_default_coefficients()
+
         if hasattr(self,'initial_coefs'):
             self.set_coefficients(self.initial_coefs)
+        else:
+            self.set_coefficients(self.default_coefs)
 
-    def default_penalty(self):
+    @property
+    def default_penalties(self):
         """
         Default penalty for Lasso: a single
         parameter problem.
         """
         return np.zeros(1, np.dtype([(l, np.float) for l in ['l1']]))
 
-    def set_default_coefficients(self):
-        self.set_coefficients(np.zeros(self.p))
+    @property
+    def default_coefs(self):
+        return np.zeros(self.p)
+
+    # this is the core generalized LASSO functionality
 
     def obj(self, beta):
         return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(np.dot(self.D, beta))) * self.penalties['l1']
@@ -63,13 +56,10 @@ class glasso(linmodel):
         self.dual.set_response(v)
         self.dual.assign_penalty(l1=self.penalties['l1'] / L)
         self.dualopt.fit(self.dualM, **self.dualcontrol)
-        return self.dualopt.output()[0]
+        return self.dualopt.output[0]
 
-    def assign_penalty(self, **params):
-        """
-        Abstract method for assigning penalty parameters.
-        """
-        penalties = self.penalties.copy()
-        for key in params:
-            penalties[key] = params[key]
-        self.penalties = penalties
+    @property
+    def output(self):
+        r = self.Y - np.dot(self.X, self.coefficients) 
+        return self.coefficients, r
+

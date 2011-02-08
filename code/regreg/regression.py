@@ -1,17 +1,17 @@
 import numpy as np
-import subfunctions as sf
 
 class Regression(object):
 
     def __init__(self, problem):
         self.problem = problem
 
+    @property
     def output(self):
         """
         Return the 'interesting' part of the problem arguments.
         In the regression case, this is the tuple (beta, r).
         """
-        return self.problem.output()
+        return self.problem.output
 
     def fit(self):
         """
@@ -23,7 +23,7 @@ class Regression(object):
         """
         Copy relevant output.
         """
-        coefs, r = self.output()
+        coefs, r = self.output
         return (coefs.copy(), r.copy())
 
 class ISTA(Regression):
@@ -81,7 +81,9 @@ class NesterovSmooth(Regression):
         return f_s
 
 
+import subfunctions as sf
 class CWPath(Regression):
+
 
     def __init__(self, problem, **kwargs):
         self.problem = problem
@@ -117,7 +119,7 @@ class CWPath(Regression):
         """
 
         bold, _ = previous
-        bcurrent, _ = self.output()
+        bcurrent, _ = self.output
 
         if return_worst:
             status, worst = sf.coefficientCheckVal(bold, bcurrent, tol)
