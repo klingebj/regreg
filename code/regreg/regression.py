@@ -11,7 +11,7 @@ class Regression(object):
         Return the 'interesting' part of the problem arguments.
         In the regression case, this is the tuple (beta, r).
         """
-        return self.problem.coefficients, self.problem.r
+        return self.problem.output()
 
     def fit(self):
         """
@@ -33,7 +33,7 @@ class ISTA(Regression):
         itercount = 0
         obj_old = np.inf
         while itercount < max_its:
-            grad = self.problem.gradf(self.problem.coefficients)
+            grad = self.problem.grad(self.problem.coefficients)
             self.problem.beta = self.problem.proximal(self.problem.coefficients,grad,L)
             obj = self.problem.obj(self.problem.coefficients)
             if iter > min_its:
@@ -60,7 +60,7 @@ class FISTA(Regression):
                 break
             obj_cur = f_beta
                     
-            grad =  self.problem.gradf(r)
+            grad =  self.problem.grad(r)
             beta = self.problem.proximal(r, grad, L)
 
             t_new = 0.5 * (1 + np.sqrt(1+4*(t_old**2)))
@@ -76,8 +76,8 @@ class NesterovSmooth(Regression):
     def fit(self,L,tol=1e-4,epsilon=0.1,max_its=100):
         import nesterov_smooth
         p = len(self.problem.coefficients)
-        gradf_s, L_s, f_s = self.problem.smooth(L, epsilon)
-        self.problem.coefficients, l = nesterov_smooth.loop(self.problem.coefficients, gradf_s, L_s, f=f_s, maxiter=max_its, values=True, tol=tol)
+        grad_s, L_s, f_s = self.problem.smooth(L, epsilon)
+        self.problem.coefficients, l = nesterov_smooth.loop(self.problem.coefficients, grad_s, L_s, f=f_s, maxiter=max_its, values=True, tol=tol)
         return f_s
 
 
