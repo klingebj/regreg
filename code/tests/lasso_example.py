@@ -34,21 +34,21 @@ def test_lasso(X=None,Y=None,l1=5., **control):
     t1 = time.time()
     opt1 = regreg.CWPath(p1)
     opt1.fit(tol=1e-6, max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
     t1 = time.time()
     opt2 = regreg.ISTA(p2)
     opt2.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta2 = opt2.problem.coefficients
+    beta2 = opt2.problem.coefs
     t2 = time.time()
     ts2 = t2-t1
 
     t1 = time.time()
     opt3 = regreg.FISTA(p3)
     opt3.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta3 = opt3.problem.coefficients
+    beta3 = opt3.problem.coefs
     t2 = time.time()
     ts3 = t2-t1
 
@@ -58,10 +58,11 @@ def test_lasso(X=None,Y=None,l1=5., **control):
     for eps in epsvec:
         f_s = opt4.fit(M, tol=control['tol'], max_its=50,epsilon=eps)
     f_s = opt4.fit(M, tol=control['tol'], max_its=control['max_its'],epsilon=0.1)
-    beta4 = opt4.problem.coefficients
+    beta4 = opt4.problem.coefs
     t2 = time.time()
     ts4 = t2-t1
 
+    stop
     assert (np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum() <= 1.0e-04)
     print "Times", ts1, ts2, ts3, ts4
 
@@ -79,7 +80,7 @@ def test_fused_lasso(n,l1=2.,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
@@ -105,7 +106,7 @@ def test_sparse_fused_lasso(n,l1=2.,ratio=1.,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
@@ -135,7 +136,7 @@ def test_linear_trend(n,l1=2.,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
@@ -166,7 +167,7 @@ def test_sparse_linear_trend(n,l1=2., ratio=0.1, **control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 

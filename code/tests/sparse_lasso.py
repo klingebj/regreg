@@ -34,14 +34,14 @@ def test_fused_lasso(n,l1=2.,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
     t1 = time.time()
     opt2 = regreg.FISTA(p2)
     opt2.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta2 = opt2.problem.coefficients
+    beta2 = opt2.problem.coefs
     t2 = time.time()
     ts2 = t2-t1
 
@@ -75,14 +75,14 @@ def test_sparse_fused_lasso(n,l1=5.,ratio=0.2,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
     t1 = time.time()
     opt2 = regreg.FISTA(p2)
     opt2.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta2 = opt2.problem.coefficients
+    beta2 = opt2.problem.coefs
     t2 = time.time()
     ts2 = t2-t1
 

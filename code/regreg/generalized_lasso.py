@@ -9,7 +9,7 @@ class generalized_lasso(linmodel):
     dualcontrol = {'max_its':50,
                    'tol':1.0e-06}
 
-    def initialize(self, data, **kwargs):
+    def initialize(self, data):
         """
         Generate initial tuple of arguments for update.
         """
@@ -27,9 +27,9 @@ class generalized_lasso(linmodel):
         self.dualM = np.linalg.eigvalsh(np.dot(self.dual.D.T, self.dual.D)).max() 
 
         if hasattr(self,'initial_coefs'):
-            self.set_coefficients(self.initial_coefs)
+            self.set_coefs(self.initial_coefs)
         else:
-            self.set_coefficients(self.default_coefs)
+            self.set_coefs(self.default_coefs)
 
     @property
     def default_penalties(self):
@@ -60,6 +60,6 @@ class generalized_lasso(linmodel):
 
     @property
     def output(self):
-        r = self.Y - np.dot(self.X, self.coefficients) 
-        return self.coefficients, r
+        r = self.Y - np.dot(self.X, self.coefs) 
+        return self.coefs, r
 

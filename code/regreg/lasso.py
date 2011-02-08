@@ -31,13 +31,15 @@ class lasso(linmodel):
 
     def obj(self, beta):
         beta = np.asarray(beta)
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / (2.*len(self.Y)) + np.sum(np.fabs(beta)) * self.penalties['l1']
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(beta)) * self.penalties['l1']
 
 class gengrad(lasso):
     
-    def grad(self,beta):
+    def grad(self, beta):
         beta = np.asarray(beta)
-        return (sf.multlist(self.X,np.dot(self.X, beta),transpose=True) - np.dot(self.Y,self.X)) / (1.*len(self.Y))
+        XtXbeta = np.dot(self.X.T, np.dot(self.X, beta))
+        return XtXbeta - np.dot(self.Y,self.X)
+# rowbased code: (sf.multlist(self.X,np.dot(self.X, beta),transpose=True) - np.dot(self.Y,self.X))
 
     def proximal(self, z, g, L):
         v = z - g / L
@@ -63,28 +65,28 @@ class cwpath(lasso):
 
     # Residuals must be updated if coefs change
 
-    def set_coefficients(self, coefs):
-        if coefs is not None:
-            self.beta = coefs
-            self.update_residuals()
+    def set_coefs(self, coefs):
+        self._coefs = coefs
+        self.update_residuals()
 
-    def get_coefficients(self):
-        return self.beta
-    coefficients = property(get_coefficients, set_coefficients)
+    def get_coefs(self):
+        if not hasattr(self, "_coefs"):
+            self._coefs = self.default_coefs
+        return self._coefs
+    coefs = property(get_coefs, set_coefs)
 
     def update_residuals(self):
-        self.r = self.Y - np.dot(self.X,self.beta)
+        self.r = self.Y - np.dot(self.X,self.coefs)
 
     # Inner products also must be updated if inner response changes
     def set_response(self,Y):
-        if Y is not None:
-            self.Y = Y
-            self.update_residuals()
-            self.inner = sf.col_inner(self.X,self.Y)
+        self._Y = Y
+        self.update_residuals()
+        self.inner = sf.col_inner(self.X,self._Y)
 
     def get_response(self):
-        return self.Y
-    response = property(get_response, set_response)
+        return self._Y
+    Y = property(get_response, set_response)
 
     def update_cwpath(self,
                       active,
@@ -93,8 +95,8 @@ class cwpath(lasso):
                       permute = False,
                       update_nonzero = False):
         """
-        Update coefficients in active set, returning
-        nonzero coefficients.
+        Update coefs in active set, returning
+        nonzero coefs.
         """
         if permute:
             active = np.random.permutation(active)
@@ -102,7 +104,7 @@ class cwpath(lasso):
             updates._update_lasso_cwpath(active,
                                          self.penalties,
                                          nonzero,
-                                         self.beta,
+                                         self.coefs,
                                          self.r,
                                          self.X,
                                          self._ssq,
