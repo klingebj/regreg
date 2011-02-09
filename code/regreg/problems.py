@@ -4,7 +4,8 @@ class linmodel(object):
 
     @property
     def output(self):
-        return self.coefs, self.r
+        r = self.Y - np.dot(self.X, self.coefs)
+        return self.coefs, r
 
     def __init__(self, data, penalties={}, initial_coefs=None):
         

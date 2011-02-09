@@ -77,11 +77,10 @@ def test_lasso(X=None,Y=None,l1=5., **control):
     opt4 = regreg.NesterovSmooth(p4)
     for eps in epsvec:
         f_s = opt4.fit(M, tol=control['tol'], max_its=50,epsilon=eps)
-    f_s = opt4.fit(M, tol=control['tol'], max_its=control['max_its'],epsilon=0.1)
+#    f_s = opt4.fit(M, tol=control['tol'], max_its=control['max_its'],epsilon=0.1)
     beta4 = opt4.problem.coefs
     t2 = time.time()
     ts4 = t2-t1
-
     assert (np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum() <= 1.0e-04)
     print "Times", ts1, ts2, ts3, ts4
 
