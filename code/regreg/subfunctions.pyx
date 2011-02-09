@@ -257,5 +257,5 @@ def coefficientCheckVal(np.ndarray[DTYPE_float_t, ndim=1] bold,
         if max_active > max_so_far:
             max_so_far = max_active
 
-        return max_so_far < tol, max_active
+        return max_so_far <= tol, max_active
 

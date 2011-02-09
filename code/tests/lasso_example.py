@@ -41,9 +41,10 @@ def test_lasso(X=None,Y=None,l1=5., control=control):
     M = np.linalg.eigvalsh(XtX).max() #/ (1*len(Y))
 
     Y += np.dot(X[:,:5], 10 * np.ones(5))
+
     p1 = lasso.cwpath((X, Y))
     p1.assign_penalty(l1=l1*X.shape[0])
-    
+
     p2 = lasso.gengrad((X, Y))
     p2.assign_penalty(l1=l1*X.shape[0])
 
@@ -55,7 +56,7 @@ def test_lasso(X=None,Y=None,l1=5., control=control):
 
     t1 = time.time()
     opt1 = regreg.CWPath(p1)
-    opt1.fit(tol=1e-6, max_its=control['max_its'])
+    opt1.fit(tol=1e-8, max_its=control['max_its'])
     beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
@@ -83,7 +84,15 @@ def test_lasso(X=None,Y=None,l1=5., control=control):
     beta4 = opt4.problem.coefs
     t2 = time.time()
     ts4 = t2-t1
+
     nose.tools.assert_true((np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum() <= 1.0e-04))
+
+    """
+    print beta1
+    print beta2
+    print beta3
+    print p3.obj(beta1), p3.obj(beta2), p3.obj(beta3)
+    """
     print "Times", ts1, ts2, ts3, ts4
 
 

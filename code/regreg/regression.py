@@ -26,15 +26,14 @@ class ISTA(Regression):
     def fit(self,L,tol=1e-4,max_its=100,min_its=5):
 
         itercount = 0
-        obj_old = np.inf
+        obj_cur = np.inf
         while itercount < max_its:
+            f_beta = self.problem.obj(self.problem.coefs)
             grad = self.problem.grad(self.problem.coefs)
             self.problem.coefs = self.problem.proximal(self.problem.coefs, grad, L)
             obj = self.problem.obj(self.problem.coefs)
-            if iter > min_its:
-                if np.fabs((obj-obj_old))/(obj_old) < tol:
-                    break
-            obj_old = obj
+            if np.fabs((obj_cur - f_beta) / f_beta) < tol and itercount >= miniter:
+                break
             itercount += 1
         if self.debug:
             print "ISTA used", itercount, "iterations"
