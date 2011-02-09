@@ -7,17 +7,13 @@ import pylab, time
 import scipy.sparse
 
 import regreg.regression as regreg
-reload(regreg)
-import regreg.sparse as sproblems
-reload(sproblems)
-import regreg.problems as problems
-reload(problems)
+import regreg.signal_approximator as sapprox
         
 control = {'max_its':1500,
            'tol':1.0e-10,
            'plot':True}
 
-def test_fused_lasso(n,l1=2.,**control):
+def fused_lasso(n=100,l1=2.,**control):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     Dsp = scipy.sparse.lil_matrix(D)
@@ -25,10 +21,10 @@ def test_fused_lasso(n,l1=2.,**control):
 
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 6.
-    p1 = sproblems.glasso_signal_approximator((Dsp, Y))
+    p1 = sapprox.gengrad_sparse((Dsp, Y))
     p1.assign_penalty(l1=l1)
 
-    p2 = problems.glasso_signal_approximator((D, Y))
+    p2 = sapprox.gengrad((D, Y))
     p2.assign_penalty(l1=l1)
     
     t1 = time.time()
@@ -45,8 +41,8 @@ def test_fused_lasso(n,l1=2.,**control):
     t2 = time.time()
     ts2 = t2-t1
 
-    beta1, _ = opt1.output()
-    beta2, _ = opt2.output()
+    beta1, _ = opt1.output
+    beta2, _ = opt2.output
     np.testing.assert_almost_equal(beta1, beta2)
 
     X = np.arange(n)
@@ -57,7 +53,13 @@ def test_fused_lasso(n,l1=2.,**control):
         pylab.scatter(X, Y)
         pylab.show()
 
-def test_sparse_fused_lasso(n,l1=5.,ratio=0.2,**control):
+def test_fused_lasso():
+    p = control['plot']
+    control['plot'] = False
+    fused_lasso(**control)
+    control['plot'] = p
+
+def sparse_fused_lasso(n=100,l1=5.,ratio=0.2,**control):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D = np.vstack([D, ratio*np.identity(n)])
@@ -66,10 +68,10 @@ def test_sparse_fused_lasso(n,l1=5.,ratio=0.2,**control):
 
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 6.
-    p1 = sproblems.glasso_signal_approximator((Dsp, Y))
+    p1 = sapprox.gengrad_sparse((Dsp, Y))
     p1.assign_penalty(l1=l1)
 
-    p2 = problems.glasso_signal_approximator((D, Y))
+    p2 = sapprox.gengrad((D, Y))
     p2.assign_penalty(l1=l1)
     
     t1 = time.time()
@@ -86,8 +88,8 @@ def test_sparse_fused_lasso(n,l1=5.,ratio=0.2,**control):
     t2 = time.time()
     ts2 = t2-t1
 
-    beta1, _ = opt1.output()
-    beta2, _ = opt2.output()
+    beta1, _ = opt1.output
+    beta2, _ = opt2.output
     np.testing.assert_almost_equal(beta1, beta2)
 
     X = np.arange(n)
@@ -97,3 +99,9 @@ def test_sparse_fused_lasso(n,l1=5.,ratio=0.2,**control):
         pylab.step(X, beta2, linewidth=3, c='green')
         pylab.scatter(X, Y)
         pylab.show()
+
+def test_sparse_fused_lasso():
+    p = control['plot']
+    control['plot'] = False
+    sparse_fused_lasso(**control)
+    control['plot'] = p

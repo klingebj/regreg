@@ -1,0 +1,218 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Neuroimaging in Python &mdash; RegReg Documentation</title>
+    <link rel="stylesheet" href="../../_static/regreg.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="RegReg Documentation" href="../../index.html" />
+  <meta name="keywords" content="nipy, neuroimaging, python, neuroscience, time
+				 series">
+
+  </head>
+  <body>
+<div style="background-color: white; text-align: left; padding: 10px 10px 15px 15px">
+ <a href="../../index.html">
+  <img src="../../_static/reggie2.png" alt="NIPY logo"  border="0" />
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../../np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+  <li><a href="../../index.html">NIPY home</a> |&nbsp;</li>
+ 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+
+  
+<h4> Site Navigation </h4>
+  <ul>
+    <li><a href="../../documentation.html">Documentation</a></li>
+    <li><a href="../../devel/index.html">Development</a></li>
+  </ul>
+
+<h4> NIPY Community </h4>
+  <ul class="simple">
+    <li><a class="reference external"
+	href="http://nipy.sourceforge.net/">Community Home</a></li>
+    <li><a class="reference external"
+	href="http://nipy.sourceforge.net/software/projects/">NIPY Projects</a></li>
+    <li><a class="reference external"
+	href="http://mail.scipy.org/mailman/listinfo/nipy-devel">Mailing List</a></li>
+    <li><a class="reference external"
+	href="http://nipy.sourceforge.net/software/license/index.html">License</a></li>
+  </ul>
+
+
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">mask</a><ul>
+<li><a class="reference internal" href="#module-regreg.mask">Module: <tt class="docutils literal"><span class="pre">mask</span></tt></a></li>
+<li><a class="reference internal" href="#functions">Functions</a></li>
+</ul>
+</li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/api/generated/regreg.mask.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+
+<div id="searchbox-ml" style="display: none">
+  <h3>Search mailing list archive</h3>
+  <script type="text/javascript">
+    function mlsearch(curobj)
+    {
+    curobj.q.value="site:http://mail.scipy.org/pipermail/nipy-devel/ "+curobj.userquery.value
+    }
+  </script>
+  <form action="http://www.google.com/search" method="get" onSubmit="mlsearch(this)">
+    <input name="userquery" size="13" type="text" /> <input type="submit" value="Go" />
+    <input name="q" type="hidden" />
+  </form>
+</div>
+  
+<div id="searchbox-site" style="display: none">
+  <h3>Search this site</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="13" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox-ml').show(0);</script>
+<script type="text/javascript">$('#searchbox-site').show(0);</script>
+
+
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="mask">
+<h1>mask<a class="headerlink" href="#mask" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-regreg.mask">
+<span id="module-mask"></span><h2>Module: <tt class="xref py py-mod docutils literal"><span class="pre">mask</span></tt><a class="headerlink" href="#module-regreg.mask" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="regreg.mask.adj_from_3dmask">
+<tt class="descclassname">regreg.mask.</tt><tt class="descname">adj_from_3dmask</tt><big>(</big><em>mask</em>, <em>num_time_points</em>, <em>numx=1</em>, <em>numy=1</em>, <em>numz=1</em>, <em>regions=None</em><big>)</big><a class="headerlink" href="#regreg.mask.adj_from_3dmask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct adjacency array from .nii mask file</p>
+<p>INPUT:</p>
+<p>maskfile: Path to mask file (.nii)</p>
+<p>Other parameters are passed directly to prepare_adj (see that function for docs)</p>
+<p>OUTPUT:</p>
+<p>adj: An array containing adjacency information</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="regreg.mask.adj_from_nii">
+<tt class="descclassname">regreg.mask.</tt><tt class="descname">adj_from_nii</tt><big>(</big><em>maskfile</em>, <em>num_time_points</em>, <em>numt=0</em>, <em>numx=1</em>, <em>numy=1</em>, <em>numz=1</em>, <em>regions=None</em><big>)</big><a class="headerlink" href="#regreg.mask.adj_from_nii" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="regreg.mask.convert_to_array">
+<tt class="descclassname">regreg.mask.</tt><tt class="descname">convert_to_array</tt><big>(</big><em>adj</em><big>)</big><a class="headerlink" href="#regreg.mask.convert_to_array" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="regreg.mask.prepare_adj">
+<tt class="descclassname">regreg.mask.</tt><tt class="descname">prepare_adj</tt><big>(</big><em>mask</em>, <em>numx=1</em>, <em>numy=1</em>, <em>numz=1</em>, <em>regions=None</em>, <em>return_array=True</em><big>)</big><a class="headerlink" href="#regreg.mask.prepare_adj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return adjacency list, where the voxels are considered
+neighbors if they fall in a ball of radius numt, numx, numy, and numz
+for time, x position, y position, and z position respectively.</p>
+<p>INPUT:</p>
+<p>X: a 5-dimensional ndarray. The first index is trial, the second index is time,
+the third index is x position, the fourth index is y position and the fifth
+position is z position.</p>
+<p>mask: a binary 4-dimensional ndarray, the same size as X[0,:,:,:,:] where
+1 indicates that the voxel-timepoint is included and 0 indicates that it is
+excluded. NOTE: Usually the mask is thought of as a 3-dimensional ndarray, since
+it is uniform across time.</p>
+<p>regions: a multivalued array the same size as the mask that indicates different
+regions in the spatial structure. No adjacency edges will be made across region
+boundaries.</p>
+<p>numt: an integer, the radius of the &#8220;neighborhood ball&#8221; in the t direction
+numx: an integer, the radius of the &#8220;neighborhood ball&#8221; in the x direction                                                                
+numy: an integer, the radius of the &#8220;neighborhood ball&#8221; in the y direction                                                                
+numz: an integer, the radius of the &#8220;neighborhood ball&#8221; in the z direction</p>
+<p>OUTPUT:</p>
+<p>newX: The matrix X reshaped as a 2-dimensional array for analysis
+adj: The adjacency list associated with newX</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="regreg.mask.test_prep">
+<tt class="descclassname">regreg.mask.</tt><tt class="descname">test_prep</tt><big>(</big><em>nt=0</em>, <em>nx=1</em>, <em>ny=1</em>, <em>nz=1</em><big>)</big><a class="headerlink" href="#regreg.mask.test_prep" title="Permalink to this definition">¶</a></dt>
+<dd><p>Let&#8217;s make this into a proper test...... what should newa, adj be in this case?</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../../np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+  <li><a href="../../index.html">NIPY home</a> |&nbsp;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, B. Klingenberg &amp; J. Taylor.
+      Last updated on Feb 09, 2011.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.4.
+    </div>
+  </body>
+</html>

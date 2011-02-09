@@ -1,5 +1,5 @@
 import numpy as np
-from problems import glasso_signal_approximator as glasso_dense
+from generalized_lasso import generalized_lasso as glasso_dense
 
 class glasso_signal_approximator(glasso_dense):
 

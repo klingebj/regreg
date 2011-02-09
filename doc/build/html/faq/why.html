@@ -1,0 +1,310 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Neuroimaging in Python &mdash; RegReg Documentation</title>
+    <link rel="stylesheet" href="../_static/regreg.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.0.1.dev',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="RegReg Documentation" href="../index.html" />
+    <link rel="up" title="FAQ" href="index.html" />
+    <link rel="next" title="Licensing" href="licensing.html" />
+    <link rel="prev" title="FAQ" href="index.html" />
+  <meta name="keywords" content="nipy, neuroimaging, python, neuroscience, time
+				 series">
+
+  </head>
+  <body>
+<div style="background-color: white; text-align: left; padding: 10px 10px 15px 15px">
+ <a href="../index.html">
+  <img src="../_static/reggie2.png" alt="NIPY logo"  border="0" />
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="licensing.html" title="Licensing"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="FAQ"
+             accesskey="P">previous</a> |</li>
+  <li><a href="../index.html">NIPY home</a> |&nbsp;</li>
+
+          <li><a href="../documentation.html" >RegReg documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">FAQ</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+
+  
+<h4> Site Navigation </h4>
+  <ul>
+    <li><a href="../documentation.html">Documentation</a></li>
+    <li><a href="../devel/index.html">Development</a></li>
+  </ul>
+
+<h4> NIPY Community </h4>
+  <ul class="simple">
+    <li><a class="reference external"
+	href="http://nipy.sourceforge.net/">Community Home</a></li>
+    <li><a class="reference external"
+	href="http://nipy.sourceforge.net/software/projects/">NIPY Projects</a></li>
+    <li><a class="reference external"
+	href="http://mail.scipy.org/mailman/listinfo/nipy-devel">Mailing List</a></li>
+    <li><a class="reference external"
+	href="http://nipy.sourceforge.net/software/license/index.html">License</a></li>
+  </ul>
+
+
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Why ...</a><ul>
+<li><a class="reference internal" href="#why-nipy">Why nipy?</a></li>
+<li><a class="reference internal" href="#why-python">Why python?</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">FAQ</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="licensing.html"
+                        title="next chapter">Licensing</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/faq/why.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+
+<div id="searchbox-ml" style="display: none">
+  <h3>Search mailing list archive</h3>
+  <script type="text/javascript">
+    function mlsearch(curobj)
+    {
+    curobj.q.value="site:http://mail.scipy.org/pipermail/nipy-devel/ "+curobj.userquery.value
+    }
+  </script>
+  <form action="http://www.google.com/search" method="get" onSubmit="mlsearch(this)">
+    <input name="userquery" size="13" type="text" /> <input type="submit" value="Go" />
+    <input name="q" type="hidden" />
+  </form>
+</div>
+  
+<div id="searchbox-site" style="display: none">
+  <h3>Search this site</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="13" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox-ml').show(0);</script>
+<script type="text/javascript">$('#searchbox-site').show(0);</script>
+
+
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="why">
+<span id="why-faq"></span><h1>Why ...<a class="headerlink" href="#why" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="why-nipy">
+<h2>Why nipy?<a class="headerlink" href="#why-nipy" title="Permalink to this headline">¶</a></h2>
+<p>We are writing NIPY because we hope that it will solve several
+problems in the field at the moment.</p>
+<p>We are concentrating on FMRI analysis, so we&#8217;ll put the case for that
+part of neuroimaging for now.</p>
+<p>There are several good FMRI analysis packages already - for example
+<em class="xref std std-term">SPM</em>, <em class="xref std std-term">FSL</em> and <em class="xref std std-term">AFNI</em>.  For each of these you
+can download the source code.</p>
+<p>Like SPM, AFNI and FSL, we think source code is essential for understanding and
+development.</p>
+<p>With these packages you can do many analyses.  Some problems are that:</p>
+<ul class="simple">
+<li>The packages don&#8217;t mix easily.  You&#8217;ll have to write your own
+scripts to mix between them; this is time-consuming and error-prone,
+because you will need good understanding of each package</li>
+<li>Because they don&#8217;t mix, researchers usually don&#8217;t try and search out
+the best algorithm for their task - instead they rely on the
+software that they are used to</li>
+<li>Each package has its own user community, so it&#8217;s a little more
+difficult to share software and ideas</li>
+<li>The core development of each language belongs in a single lab.</li>
+</ul>
+<p>Another, more general problem, is planning for the future.  We need a
+platform that can be the basis for large scale shared development.
+For various reasons, it isn&#8217;t obvious to us that any of these three is
+a good choice for common, shared development.  In particular, we think
+that Python is the obvious choice for a large open-source software
+project.  By comparison, matlab is not sufficiently general or
+well-designed as a programming language, and C / C++ are too hard and
+slow for scientific programmers to read or write. See <a class="reference internal" href="#why-python">why-python</a> for
+this argument in more detail.</p>
+<p>We started NIPY because we want to be able to:</p>
+<ul class="simple">
+<li>support an open collaborative development environment.  To do this,
+we will have to make our code very easy to understand, modify and
+extend.  If make our code available, but we are the only people who
+write or extend it, in practice, that is closed sofware.</li>
+<li>make the tools that allow developers to pick up basic building
+blocks for common tasks such as registration and statistics, and
+build new tools on top.</li>
+<li>write a scripting interface that allows you to mix in routines from
+the other packages that you like or that you think are better than
+the ones we have.</li>
+<li>design ways of interacting with the data and analysis stream that
+help you organize both.  That way you can more easily keep track of
+your analyses.  We also hope this will make analyses easier to run
+in parallel, and therefore much faster.</li>
+</ul>
+</div>
+<div class="section" id="why-python">
+<span id="id1"></span><h2>Why python?<a class="headerlink" href="#why-python" title="Permalink to this headline">¶</a></h2>
+<p>The choice of programming language has many scientific and practical
+consequences. Matlab is an example of a high-level language. Languages
+are considered high level if they are able to express a large amount
+of functionality per line of code; other examples of high level
+languages are Python, Perl, Octave, R and IDL. In contrast, C is a
+low-level language. Low level languages can achieve higher execution
+speed, but at the cost of code that is considerably more difficult to
+read. C++ and Java occupy the middle ground sharing the advantages and
+the disadvantages of both levels.</p>
+<p>Low level languages are a particularly ill-suited for exploratory
+scientific computing, because they present a high barrier to access by
+scientists that are not specialist programmers. Low-level code is
+difficult to read and write, which slows development
+(<a class="reference internal" href="#prechelt2000ecs">[Prechelt2000ECS]</a>, <a class="reference internal" href="#boehm1981">[boehm1981]</a>, <a class="reference internal" href="#walston1977mpm">[Walston1977MPM]</a>) and makes it more
+difficult to understand the implementation of analysis
+algorithms. Ultimately this makes it less likely that scientists will
+use these languages for development, as their time for learning a new
+language or code base is at a premium. Low level languages do not
+usually offer an interactive command line, making data exploration
+much more rigid. Finally, applications written in low level languages
+tend to have more bugs, as bugs per line of code is approximately
+constant across many languages [brooks78].</p>
+<p>In contrast, interpreted, high-level languages tend to have
+easy-to-read syntax and the native ability to interact with data
+structures and objects with a wide range of built-in
+functionality. High level code is designed to be closer to the level
+of the ideas we are trying to implement, so the developer spends more
+time thinking about what the code does rather than how to write
+it. This is particularly important as it is researchers and scientists
+who will serve as the main developers of scientific analysis
+software. The fast development time of high-level programs makes it
+much easier to test new ideas with prototypes. Their interactive
+nature allows researchers flexible ways to explore their data.</p>
+<p>SPM is written in Matlab, which is a high-level language specialized
+for matrix algebra. Matlab code can be quick to develop and is
+relatively easy to read. However, Matlab is not suitable as a basis
+for a large-scale common development environment. The language is
+proprietary and the source code is not available, so researchers do
+not have access to core algorithms making bugs in the core very
+difficult to find and fix. Many scientific developers prefer to write
+code that can be freely used on any computer and avoid proprietary
+languages. Matlab has structural deficiencies for large projects: it
+lacks scalability and is poor at managing complex data structures
+needed for neuroimaging research. While it has the ability to
+integrate with other languages (e.g., C/C++ and FORTRAN) this feature
+is quite impoverished. Furthermore, its memory handling is weak and it
+lacks pointers - a major problem for dealing with the very large data
+structures that are often needed in neuroimaging. Matlab is also a
+poor choice for many applications such as system tasks, database
+programming, web interaction, and parallel computing. Finally, Matlab
+has weak GUI tools, which are crucial to researchers for productive
+interactions with their data.</p>
+<table class="docutils citation" frame="void" id="boehm1981" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id3">[boehm1981]</a></td><td>Boehm, Barry W. (1981) <em>Software Engineering Economics</em>. Englewood
+Cliffs, NJ: Prentice-Hall.</td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="prechelt2000ecs" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id2">[Prechelt2000ECS]</a></td><td>Prechelt, Lutz. 2000. An Empirical Comparison of Seven Programming
+Languages. <em>IEEE Computer</em> 33, 23&#8211;29.</td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="walston1977mpm" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id4">[Walston1977MPM]</a></td><td>Walston, C E, and C P Felix. 1977. A Method of Programming
+Measurement and Estimation. <em>IBM Syst J</em> 16, 54-73.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="licensing.html" title="Licensing"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="FAQ"
+             >previous</a> |</li>
+  <li><a href="../index.html">NIPY home</a> |&nbsp;</li>
+
+          <li><a href="../documentation.html" >RegReg documentation</a> &raquo;</li>
+          <li><a href="index.html" >FAQ</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, B. Klingenberg &amp; J. Taylor.
+      Last updated on Feb 09, 2011.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.4.
+    </div>
+  </body>
+</html>

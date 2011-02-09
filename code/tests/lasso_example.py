@@ -5,11 +5,13 @@ import regreg.regression as regreg
 import regreg.lasso as lasso
 import regreg.signal_approximator as glasso
         
+import nose.tools
+
 control = {'max_its':1500,
            'tol':1.0e-10,
            'plot':False}
 
-def test_FISTA(X=None,Y=None,l1=5., **control):
+def test_FISTA(X=None,Y=None,l1=5., control=control):
 
     if X or Y is None:
         X = np.load('X.npy')
@@ -29,7 +31,7 @@ def test_FISTA(X=None,Y=None,l1=5., **control):
     ts3 = t2-t1
 
 
-def test_lasso(X=None,Y=None,l1=5., **control):
+def test_lasso(X=None,Y=None,l1=5., control=control):
 
     if X or Y is None:
         X = np.load('X.npy')
@@ -81,11 +83,11 @@ def test_lasso(X=None,Y=None,l1=5., **control):
     beta4 = opt4.problem.coefs
     t2 = time.time()
     ts4 = t2-t1
-    assert (np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum() <= 1.0e-04)
+    nose.tools.assert_true((np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum() <= 1.0e-04))
     print "Times", ts1, ts2, ts3, ts4
 
 
-def test_fused_lasso(n,l1=2.,**control):
+def test_fused_lasso(n=400,l1=2.,control=control):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     M = np.linalg.eigvalsh(np.dot(D.T, D)).max() 
@@ -110,7 +112,7 @@ def test_fused_lasso(n,l1=2.,**control):
         pylab.scatter(X, Y)
         pylab.show()
 
-def test_sparse_fused_lasso(n,l1=2.,ratio=1.,**control):
+def test_sparse_fused_lasso(n=500,l1=2.,ratio=1.,control=control):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D = np.vstack([D, ratio*np.identity(n)])
@@ -136,7 +138,7 @@ def test_sparse_fused_lasso(n,l1=2.,ratio=1.,**control):
         pylab.scatter(X, Y)
         pylab.show()
 
-def test_linear_trend(n,l1=2.,**control):
+def test_linear_trend(n=500,l1=2.,control=control):
 
     D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D2 = np.dot(D1[1:,1:], D1)
@@ -166,7 +168,7 @@ def test_linear_trend(n,l1=2.,**control):
         pylab.scatter(X, Y)
         pylab.show()
 
-def test_sparse_linear_trend(n,l1=2., ratio=0.1, **control):
+def test_sparse_linear_trend(n=500,l1=2., ratio=0.1, control=control):
 
     D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D2 = np.dot(D1[1:,1:], D1)
@@ -197,12 +199,12 @@ def test_sparse_linear_trend(n,l1=2., ratio=0.1, **control):
         pylab.plot(X, mu)
         pylab.show()
 
-def test_all(**control):
-    test_lasso(**control)
+def all(control=control):
+    test_lasso(control=control)
     for i, f in enumerate([test_fused_lasso,
                         test_sparse_fused_lasso,
                         test_linear_trend,
                         test_sparse_linear_trend]):
         if control['plot']:
             pylab.figure(num=i+1)
-        f(100,**control)
+        f(100,control=control)

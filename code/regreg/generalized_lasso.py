@@ -63,3 +63,8 @@ class generalized_lasso(linmodel):
         r = self.Y - np.dot(self.X, self.coefs) 
         return self.coefs, r
 
+# The API is to have a gengrad class in each module.
+# In this module, this is the signal_approximator
+
+gengrad = generalized_lasso
+

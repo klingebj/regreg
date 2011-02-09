@@ -175,3 +175,8 @@ def james_stein(V, l):
     """
     normV = norm2(V)
     return max(1 - l / normV, 0) * V
+
+# The API is to have a gengrad class in each module.
+# In this module, this is the signal_approximator
+
+gengrad = group_lasso
