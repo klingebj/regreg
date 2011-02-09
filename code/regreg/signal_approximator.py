@@ -4,25 +4,22 @@ import numpy as np
 
 from problems import linmodel
 
-problem_statement = """
+problem_statement = r"""
     The signal approximator problem minimizes the following
-    as a function of :math:`beta`
+    as a function of :math:`\beta`
 
     .. math::
 
-       \begin{eqnarray}
-       \frac{1}{2}\|y - \beta\|^{2}_{2}  + \lambda_1 \|D\beta\|_1\|
-       \end{eqnarray}
+       \frac{1}{2}\|y - \beta\|^{2}_{2}  + \lambda_1 \|D\beta\|_1
 
     It does this by solving the dual problem, which minimizes
     the following as a function of *u*
 
     .. math::
 
-       \begin{eqnarray}
        \frac{1}{2}\|y - D'u\|^{2}_{2}  \ \ \text{s.t.} \ \ \|u\|_{\infty}
        \leq  \lambda_1
-       \end{eqnarray}
+
 """
 
 class signal_approximator(linmodel):
@@ -78,16 +75,10 @@ class signal_approximator(linmodel):
 
 class signal_approximator_sparse(signal_approximator):
 
-    """
-    LASSO problem with one penalty parameter
-    Minimizes
+    __doc__ = problem_statement + """
 
-    .. math::
-       \begin{eqnarray}
-       ||y - D'u||^{2}_{2} s.t. \|u\|_{\infty} \leq  \lambda_{1}
-       \end{eqnarray}
+    This class allows *D* to be a *scipy.sparse* matrix.
 
-    as a function of u.
     """
 
     @property

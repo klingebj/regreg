@@ -3,7 +3,7 @@ import pylab, time
 
 import regreg.regression as regreg
 import regreg.lasso as lasso
-import regreg.signal_approximator as glasso
+import regreg.signal_approximator as sapprox
         
 import nose.tools
 
@@ -103,7 +103,7 @@ def test_fused_lasso(n=400,l1=2.,control=control):
 
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 6.
-    p1 = glasso.signal_approximator((D, Y))
+    p1 = sapprox.signal_approximator((D, Y))
     p1.assign_penalty(l1=l1)
     
     t1 = time.time()
@@ -129,7 +129,7 @@ def test_sparse_fused_lasso(n=500,l1=2.,ratio=1.,control=control):
 
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 3.
-    p1 = glasso.signal_approximator((D, Y))
+    p1 = sapprox.signal_approximator((D, Y))
     p1.assign_penalty(l1=l1)
     
     t1 = time.time()
@@ -159,13 +159,12 @@ def test_linear_trend(n=500,l1=2.,control=control):
     mu[int(0.1*n):int(0.3*n)] += (X[int(0.1*n):int(0.3*n)] - X[int(0.1*n)]) * 6
     mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 2
     Y += mu
-    p1 = glasso.signal_approximator((D2, Y))
+    p1 = sapprox.signal_approximator((D2, Y))
     p1.assign_penalty(l1=l1)
     
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
@@ -173,7 +172,7 @@ def test_linear_trend(n=500,l1=2.,control=control):
     X = np.arange(n)
     if control['plot']:
         pylab.clf()
-        pylab.step(X, beta, linewidth=3, c='red')
+        pylab.plot(X, beta, linewidth=3, c='red')
         pylab.scatter(X, Y)
         pylab.show()
 
@@ -190,7 +189,7 @@ def test_sparse_linear_trend(n=500,l1=2., ratio=0.1, control=control):
     mu[int(0.1*n):int(0.3*n)] += (X[int(0.1*n):int(0.3*n)] - X[int(0.1*n)]) * 6
     mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 1.2
     Y += mu
-    p1 = glasso.signal_approximator((D, Y))
+    p1 = sapprox.signal_approximator((D, Y))
     p1.assign_penalty(l1=l1)
     
     t1 = time.time()

@@ -34,6 +34,7 @@ import ipython_console_highlighting
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.doctest',
+              'sphinx.ext.pngmath',
               'sphinx.ext.autosummary',
               'ipython_console_highlighting', 
               'inheritance_diagram', 
@@ -65,11 +66,9 @@ else: # probably sphinx >= 1.0
 # feature updates so we'll try to use that one first.
 try:
     import matplotlib.sphinxext
-    extensions.append('matplotlib.sphinxext.mathmpl')
     extensions.append('matplotlib.sphinxext.only_directives')
     extensions.append('matplotlib.sphinxext.plot_directive')
 except ImportError:
-    extensions.append('mathmpl')
     extensions.append('only_directives')
     extensions.append('plot_directive')
 
