@@ -21,6 +21,7 @@ class Regression(object):
 
 class ISTA(Regression):
 
+    debug = False
     def fit(self,L,tol=1e-4,max_its=100,min_its=5):
 
         itercount = 0
@@ -34,10 +35,12 @@ class ISTA(Regression):
                     break
             obj_old = obj
             itercount += 1
-        print "ISTA used", itercount, "iterations"
+        if self.debug:
+            print "ISTA used", itercount, "iterations"
 
 class FISTA(Regression):
 
+    debug = False
     # XXX move L to self.problem...
     def fit(self,L,max_its=100,tol=1e-5,miniter=5):
 
@@ -63,7 +66,8 @@ class FISTA(Regression):
             t_old = t_new
             itercount += 1
 
-        print "FISTA used", itercount, "iterations"
+        if self.debug:
+            print "FISTA used", itercount, "iterations"
     
 class NesterovSmooth(Regression):
     
@@ -78,6 +82,7 @@ class NesterovSmooth(Regression):
 import subfunctions as sf
 class CWPath(Regression):
 
+    debug = False
     def __init__(self, problem, **kwargs):
         self.problem = problem
             
@@ -92,7 +97,7 @@ class CWPath(Regression):
             self.problem.update_cwpath(active,nonzero,1,update_nonzero=True)
             if itercount > min_its:
                 stop, worst = self.stop(bold,tol=tol,return_worst=True)
-                if np.mod(itercount,40)==0:
+                if np.mod(itercount,40)==0 and self.debug:
                     print "Fit iteration", itercount, "with max. relative change", worst
             self.problem.update_cwpath(np.unique(nonzero),nonzero,inner_its)
             itercount += 1

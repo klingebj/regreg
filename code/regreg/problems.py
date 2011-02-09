@@ -31,7 +31,6 @@ class linmodel(object):
         else:
             self.set_coefs(self.default_coefs)
 
-
     @property
     def default_coefs(self):
         return np.zeros(self.p)
