@@ -33,7 +33,8 @@ The matrix can be changed to favor piecewise linear functions.
 
 .. plot:: users/plots/fused_lasso3.py
 
-Again, we can add a sparsity penalty.
+Again, we can add a sparsity penalty. This example uses a sparse
+matrix for the multiply.
 
 .. plot:: users/plots/fused_lasso4.py
 
