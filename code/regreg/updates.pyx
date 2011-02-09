@@ -65,8 +65,8 @@ def _update_lasso_cwpath(np.ndarray[DTYPE_int_t, ndim=1] active,
                             
             S = beta[i] * ssq[i]
             S += np.dot(col,r)
-            new = _solve_plin(ssq[i]/(2*n),
-                              -(S/n),
+            new = _solve_plin(ssq[i]/2,
+                              -S,
                               l1)
             if update_nonzero:
                 if new != 0:
