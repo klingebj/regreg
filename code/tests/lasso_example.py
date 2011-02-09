@@ -9,6 +9,26 @@ control = {'max_its':1500,
            'tol':1.0e-10,
            'plot':False}
 
+def test_FISTA(X=None,Y=None,l1=5., **control):
+
+    if X or Y is None:
+        X = np.load('X.npy')
+        Y = np.load('Y.npy')
+
+    XtX = np.dot(X.T, X)
+    M = np.linalg.eigvalsh(XtX).max() #/ (1*len(Y))
+
+    p3 = lasso.gengrad((X, Y))
+    p3.assign_penalty(l1=l1*X.shape[0])
+
+    t1 = time.time()
+    opt3 = regreg.FISTA(p3)
+    opt3.fit(M,tol=control['tol'], max_its=control['max_its'])
+    beta3 = opt3.problem.coefs
+    t2 = time.time()
+    ts3 = t2-t1
+
+
 def test_lasso(X=None,Y=None,l1=5., **control):
 
     if X or Y is None:
@@ -16,39 +36,39 @@ def test_lasso(X=None,Y=None,l1=5., **control):
         Y = np.load('Y.npy')
 
     XtX = np.dot(X.T, X)
-    M = np.linalg.eigvalsh(XtX).max() / (1*len(Y))
+    M = np.linalg.eigvalsh(XtX).max() #/ (1*len(Y))
 
     Y += np.dot(X[:,:5], 10 * np.ones(5))
     p1 = lasso.cwpath((X, Y))
-    p1.assign_penalty(l1=l1)
+    p1.assign_penalty(l1=l1*X.shape[0])
     
     p2 = lasso.gengrad((X, Y))
-    p2.assign_penalty(l1=l1)
+    p2.assign_penalty(l1=l1*X.shape[0])
 
     p3 = lasso.gengrad((X, Y))
-    p3.assign_penalty(l1=l1)
+    p3.assign_penalty(l1=l1*X.shape[0])
 
     p4 = lasso.gengrad_smooth((X, Y))
-    p4.assign_penalty(l1=l1)
+    p4.assign_penalty(l1=l1*X.shape[0])
 
     t1 = time.time()
     opt1 = regreg.CWPath(p1)
     opt1.fit(tol=1e-6, max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
     t1 = time.time()
     opt2 = regreg.ISTA(p2)
     opt2.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta2 = opt2.problem.coefficients
+    beta2 = opt2.problem.coefs
     t2 = time.time()
     ts2 = t2-t1
 
     t1 = time.time()
     opt3 = regreg.FISTA(p3)
     opt3.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta3 = opt3.problem.coefficients
+    beta3 = opt3.problem.coefs
     t2 = time.time()
     ts3 = t2-t1
 
@@ -57,11 +77,10 @@ def test_lasso(X=None,Y=None,l1=5., **control):
     opt4 = regreg.NesterovSmooth(p4)
     for eps in epsvec:
         f_s = opt4.fit(M, tol=control['tol'], max_its=50,epsilon=eps)
-    f_s = opt4.fit(M, tol=control['tol'], max_its=control['max_its'],epsilon=0.1)
-    beta4 = opt4.problem.coefficients
+#    f_s = opt4.fit(M, tol=control['tol'], max_its=control['max_its'],epsilon=0.1)
+    beta4 = opt4.problem.coefs
     t2 = time.time()
     ts4 = t2-t1
-
     assert (np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum() <= 1.0e-04)
     print "Times", ts1, ts2, ts3, ts4
 
@@ -79,7 +98,7 @@ def test_fused_lasso(n,l1=2.,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
@@ -105,7 +124,7 @@ def test_sparse_fused_lasso(n,l1=2.,ratio=1.,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
@@ -135,7 +154,7 @@ def test_linear_trend(n,l1=2.,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 
@@ -166,7 +185,7 @@ def test_sparse_linear_trend(n,l1=2., ratio=0.1, **control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta1 = opt1.problem.coefficients
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts1 = t2-t1
 

@@ -4,7 +4,8 @@ class linmodel(object):
 
     @property
     def output(self):
-        return self.coefficients, self.r
+        r = self.Y - np.dot(self.X, self.coefs)
+        return self.coefs, r
 
     def __init__(self, data, penalties={}, initial_coefs=None):
         
@@ -18,17 +19,18 @@ class linmodel(object):
         """
         Generate initial tuple of arguments for update.
         """
+
         if len(data) == 2:
             self.X = data[0]
-            self.Y = data[1]
             self.n, self.p = self.X.shape
+            self.Y = data[1]
         else:
             raise ValueError("Data tuple not as expected")
 
         if hasattr(self,'initial_coefs'):
-            self.set_coefficients(self.initial_coefs)
+            self.set_coefs(self.initial_coefs)
         else:
-            self.set_coefficients(self.default_coefs)
+            self.set_coefs(self.default_coefs)
 
     @property
     def default_coefs(self):
@@ -44,18 +46,18 @@ class linmodel(object):
         for key in params:
             self.penalties[key] = params[key]
         
-    def set_coefficients(self, coefs):
-        self.beta = coefs
+    def set_coefs(self, coefs):
+        self._coefs = coefs
 
-    def get_coefficients(self):
-        return self.beta
-    coefficients = property(get_coefficients, set_coefficients)
+    def get_coefs(self):
+        return self._coefs
+    coefs = property(get_coefs, set_coefs)
 
     def set_response(self,Y):
-        self.Y = Y
+        self._Y = Y
 
     def get_response(self):
-        return self.Y
-    response = property(get_response, set_response)
+        return self._Y
+    Y = property(get_response, set_response)
 
 
