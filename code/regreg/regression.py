@@ -23,16 +23,34 @@ class Regression(object):
 class ISTA(Regression):
 
     debug = False
-    def fit(self,L,tol=1e-4,max_its=100,min_its=5):
+    def fit(self,L,tol=1e-4,max_its=100,min_its=5,backtrack=True,alpha=1.25,start_inv_step=1.):
 
         itercount = 0
         obj_cur = np.inf
+        inv_step = start_inv_step
         while itercount < max_its:
             f_beta = self.problem.obj(self.problem.coefs)
             grad = self.problem.grad(self.problem.coefs)
-            self.problem.coefs = self.problem.proximal(self.problem.coefs, grad, L)
-            obj = self.problem.obj(self.problem.coefs)
-            if np.fabs((obj_cur - f_beta) / f_beta) < tol and itercount >= miniter:
+
+            # Backtracking loop
+            if backtrack:
+                inv_step *= 0.9
+                #inv_step = start_inv_step
+                beta = self.problem.proximal(self.problem.coefs, grad, inv_step)
+                current_f = self.problem.f(self.problem.coefs)
+                trial_f = self.problem.f(beta)
+                while trial_f > current_f + np.dot(beta-self.problem.coefs,grad) + 0.5*inv_step*np.linalg.norm(beta-self.problem.coefs)**2 + 1e-5:
+                    inv_step *= alpha
+                    beta = self.problem.proximal(self.problem.coefs, grad, inv_step)
+                    trial_f = self.problem.f(beta)
+                #print itercount, obj_cur, inv_step, start_inv_step
+            else:
+                inv_step = L
+                beta = self.problem.proximal(self.problem.coefs, grad, inv_step)
+            self.problem.coefs = beta
+            #self.problem.coefs = self.problem.proximal(self.problem.coefs, grad, L)
+            obj_cur = self.problem.obj(self.problem.coefs)
+            if np.fabs((obj_cur - f_beta) / f_beta) < tol and itercount >= min_its:
                 break
             itercount += 1
         if self.debug:
@@ -42,7 +60,7 @@ class FISTA(Regression):
 
     debug = False
     # XXX move L to self.problem...
-    def fit(self,L,max_its=100,tol=1e-5,miniter=5):
+    def fit(self,L,max_its=100,tol=1e-5,miniter=5,backtrack=True,alpha=1.25,start_inv_step=1.):
 
         f = self.problem.obj
         
@@ -51,15 +69,30 @@ class FISTA(Regression):
         
         obj_cur = np.inf
         itercount = 0
+        inv_step = start_inv_step
         while itercount < max_its:
             f_beta = f(self.problem.coefs)
             if np.fabs((obj_cur - f_beta) / f_beta) < tol and itercount >= miniter:
                 break
             obj_cur = f_beta
                     
-            grad =  self.problem.grad(r)
-            beta = self.problem.proximal(r, grad, L)
-
+            grad = self.problem.grad(r)
+            # Backtracking loop
+            if backtrack:
+                #inv_step = start_inv_step
+                inv_step *= 0.9
+                beta = self.problem.proximal(r, grad, inv_step)
+                current_f = self.problem.f(r)
+                trial_f = self.problem.f(beta)
+                while trial_f > current_f + np.dot(beta-r,grad) + 0.5*inv_step*np.linalg.norm(beta-r)**2 + 1e-5:
+                    inv_step *= alpha
+                    beta = self.problem.proximal(r, grad, inv_step)
+                    trial_f = self.problem.f(beta)
+                print itercount, np.linalg.norm(self.problem.coefs),obj_cur, inv_step, start_inv_step
+            else:
+                inv_step = L
+                beta = self.problem.proximal(r, grad, inv_step)
+                
             t_new = 0.5 * (1 + np.sqrt(1+4*(t_old**2)))
             r = beta + ((t_old-1)/(t_new)) * (beta - self.problem.coefs)
             self.problem.coefs = beta

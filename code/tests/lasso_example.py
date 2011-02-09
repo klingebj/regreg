@@ -7,9 +7,10 @@ import regreg.signal_approximator as glasso
         
 import nose.tools
 
-control = {'max_its':1500,
+control = {'max_its':2500,
            'tol':1.0e-10,
-           'plot':False}
+           'plot':False,
+           'backtrack':True}
 
 def test_FISTA(X=None,Y=None,l1=5., control=control):
 
@@ -39,7 +40,7 @@ def test_lasso(X=None,Y=None,l1=5., control=control):
 
     XtX = np.dot(X.T, X)
     M = np.linalg.eigvalsh(XtX).max() #/ (1*len(Y))
-
+    print M
     Y += np.dot(X[:,:5], 10 * np.ones(5))
 
     p1 = lasso.cwpath((X, Y))
@@ -63,14 +64,14 @@ def test_lasso(X=None,Y=None,l1=5., control=control):
 
     t1 = time.time()
     opt2 = regreg.ISTA(p2)
-    opt2.fit(M,tol=control['tol'], max_its=control['max_its'])
+    opt2.fit(M,tol=control['tol'], max_its=control['max_its'],backtrack=control['backtrack'],alpha=1.25)
     beta2 = opt2.problem.coefs
     t2 = time.time()
     ts2 = t2-t1
-
+    time.sleep(0.5)
     t1 = time.time()
     opt3 = regreg.FISTA(p3)
-    opt3.fit(M,tol=control['tol'], max_its=control['max_its'])
+    opt3.fit(M,tol=control['tol'], max_its=control['max_its'],backtrack=control['backtrack'],alpha=1.25)
     beta3 = opt3.problem.coefs
     t2 = time.time()
     ts3 = t2-t1
@@ -85,12 +86,15 @@ def test_lasso(X=None,Y=None,l1=5., control=control):
     t2 = time.time()
     ts4 = t2-t1
 
-    nose.tools.assert_true((np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum() <= 1.0e-04))
-
-    """
     print beta1
     print beta2
     print beta3
+    print p2.obj(beta1), p2.obj(beta2), p3.obj(beta3)
+    nose.tools.assert_true((np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum() <= 1.0e-04))
+
+
+
+    """
     print p3.obj(beta1), p3.obj(beta2), p3.obj(beta3)
     """
     print "Times", ts1, ts2, ts3, ts4

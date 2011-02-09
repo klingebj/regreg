@@ -45,6 +45,13 @@ class gengrad(lasso):
         v = z - g / L
         return np.sign(v) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
 
+    def f(self, beta):
+        #Smooth part of objective
+        beta = np.asarray(beta)
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2.
+     
+
+
 class gengrad_smooth(gengrad):
 
     def smooth(self, L, epsilon):
