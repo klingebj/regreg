@@ -49,7 +49,7 @@ class generalized_lasso(linmodel):
         return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(np.dot(self.D, beta))) * self.penalties['l1']
 
     def grad(self, beta):
-        return np.dot(self.X, np.dot(beta, self.X) - self.Y)
+        return np.dot(self.X.T, np.dot(self.X, beta) - self.Y)
 
     def proximal(self, z, g, L):
         v = z - g / L
