@@ -30,7 +30,7 @@ def test_fused_lasso(n=500, l1=10.):
     pylab.plot(X, beta1, linewidth=3, c='red')
     pylab.scatter(X, Y)
 
-    l1 *= 3
+    l1 /= 3
     p1.assign_penalty(l1=l1)
     opt2 = regreg.FISTA(p1)
     opt2.debug = True
