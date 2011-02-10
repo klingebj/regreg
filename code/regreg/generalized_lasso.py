@@ -54,9 +54,14 @@ class generalized_lasso(linmodel):
     def proximal(self, z, g, L):
         v = z - g / L
         self.dual.set_response(v)
-        self.dual.assign_penalty(l1=self.penalties['l1'] / L)
+        self.dual.assign_penalty(l1=self.penalties['l1']/L)
         self.dualopt.fit(self.dualM, **self.dualcontrol)
         return self.dualopt.output[0]
+
+    def f(self, beta):
+        #Smooth part of objective
+        beta = np.asarray(beta)
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. 
 
     @property
     def output(self):

@@ -207,7 +207,7 @@ def loop(x0, gradf, L, Qinfo=None, maxiter=100, solver=naive_solver,
                     prox_center=prox_center)
         x = tau * z + (1 - tau) * y
 
-    print "Smoothed used", itercount, "iterations"
+    #print "Smoothed used", itercount, "iterations"
 
     if not values:
         return y
