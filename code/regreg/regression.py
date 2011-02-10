@@ -34,21 +34,23 @@ class ISTA(Regression):
 
             # Backtracking loop
             if backtrack:
-                inv_step *= 0.9
-                #inv_step = start_inv_step
-                beta = self.problem.proximal(self.problem.coefs, grad, inv_step)
                 current_f = self.problem.f(self.problem.coefs)
-                trial_f = self.problem.f(beta)
-                while trial_f > current_f + np.dot(beta-self.problem.coefs,grad) + 0.5*inv_step*np.linalg.norm(beta-self.problem.coefs)**2 + 1e-5:
-                    inv_step *= alpha
+                stop = False
+                while not stop:
                     beta = self.problem.proximal(self.problem.coefs, grad, inv_step)
                     trial_f = self.problem.f(beta)
-                #print itercount, obj_cur, inv_step, start_inv_step
+                    if np.fabs(trial_f - current_f)/trial_f > 1e-10:
+                        stop = trial_f <= current_f + np.dot(beta-self.problem.coefs,grad) + 0.5*inv_step*np.linalg.norm(beta-self.problem.coefs)**2
+                    else:
+                        trial_grad = self.problem.grad(beta)
+                        stop = np.fabs(np.dot(beta-self.problem.coefs,grad-trial_grad)) <= 0.5*inv_step*np.linalg.norm(beta-self.problem.coefs)**2
+                    if not stop:
+                        inv_step *= alpha
+                inv_step *= 0.9
             else:
                 inv_step = L
                 beta = self.problem.proximal(self.problem.coefs, grad, inv_step)
             self.problem.coefs = beta
-            #self.problem.coefs = self.problem.proximal(self.problem.coefs, grad, L)
             obj_cur = self.problem.obj(self.problem.coefs)
             if np.fabs((obj_cur - f_beta) / f_beta) < tol and itercount >= min_its:
                 break
@@ -79,20 +81,23 @@ class FISTA(Regression):
             grad = self.problem.grad(r)
             # Backtracking loop
             if backtrack:
-                #inv_step = start_inv_step
-                inv_step *= 0.9
-                beta = self.problem.proximal(r, grad, inv_step)
                 current_f = self.problem.f(r)
-                trial_f = self.problem.f(beta)
-                while trial_f > current_f + np.dot(beta-r,grad) + 0.5*inv_step*np.linalg.norm(beta-r)**2 + 1e-5:
-                    inv_step *= alpha
+                stop = False
+                while not stop:
                     beta = self.problem.proximal(r, grad, inv_step)
                     trial_f = self.problem.f(beta)
-                print itercount, np.linalg.norm(self.problem.coefs),obj_cur, inv_step, start_inv_step
+                    if np.fabs(trial_f - current_f)/trial_f > 1e-10:
+                        stop = trial_f <= current_f + np.dot(beta-r,grad) + 0.5*inv_step*np.linalg.norm(beta-r)**2
+                    else:
+                        trial_grad = self.problem.grad(beta)
+                        stop = np.fabs(np.dot(beta-r,grad-trial_grad)) <= 0.5*inv_step*np.linalg.norm(beta-r)**2
+                    if not stop:
+                        inv_step *= alpha
+                inv_step *= 0.9
             else:
                 inv_step = L
                 beta = self.problem.proximal(r, grad, inv_step)
-                
+
             t_new = 0.5 * (1 + np.sqrt(1+4*(t_old**2)))
             r = beta + ((t_old-1)/(t_new)) * (beta - self.problem.coefs)
             self.problem.coefs = beta
