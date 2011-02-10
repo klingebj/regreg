@@ -32,5 +32,5 @@ def test_fused_lasso(n=400, l1=0.2):
 
 
 test_fused_lasso()
-
+pylab.show()
 
