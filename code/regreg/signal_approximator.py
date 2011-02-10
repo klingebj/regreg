@@ -62,6 +62,12 @@ class signal_approximator(linmodel):
         beta = self.Y - np.dot(dual, self.D)
         return ((self.Y - beta)**2).sum() / 2. + np.sum(np.fabs(np.dot(self.D, beta))) * self.penalties['l1']
 
+    def f(self, dual):
+        dual = np.asarray(dual)
+        beta = self.Y - np.dot(dual, self.D)
+        return ((self.Y - beta)**2).sum() / 2. 
+
+
     def grad(self, dual):
         dual = np.asarray(dual)
         return np.dot(self.D, np.dot(dual, self.D) - self.Y)
