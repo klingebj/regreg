@@ -24,9 +24,10 @@ def test_FISTA(X=None,Y=None,l1=5.,l2=0.,l3=0., control=control):
 
     p = X.shape[1]
     _ , L = gen_adj(p)
+    Lsparse = scipy.sparse.lil_matrix(L)
 
     l1 *= X.shape[0]
-    p3 = graphnet.gengrad((X, Y, L))
+    p3 = graphnet.gengrad((X, Y, Lsparse))
     p3.assign_penalty(l1=l1,l2=l2,l3=l3)
 
     t1 = time.time()

@@ -48,14 +48,14 @@ class graphnet(linmodel):
 
     def obj(self, beta):
         beta = np.asarray(beta)
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(beta)) * self.penalties['l1'] + np.dot(beta,beta) * self.penalties['l2'] + np.dot(beta,np.dot(self.Lap,beta)) * self.penalties['l3']
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(beta)) * self.penalties['l1'] + np.dot(beta,beta) * self.penalties['l2'] + np.dot(beta,self.Lap.matvec(beta)) * self.penalties['l3']
 
 class gengrad(graphnet):
     
     def grad(self, beta):
         beta = np.asarray(beta)
         XtXbeta = np.dot(self.X.T, np.dot(self.X, beta)) 
-        return XtXbeta - np.dot(self.Y,self.X) + 2*beta*self.penalties['l2'] + 2*np.dot(self.Lap,beta)*self.penalties['l3']
+        return XtXbeta - np.dot(self.Y,self.X) + 2*beta*self.penalties['l2'] + 2*self.Lap.matvec(beta)*self.penalties['l3']
 
     def proximal(self, z, g, L):
         v = z - g / L
@@ -64,7 +64,7 @@ class gengrad(graphnet):
     def f(self, beta):
         #Smooth part of objective
         beta = np.asarray(beta)
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.dot(beta,beta) * self.penalties['l2'] + np.dot(beta,np.dot(self.Lap,beta)) * self.penalties['l3']
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.dot(beta,beta) * self.penalties['l2'] + np.dot(beta,self.Lap.matvec(beta)) * self.penalties['l3']
 
      
 
