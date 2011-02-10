@@ -75,6 +75,12 @@ class group_approximator(signal_approximator):
             v[segment] = truncate(v[segment], l/L)
         return v
 
+    def f(self, dual):
+        #Smooth part of objective
+        beta = self.Y - np.dot(dual, self.D)
+        return ((self.Y - beta)**2).sum() / 2.
+                            
+
     @property
     def output(self):
         r = np.dot(self.coefs, self.D) 
