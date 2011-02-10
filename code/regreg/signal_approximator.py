@@ -56,24 +56,24 @@ class signal_approximator(linmodel):
 
     def obj(self, dual):
         dual = np.asarray(dual)
-        beta = self.Y - np.dot(dual, self.D)
-        return ((self.Y - beta)**2).sum() / 2. + np.sum(np.fabs(np.dot(self.D, beta))) * self.penalties['l1']
-
+        if np.max(np.fabs(dual)) <= self.penalties['l1']:
+            return self.f(dual)
+        else:
+            return np.inf
+    
     def f(self, dual):
         dual = np.asarray(dual)
-        beta = self.Y - np.dot(dual, self.D)
-        return ((self.Y - beta)**2).sum() / 2. 
-
-
+        return ((self.Y - np.dot(self.D.T, dual))**2).sum() / 2.
+    
     def grad(self, dual):
         dual = np.asarray(dual)
-        return np.dot(self.D, np.dot(dual, self.D) - self.Y)
-
+        return np.dot(self.D, np.dot(self.D.T, dual)) - np.dot(self.Y,self.D.T)
+    
     def proximal(self, z, g, L):
         v = z - g / L
         l1 = self.penalties['l1']
-        return np.clip(v, -l1/L, l1/L)
-
+        return np.clip(v, -l1, l1)
+    
     @property
     def output(self):
         r = np.dot(self.coefs, self.D) 
