@@ -49,9 +49,70 @@ class graphnet(linmodel):
 
     def obj(self, beta):
         beta = np.asarray(beta)
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(beta)) * self.penalties['l1'] + np.dot(beta,beta) * self.penalties['l2'] + np.dot(beta,self.Lap.matvec(beta)) * self.penalties['l3']
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(beta)) * self.penalties['l1'] + np.dot(beta,beta) * self.penalties['l2'] + np.dot(beta,np.dot(self.Lap,beta)) * self.penalties['l3']
 
 class gengrad(graphnet):
+    
+    def grad(self, beta):
+        beta = np.asarray(beta)
+        XtXbeta = np.dot(self.X.T, np.dot(self.X, beta)) 
+        return XtXbeta - np.dot(self.Y,self.X) + 2*beta*self.penalties['l2'] + 2*np.dot(self.Lap,beta)*self.penalties['l3']
+
+    def proximal(self, z, g, L):
+        v = z - g / L
+        return np.sign(v) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
+
+    def f(self, beta):
+        #Smooth part of objective
+        beta = np.asarray(beta)
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.dot(beta,beta) * self.penalties['l2'] + np.dot(beta,np.dot(self.Lap,beta)) * self.penalties['l3']
+
+
+class graphnet_sparse(linmodel):
+
+    """
+    GraphNet problem:
+    Minimizes
+
+    .. math::
+
+       \begin{eqnarray}
+       \|y - X\beta\|^{2}_{2}/2 + \lambda_{1}\|\beta\|_{1} + \lambda_2 \|\beta\|_{2}^{2} + \lambda_3 \beta^T L \beta
+       \end{eqnarray}
+
+    as a function of beta.
+    """
+
+    def initialize(self, data):
+        """
+        Generate initial tuple of arguments for update.
+        """
+
+        if len(data) == 3:
+            self.X = data[0]
+            self.Y = data[1]
+            self.Lap = data[2]
+            self.n, self.p = self.X.shape
+        else:
+            raise ValueError("Data tuple not as expected")
+
+        if hasattr(self,'initial_coefs'):
+            self.set_coefs(self.initial_coefs)
+        else:
+            self.set_coefs(self.default_coefs)
+            
+    @property
+    def default_penalties(self):
+        """
+        Default penalties for GraphNet
+        """
+        return np.zeros(1, np.dtype([(l, np.float) for l in ['l1', 'l2', 'l3']]))
+
+    def obj(self, beta):
+        beta = np.asarray(beta)
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(beta)) * self.penalties['l1'] + np.dot(beta,beta) * self.penalties['l2'] + np.dot(beta,self.Lap.matvec(beta)) * self.penalties['l3']
+
+class gengrad_sparse(graphnet_sparse):
     
     def grad(self, beta):
         beta = np.asarray(beta)

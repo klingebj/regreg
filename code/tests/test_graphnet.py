@@ -15,7 +15,7 @@ control = {'max_its':5500,
 
 def test_FISTA(X=None,Y=None,l1=5.,l2=0.,l3=0., control=control):
 
-    if X or Y is None:
+    if X is None or Y is None:
         X = np.load('X.npy')
         Y = np.load('Y.npy')
 
@@ -27,17 +27,23 @@ def test_FISTA(X=None,Y=None,l1=5.,l2=0.,l3=0., control=control):
     Lsparse = scipy.sparse.lil_matrix(L)
 
     l1 *= X.shape[0]
-    p3 = graphnet.gengrad((X, Y, Lsparse))
-    p3.assign_penalty(l1=l1,l2=l2,l3=l3)
-
+    p1 = graphnet.gengrad((X, Y, L))
+    p1.assign_penalty(l1=l1,l2=l2,l3=l3)
     t1 = time.time()
-    opt3 = regreg.FISTA(p3)
-    opt3.fit(M,tol=control['tol'], max_its=control['max_its'])
-    beta3 = opt3.problem.coefs
+    opt1 = regreg.FISTA(p1)
+    opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
+    beta1 = opt1.problem.coefs
     t2 = time.time()
     ts3 = t2-t1
 
-
+    p2 = graphnet.gengrad_sparse((X, Y, Lsparse))
+    p2.assign_penalty(l1=l1,l2=l2,l3=l3)
+    t1 = time.time()
+    opt2 = regreg.FISTA(p2)
+    opt2.fit(M,tol=control['tol'], max_its=control['max_its'])
+    beta2 = opt2.problem.coefs
+    t2 = time.time()
+    ts3 = t2-t1
 
 
     def f(beta):
@@ -46,9 +52,10 @@ def test_FISTA(X=None,Y=None,l1=5.,l2=0.,l3=0., control=control):
     v = scipy.optimize.fmin_powell(f, np.zeros(X.shape[1]), ftol=1.0e-10, xtol=1.0e-10,maxfun=100000)
     v = np.asarray(v)
     
-    print beta3
+    print beta1
+    print beta2
     print v
-    print f(beta3), f(v), ts3
+    print f(beta1), f(v), ts3
 
 def test_lasso(X=None,Y=None,l1=5., control=control):
 
