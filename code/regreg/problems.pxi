@@ -425,7 +425,7 @@ class v_graphnet(linmodel):
         """
 
         if len(data) == 2:
-            self.v = data[0]
+            self.Y = data[0]
             self.adj = data[1]
         else:
             raise ValueError("Data tuple not as expected")
@@ -452,7 +452,7 @@ class v_graphnet(linmodel):
         return np.zeros(1, np.dtype([(l, np.float) for l in ['l1', 'l2', 'l3']]))
 
     def set_default_coefficients(self):
-        self.set_coefficients(np.zeros(len(self.v)))
+        self.set_coefficients(np.zeros(len(self.Y)))
         
     def update_cwpath(self,
                       active,
@@ -471,7 +471,7 @@ class v_graphnet(linmodel):
                                         self.penalties,
                                         nonzero,
                                         self.beta,
-                                        self.v,
+                                        self.Y,
                                         self.adj, 
                                         self.nadj,
                                         inner_its,

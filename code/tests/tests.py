@@ -29,7 +29,7 @@ def test_opt():
 
     test_col_inner(X,Xlist,Y)
     for l1 in l1vec:
-        test_lasso(X,Xlist,Y,l1,tol=cwpathtol,M=M)
+        #test_lasso(X,Xlist,Y,l1,tol=cwpathtol,M=M)
         #test_lasso_wts(X,Xlist,Y,l1,tol=cwpathtol)
 
         for l2 in l2vec:
@@ -37,7 +37,7 @@ def test_opt():
                 assert(True)
                 #test_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 #test_lin_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
-                #test_v_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
+                test_v_graphnet(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
                 #test_graphnet_wts(X,Xlist,Y,l1,l2,l3,tol=cwpathtol)
 
 
