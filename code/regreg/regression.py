@@ -74,6 +74,8 @@ class FISTA(Regression):
         inv_step = start_inv_step
         while itercount < max_its:
             f_beta = f(self.problem.coefs)
+            if self.debug:
+                print itercount, obj_cur, inv_step, (obj_cur - f_beta) / f_beta
             if np.fabs((obj_cur - f_beta) / f_beta) < tol and itercount >= miniter:
                 break
             obj_cur = f_beta
@@ -97,6 +99,7 @@ class FISTA(Regression):
             else:
                 inv_step = L
                 beta = self.problem.proximal(r, grad, inv_step)
+
 
             t_new = 0.5 * (1 + np.sqrt(1+4*(t_old**2)))
             r = beta + ((t_old-1)/(t_new)) * (beta - self.problem.coefs)

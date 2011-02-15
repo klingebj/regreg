@@ -87,11 +87,6 @@ class signal_approximator_sparse(signal_approximator):
 
     """
 
-    @property
-    def output(self):
-        r = self.DT.matvec(self.coefs)
-        return self.Y - r, r
-
     def initialize(self, data, **kwargs):
         """
         Generate initial tuple of arguments for update.
@@ -109,22 +104,22 @@ class signal_approximator_sparse(signal_approximator):
         else:
             self.set_coefs(self.default_coefs)
 
-    def default_penalty(self):
-        """
-        Default penalty for Lasso: a single
-        parameter problem.
-        """
-        return np.zeros(1, np.dtype([(l, np.float) for l in ['l1']]))
+    
+    def f(self, dual):
+        dual = np.asarray(dual)
+        return ((self.Y - self.DT.matvec(dual))**2).sum() / 2.
 
-    def obj(self, u):
-        u = np.asarray(u)
-        beta = self.Y - self.DT.matvec(u)
-        Dbeta = self.D.matvec(beta)
-        return ((self.Y - beta)**2).sum() / 2. + np.sum(np.fabs(Dbeta)) * self.penalties['l1']
 
-    def grad(self, u):
-        u = np.asarray(u)
-        return self.D.matvec(self.DT.matvec(u) - self.Y)
+    def grad(self, dual):
+        dual = np.asarray(dual)
+        return self.D.matvec(self.DT.matvec(dual) -self.Y.T ) 
+
+    
+    @property
+    def output(self):
+        r = self.DT.matvec(self.coefs)
+        return self.Y - r, r
+
 
 # The API is to have a gengrad class in each module.
 # In this module, this is the signal_approximator
