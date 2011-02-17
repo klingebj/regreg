@@ -18,21 +18,21 @@ def test_fused_lasso(n=100,l1=2.,**control):
     Y = np.random.standard_normal(n)
     Y[int(0.1*n):int(0.3*n)] += 6.
 
-    p1 = signal_approximator((D, Y))
+    p1 = signal_approximator((D, Y),L=M)
     p1.assign_penalty(l1=l1)
     
-    p2 = glasso.generalized_lasso((np.identity(n), D, Y))
+    p2 = glasso.generalized_lasso((np.identity(n), D, Y),L=M)
     p2.assign_penalty(l1=l1)
     
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
-    opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
+    opt1.fit(tol=control['tol'], max_its=control['max_its'])
     t2 = time.time()
     ts1 = t2-t1
 
     t1 = time.time()
     opt2 = regreg.FISTA(p2)
-    opt2.fit(M,tol=control['tol'], max_its=control['max_its'])
+    opt2.fit(tol=control['tol'], max_its=control['max_its'])
     t2 = time.time()
     ts2 = t2-t1
 

@@ -1,4 +1,3 @@
-#this is brad's  branch
 import numpy as np
 
 class Regression(object):
@@ -23,7 +22,7 @@ class Regression(object):
 class ISTA(Regression):
 
     debug = False
-    def fit(self,L,tol=1e-4,max_its=100,min_its=5,backtrack=True,alpha=1.25,start_inv_step=1.):
+    def fit(self,tol=1e-4,max_its=100,min_its=5,backtrack=True,alpha=1.25,start_inv_step=1.):
 
         itercount = 0
         obj_cur = np.inf
@@ -48,7 +47,7 @@ class ISTA(Regression):
                         inv_step *= alpha
                 inv_step *= 0.9
             else:
-                inv_step = L
+                inv_step = self.problem.L
                 beta = self.problem.proximal(self.problem.coefs, grad, inv_step)
             self.problem.coefs = beta
             obj_cur = self.problem.obj(self.problem.coefs)
@@ -61,11 +60,9 @@ class ISTA(Regression):
 class FISTA(Regression):
 
     debug = False
-    # XXX move L to self.problem...
-    def fit(self,L,max_its=100,tol=1e-5,miniter=5,backtrack=True,alpha=1.25,start_inv_step=1.):
+    def fit(self,max_its=100,tol=1e-5,miniter=5,backtrack=True,alpha=1.25,start_inv_step=1.):
 
         f = self.problem.obj
-        
         r = self.problem.coefs
         t_old = 1.
         
@@ -97,7 +94,7 @@ class FISTA(Regression):
                         inv_step *= alpha
                 inv_step *= 0.9
             else:
-                inv_step = L
+                inv_step = self.problem.L
                 beta = self.problem.proximal(r, grad, inv_step)
 
 
@@ -112,10 +109,10 @@ class FISTA(Regression):
     
 class NesterovSmooth(Regression):
     
-    def fit(self,L,tol=1e-4,epsilon=0.1,max_its=100):
+    def fit(self,tol=1e-4,epsilon=0.1,max_its=100):
         import nesterov_smooth
         p = len(self.problem.coefs)
-        grad_s, L_s, f_s = self.problem.smooth(L, epsilon)
+        grad_s, L_s, f_s = self.problem.smooth(self.problem.L, epsilon)
         self.problem.coefs, l = nesterov_smooth.loop(self.problem.coefs, grad_s, L_s, f=f_s, maxiter=max_its, values=True, tol=tol)
         return f_s
 

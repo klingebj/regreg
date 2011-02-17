@@ -110,7 +110,7 @@ class group_lasso(linmodel):
 
         self.dual = group_approximator((self.Dv, self.Y))
         self.dualopt = FISTA(self.dual)
-        self.dualM = np.linalg.eigvalsh(np.dot(self.dual.D.T, self.dual.D)).max() 
+
         self.m = self.dual.D.shape[0]
 
         if hasattr(self,'initial_coefs'):
@@ -147,7 +147,7 @@ class group_lasso(linmodel):
         for i in range(len(self.dual.Ds)):
             penalties['V%d' % i] = self.penalties['V%d' % i] / L
         self.dual.assign_penalty(**penalties)
-        self.dualopt.fit(self.dualM, **self.dualcontrol)
+        self.dualopt.fit(**self.dualcontrol)
         return self.dualopt.output[0]
 
     @property

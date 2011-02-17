@@ -1,8 +1,8 @@
 import numpy as np
-from nipy.io.api import load_image
-from nipy.core.api import Image
 
 def adj_from_nii(maskfile,num_time_points,numt=0,numx=1,numy=1,numz=1,regions=None):
+    from nipy.io.api import load_image
+    from nipy.core.api import Image
     mask = load_image(maskfile)._data
     return adj_from_3dmask(mask=mask,num_time_points=num_time_points,numt=numt,numx=numx,numy=numy,numz=numz,regions=regions)
 

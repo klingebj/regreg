@@ -35,19 +35,19 @@ def test_group_lasso_approximator1(l1=0.1,**control):
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
     opt1.debug = True
-    opt1.fit(M,tol=control['tol'], max_its=control['max_its'])
+    opt1.fit(tol=control['tol'], max_its=control['max_its'])
     t2 = time.time()
     ts1 = t2-t1
 
     t1 = time.time()
     opt2 = regreg.FISTA(p2)
-    opt2.fit(M,tol=control['tol'], max_its=control['max_its'])
+    opt2.fit(tol=control['tol'], max_its=control['max_its'])
     t2 = time.time()
     ts2 = t2-t1
 
     t1 = time.time()
     opt3 = regreg.FISTA(p3)
-    opt3.fit(M,tol=control['tol'], max_its=control['max_its'])
+    opt3.fit(tol=control['tol'], max_its=control['max_its'])
     t2 = time.time()
     ts3 = t2-t1
 
@@ -55,6 +55,7 @@ def test_group_lasso_approximator1(l1=0.1,**control):
     beta2, _ = opt2.output
     beta3, _ = opt3.output
     X = np.arange(n)
+
 
     nose.tools.assert_true((np.fabs(beta1-beta2).sum() / np.fabs(beta1).sum()) < 1.0e-04)
     nose.tools.assert_true((np.fabs(beta1-beta3).sum() / np.fabs(beta1).sum()) < 1.0e-04)

@@ -22,9 +22,10 @@ class generalized_lasso(linmodel):
         else:
             raise ValueError("Data tuple not as expected")
 
-        self.dual = signal_approximator((self.D, self.Y))
+        #self.dualM = np.linalg.eigvalsh(np.dot(self.dual.D.T, self.dual.D)).max() 
+        self.dual = signal_approximator((self.D, self.Y))#,L=self.dualM)
         self.dualopt = FISTA(self.dual)
-        self.dualM = np.linalg.eigvalsh(np.dot(self.dual.D.T, self.dual.D)).max() 
+
         if hasattr(self,'initial_coefs'):
             self.set_coefs(self.initial_coefs)
         else:
@@ -54,7 +55,7 @@ class generalized_lasso(linmodel):
         v = z - g / L
         self.dual.set_response(v)
         self.dual.assign_penalty(l1=self.penalties['l1']/L)
-        self.dualopt.fit(self.dualM, **self.dualcontrol)
+        self.dualopt.fit(**self.dualcontrol)
         return self.dualopt.output[0]
 
     def f(self, beta):

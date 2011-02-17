@@ -18,12 +18,12 @@ def test_fused_lasso(n=500, l1=10.):
     mu[int(0.1*n):int(0.3*n)] += (X[int(0.1*n):int(0.3*n)] - X[int(0.1*n)]) * 6
     mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 2
     Y += mu
-    p1 = sapprox.gengrad((D2, Y))
+    p1 = sapprox.gengrad((D2, Y),L=M)
     p1.assign_penalty(l1=l1)
     
     opt1 = regreg.FISTA(p1)
     opt1.debug = True
-    opt1.fit(M,tol=1.0e-6, max_its=1000)
+    opt1.fit(tol=1.0e-6, max_its=1000)
     beta1, _ = opt1.output
 
     pylab.clf()
@@ -34,7 +34,7 @@ def test_fused_lasso(n=500, l1=10.):
     p1.assign_penalty(l1=l1)
     opt2 = regreg.FISTA(p1)
     opt2.debug = True
-    opt2.fit(M,tol=1.0e-6, max_its=1000)
+    opt2.fit(tol=1.0e-6, max_its=1000)
     beta2, _ = opt2.output
     
     pylab.scatter(X, Y)

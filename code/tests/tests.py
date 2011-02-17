@@ -1,7 +1,7 @@
 import numpy as np
 import regreg, time
 import scipy.optimize
-from mask import convert_to_array
+from regreg.mask import convert_to_array
 
 
 def test_all(n=100):
