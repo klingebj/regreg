@@ -33,11 +33,11 @@ class ISTA(Regression):
 
             # Backtracking loop
             if backtrack:
-                current_f = self.problem.f(self.problem.coefs)
+                current_f = self.problem.obj_smooth(self.problem.coefs)
                 stop = False
                 while not stop:
                     beta = self.problem.proximal(self.problem.coefs, grad, inv_step)
-                    trial_f = self.problem.f(beta)
+                    trial_f = self.problem.obj_smooth(beta)
                     if np.fabs(trial_f - current_f)/trial_f > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-self.problem.coefs,grad) + 0.5*inv_step*np.linalg.norm(beta-self.problem.coefs)**2
                     else:
@@ -80,11 +80,11 @@ class FISTA(Regression):
             grad = self.problem.grad(r)
             # Backtracking loop
             if backtrack:
-                current_f = self.problem.f(r)
+                current_f = self.problem.obj_smooth(r)
                 stop = False
                 while not stop:
                     beta = self.problem.proximal(r, grad, inv_step)
-                    trial_f = self.problem.f(beta)
+                    trial_f = self.problem.obj_smooth(beta)
                     if np.fabs(trial_f - current_f)/trial_f > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-r,grad) + 0.5*inv_step*np.linalg.norm(beta-r)**2
                     else:

@@ -31,11 +31,22 @@ class lasso(linmodel):
 
     def obj(self, beta):
         beta = np.asarray(beta)
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(beta)) * self.penalties['l1']
+        return self.obj_smooth(beta) + self.obj_rough(beta)
+
+    def obj_smooth(self, beta):
+        #Smooth part of objective
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2.
+
+    def obj_rough(self, beta):
+        #Rough part of objective
+        return np.sum(np.fabs(beta)) * self.penalties['l1']
+
+
 
 class gengrad(lasso):
     
     def grad(self, beta):
+        #Gradient of obj_smooth
         beta = np.asarray(beta)
         XtXbeta = np.dot(self.X.T, np.dot(self.X, beta))
         return XtXbeta - np.dot(self.Y,self.X)
@@ -44,12 +55,6 @@ class gengrad(lasso):
     def proximal(self, z, g, L):
         v = z - g / L
         return np.sign(v) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
-
-    def f(self, beta):
-        #Smooth part of objective
-        beta = np.asarray(beta)
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2.
-     
 
 
 class gengrad_smooth(gengrad):

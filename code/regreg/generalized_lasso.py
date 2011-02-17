@@ -46,9 +46,16 @@ class generalized_lasso(linmodel):
     # this is the core generalized LASSO functionality
 
     def obj(self, beta):
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(np.dot(self.D, beta))) * self.penalties['l1']
+        return self.obj_smooth(beta) + self.obj_rough(beta)
+
+    def obj_smooth(self,beta):
+        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. 
+    
+    def obj_rough(self,beta):
+        return np.sum(np.fabs(np.dot(self.D, beta))) * self.penalties['l1']
 
     def grad(self, beta):
+        #Gradient of obj_smooth
         return np.dot(self.X.T, np.dot(self.X, beta) - self.Y)
 
     def proximal(self, z, g, L):
@@ -57,11 +64,6 @@ class generalized_lasso(linmodel):
         self.dual.assign_penalty(l1=self.penalties['l1']/L)
         self.dualopt.fit(**self.dualcontrol)
         return self.dualopt.output[0]
-
-    def f(self, beta):
-        #Smooth part of objective
-        beta = np.asarray(beta)
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. 
 
     @property
     def output(self):
@@ -96,9 +98,9 @@ class generalized_lasso_sparse(generalized_lasso):
         else:
             self.set_coefs(self.default_coefs)
 
-    def obj(self, beta):
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + np.sum(np.fabs(self.D.matvec(beta))) * self.penalties['l1']
-
+    def obj_rough(self, beta):
+        return np.sum(np.fabs(self.D.matvec(beta))) * self.penalties['l1']
+    
 
 
 class generalized_lasso_double_sparse(generalized_lasso_sparse):
@@ -128,16 +130,11 @@ class generalized_lasso_double_sparse(generalized_lasso_sparse):
         else:
             self.set_coefs(self.default_coefs)
 
-    def obj(self, beta):
-        return ((self.Y - self.X.matvec(beta))**2).sum() / 2. + np.sum(np.fabs(self.D.matvec(beta))) * self.penalties['l1']
+    def obj_smooth(self, beta):
+        return ((self.Y - self.X.matvec(beta))**2).sum() / 2. 
 
     def grad(self, beta):
         return self.XT.matvec(self.X.matvec(beta) - self.Y)
-
-    def f(self, beta):
-        #Smooth part of objective
-        beta = np.asarray(beta)
-        return ((self.Y - self.X.matvec(beta))**2).sum() / 2. 
 
     @property
     def output(self):

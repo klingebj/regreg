@@ -56,14 +56,17 @@ class signal_approximator(linmodel):
 
     def obj(self, dual):
         dual = np.asarray(dual)
+        return self.obj_smooth(dual) + self.obj_rough(dual)
+    
+    def obj_smooth(self, dual):
+        return ((self.Y - np.dot(self.D.T, dual))**2).sum() / 2.
+
+    def obj_rough(self, dual):
         if np.max(np.fabs(dual)) <= self.penalties['l1']:
-            return self.f(dual)
+            return 0.
         else:
             return np.inf
-    
-    def f(self, dual):
-        dual = np.asarray(dual)
-        return ((self.Y - np.dot(self.D.T, dual))**2).sum() / 2.
+        
     
     def grad(self, dual):
         dual = np.asarray(dual)
@@ -105,7 +108,7 @@ class signal_approximator_sparse(signal_approximator):
             self.set_coefs(self.default_coefs)
 
     
-    def f(self, dual):
+    def obj_smooth(self, dual):
         dual = np.asarray(dual)
         return ((self.Y - self.DT.matvec(dual))**2).sum() / 2.
 

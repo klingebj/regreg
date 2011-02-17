@@ -1,6 +1,6 @@
 import numpy as np
 import pylab, time, scipy
-
+import scipy.sparse
 import regreg.regression as regreg
 import regreg.lasso as lasso
 import regreg.graphnet as graphnet
