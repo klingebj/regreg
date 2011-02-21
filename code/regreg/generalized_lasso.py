@@ -6,8 +6,8 @@ from signal_approximator import signal_approximator, signal_approximator_sparse
 
 class generalized_lasso(linmodel):
 
-    dualcontrol = {'max_its':250,
-                   'tol':1.0e-16}
+    dualcontrol = {'max_its':150,
+                   'tol':1.0e-8}
 
     def initialize(self, data):
         """
@@ -62,6 +62,7 @@ class generalized_lasso(linmodel):
         v = z - g / L
         self.dual.set_response(v)
         self.dual.assign_penalty(l1=self.penalties['l1']/L)
+        #self.dualopt.debug = True
         self.dualopt.fit(**self.dualcontrol)
         return self.dualopt.output[0]
 
