@@ -9,7 +9,7 @@ from tests import gen_adj
 import nose.tools
 
 control = {'max_its':5500,
-           'tol':1.0e-12,
+           'tol':1.0e-6,
            'plot':False,
            'backtrack':True}
 
