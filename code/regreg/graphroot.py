@@ -19,7 +19,7 @@ problem_statement=r"""
 
     .. math::
 
-       h_\mu(x) = \left\{\begin{array}{cc} \|Dx\| - \mu/2 &\mbox{ if } \|Dx\| \geq \mu \\ \frac{1}{2\mu}\|Dx\|^2 & \mbox{ else} \end{array} \right.
+       h_\mu(x) = \left\{\begin{array}{cc} \|x\| - \mu/2 &\mbox{ if } \|x\| \geq \mu \\ \frac{1}{2\mu}\|x\|^2 & \mbox{ else} \end{array} \right.
 
     as a function of beta. This is a smooth approximation to minimizing
 
@@ -29,9 +29,10 @@ problem_statement=r"""
 """
 
 
+__doc__ = problem_statement
+
 class graphroot(linmodel):
 
-    __doc__ = problem_statement
 
     def initialize(self, data):
         """

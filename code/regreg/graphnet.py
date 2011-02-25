@@ -20,10 +20,10 @@ problem_statement=r"""
     as a function of beta.
 """
 
+__doc__ = problem_statement
 
 class graphnet(linmodel):
 
-    __doc__ = problem_statement
 
     def initialize(self, data):
         """

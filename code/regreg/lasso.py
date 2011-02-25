@@ -17,9 +17,10 @@ problem_statement=r"""
     as a function of beta.
 """
 
+__doc__ = problem_statement
+
 class lasso(linmodel):
 
-    __doc__ = problem_statement
 
     @property
     def default_penalties(self):

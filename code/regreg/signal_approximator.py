@@ -22,9 +22,9 @@ problem_statement = r"""
 
 """
 
-class signal_approximator(linmodel):
+__doc__ = problem_statement
 
-    __doc__ = problem_statement
+class signal_approximator(linmodel):
 
     def initialize(self, data):
         """

@@ -17,13 +17,12 @@ problem_statement=r"""
        y^T\beta + \lambda_{1}\|\beta\|_{1} + \lambda_2 \|\beta\|_{2}^{2} + \lambda_3 \beta^T L \beta
 
 
-    as a function of beta.
+    as a function of beta. Note that this problem can attain a value of -\infty if \lambda_1 is not large enough.
 """
-
+__doc__ = problem_statement
 
 class lin_graphnet(linquadmodel):
 
-    __doc__ = problem_statement
 
     def initialize(self, data):
         """

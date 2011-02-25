@@ -4,19 +4,19 @@ from regression import FISTA
 from problems import linmodel
 from signal_approximator import signal_approximator
 
-class group_approximator(signal_approximator):
-
-    """
+__doc__=r"""
     LASSO problem with one penalty parameter
     Minimizes
 
     .. math::
-       \begin{eqnarray}
        ||y - D'u||^{2}_{2} s.t. \|u\|_{\infty} \leq  \lambda_{1}
-       \end{eqnarray}
-
+    
     as a function of u and returns (y - u, u) as output.
-    """
+"""
+
+
+class group_approximator(signal_approximator):
+
 
     @property
     def default_penalties(self):
