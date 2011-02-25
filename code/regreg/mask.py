@@ -1,4 +1,6 @@
 import numpy as np
+from scipy import sparse
+
 
 def adj_from_nii(maskfile,num_time_points,numt=0,numx=1,numy=1,numz=1,regions=None):
     from nipy.io.api import load_image
@@ -91,13 +93,37 @@ def prepare_adj(mask,numx=1,numy=1,numz=1,regions=None,return_array=True):
                     region = regions[i,j,k]
                     ind = (local_map>-1)*(local_reg == region)
                     ind = np.bool_(ind)
-                    adj.append(np.array(local_map[ind],dtype=int))
+                    nbrs = np.array(local_map[ind],dtype=int)
+                    adj.append(nbrs)
+
+
+
     for i, a in enumerate(adj):
         a[np.equal(a,i)] = -1
+
+
     if return_array:
         return convert_to_array(adj)
     else:
         return adj
+
+
+def create_D(adj):
+    """
+    Create a matrix D based on the adj data structure
+    """
+
+    p, d =  adj.shape
+    D = sparse.lil_matrix((np.sum(adj>-1)/2,p))
+    count = 0
+    for i in range(p):
+        for j in range(d):
+            nbr = adj[i,j]
+            if nbr > i:
+                D[count,i] = 1
+                D[count,nbr] = -1
+                count += 1
+    return D
 
 def convert_to_array(adj):
     num_ind = np.max([len(a) for a in adj])
