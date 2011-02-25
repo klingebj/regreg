@@ -41,7 +41,7 @@ class ISTA(Regression):
                 while not stop:
                     beta = self.problem.proximal(self.problem.coefs, grad, self.inv_step)
                     trial_f = self.problem.obj_smooth(beta)
-                    if trial_f != 0 and np.fabs(trial_f - current_f)/trial_f > 1e-10:
+                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-self.problem.coefs,grad) + 0.5*self.inv_step*np.linalg.norm(beta-self.problem.coefs)**2
                     else:
                         trial_grad = self.problem.grad(beta)
