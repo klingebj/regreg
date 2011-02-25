@@ -2,6 +2,13 @@ import numpy as np
 
 class linmodel(object):
 
+    """
+    A class representing a linear regression problem with
+    design: a matrix X,
+    ceofficients: a vector coefs, and
+    response: a vector Y
+    """
+
     @property
     def output(self):
         r = self.Y - np.dot(self.X, self.coefs)
@@ -63,8 +70,9 @@ class linmodel(object):
     Y = property(get_response, set_response)
 
 
+#TODO: remove this class
 class linquadmodel(object):
-
+    
     @property
     def output(self):
         return self.coefs.copy()

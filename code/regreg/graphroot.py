@@ -11,15 +11,29 @@ class graphroot(linmodel):
 
     """
     GraphRoot problem:
-    Minimizes
+    Minimizes the problem
+
+    .. math::
+
+       \begin{eqnarray}
+       \|y - X\beta\|^{2}_{2}/2 + \lambda_{1}\|\beta\|_{1} + \lambda_2 h_\mu(D\beta)
+       \end{eqnarray}
+
+    where
+
+    .. math::
+
+       \begin{eqnarray}
+       h_\mu(x) = \left\{\begin{array} \|Dx\| - \mu/2 &\mbox{ if } \|Dx\| \geq \mu \\ \frac{1}{2\mu}\|Dx\|^2 & \mbox{ else} \end{array} \right.
+       \end{eqnarray}
+    as a function of beta. This is a smooth approximation to minimizing
 
     .. math::
 
        \begin{eqnarray}
        \|y - X\beta\|^{2}_{2}/2 + \lambda_{1}\|\beta\|_{1} + \lambda_2 \sqrt( \beta^T L \beta )
        \end{eqnarray}
-
-    as a function of beta.
+    
     """
 
     def initialize(self, data):

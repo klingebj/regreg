@@ -189,8 +189,3 @@ class CWPath(Regression):
             if status:
                 return True
             return False
-
-class Direct(Regression):
-    #XXX for PMD problems
-    def fit(self,tol=1e-4):
-        self.problem.update_direct()
