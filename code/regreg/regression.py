@@ -41,7 +41,7 @@ class ISTA(Regression):
                 while not stop:
                     beta = self.problem.proximal(self.problem.coefs, grad, self.inv_step)
                     trial_f = self.problem.obj_smooth(beta)
-                    if np.fabs(trial_f - current_f)/trial_f > 1e-10:
+                    if trial_f != 0 and np.fabs(trial_f - current_f)/trial_f > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-self.problem.coefs,grad) + 0.5*self.inv_step*np.linalg.norm(beta-self.problem.coefs)**2
                     else:
                         trial_grad = self.problem.grad(beta)
@@ -79,7 +79,6 @@ class FISTA(Regression):
         f = self.problem.obj
         r = self.problem.coefs
         t_old = 1.
-        
         obj_cur = np.inf
         itercount = 0
         if self.inv_step is None:
@@ -87,16 +86,12 @@ class FISTA(Regression):
         beta = self.problem.coefs
         while itercount < max_its:
             if np.mod(itercount+1,restart)==0:
-                print "Restarting"
+                if self.debug:
+                    print "Restarting"
                 r = self.problem.coefs
                 t_old = 1.
                 self.inv_step *= 0.5            
             f_beta = f(self.problem.coefs)
-            #if self.debug:
-            #    print itercount, obj_cur, inv_step, (obj_cur - f_beta) / f_beta, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
-            
-            #if np.fabs((obj_cur - f_beta) / f_beta) < tol and itercount >= min_its:
-            #    break
             obj_cur = f_beta
             objective_hist[itercount] = obj_cur
             grad = self.problem.grad(r)
@@ -107,7 +102,7 @@ class FISTA(Regression):
                 while not stop:
                     beta = self.problem.proximal(r, grad, self.inv_step)
                     trial_f = self.problem.obj_smooth(beta)
-                    if np.fabs(trial_f - current_f)/trial_f > 1e-10:
+                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-r,grad) + 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     else:
                         trial_grad = self.problem.grad(beta)
@@ -117,9 +112,8 @@ class FISTA(Regression):
             else:
                 self.inv_step = self.problem.L
                 beta = self.problem.proximal(r, grad, self.inv_step)
-
             if self.debug:
-                print itercount, obj_cur, self.inv_step, (obj_cur - f_beta) / f_beta, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
+                print itercount, obj_cur, self.inv_step, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
 
             if np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]) < tol and itercount >= min_its:
                 self.problem.coefs = beta
@@ -134,6 +128,7 @@ class FISTA(Regression):
         if self.debug:
             print "FISTA used", itercount, "iterations"
         return objective_hist
+    
 class NesterovSmooth(Regression):
     
     def fit(self,tol=1e-4,epsilon=0.1,max_its=100):
