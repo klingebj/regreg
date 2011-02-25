@@ -7,20 +7,23 @@ import updates
 import l1smooth
 from problems import linmodel
 
-class graphnet(linmodel):
 
-    """
+
+problem_statement=r"""
     GraphNet problem:
     Minimizes
-
+   
     .. math::
 
-       \begin{eqnarray}
        \|y - X\beta\|^{2}_{2}/2 + \lambda_{1}\|\beta\|_{1} + \lambda_2 \|\beta\|_{2}^{2} + \lambda_3 \beta^T L \beta
-       \end{eqnarray}
-
+                      
     as a function of beta.
-    """
+"""
+
+
+class graphnet(linmodel):
+
+    __doc__ = problem_statement
 
     def initialize(self, data):
         """

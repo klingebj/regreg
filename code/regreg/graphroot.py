@@ -7,34 +7,31 @@ import updates
 import l1smooth
 from problems import linmodel
 
-class graphroot(linmodel):
-
-    """
+problem_statement=r"""
     GraphRoot problem:
     Minimizes the problem
 
     .. math::
 
-       \begin{eqnarray}
        \|y - X\beta\|^{2}_{2}/2 + \lambda_{1}\|\beta\|_{1} + \lambda_2 h_\mu(D\beta)
-       \end{eqnarray}
 
     where
 
     .. math::
 
-       \begin{eqnarray}
-       h_\mu(x) = \left\{\begin{array} \|Dx\| - \mu/2 &\mbox{ if } \|Dx\| \geq \mu \\ \frac{1}{2\mu}\|Dx\|^2 & \mbox{ else} \end{array} \right.
-       \end{eqnarray}
+       h_\mu(x) = \left\{\begin{array}{cc} \|Dx\| - \mu/2 &\mbox{ if } \|Dx\| \geq \mu \\ \frac{1}{2\mu}\|Dx\|^2 & \mbox{ else} \end{array} \right.
+
     as a function of beta. This is a smooth approximation to minimizing
 
     .. math::
 
-       \begin{eqnarray}
-       \|y - X\beta\|^{2}_{2}/2 + \lambda_{1}\|\beta\|_{1} + \lambda_2 \sqrt( \beta^T L \beta )
-       \end{eqnarray}
-    
-    """
+       \|y - X\beta\|^{2}_{2}/2 + \lambda_{1}\|\beta\|_{1} + \lambda_2 \|D\beta\|
+"""
+
+
+class graphroot(linmodel):
+
+    __doc__ = problem_statement
 
     def initialize(self, data):
         """

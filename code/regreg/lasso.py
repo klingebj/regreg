@@ -7,19 +7,19 @@ import updates
 import l1smooth
 from problems import linmodel
 
-class lasso(linmodel):
-
-    """
+problem_statement=r"""
     LASSO problem with one penalty parameter
     Minimizes
 
     .. math::
-       \begin{eqnarray}
        ||y - X\beta||^{2}_{2} + \lambda_{1}||\beta||_{1}
-       \end{eqnarray}
-
+       
     as a function of beta.
-    """
+"""
+
+class lasso(linmodel):
+
+    __doc__ = problem_statement
 
     @property
     def default_penalties(self):
