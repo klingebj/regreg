@@ -14,7 +14,7 @@ control = {'max_its':500,
            'plot':False,
            'backtrack':True}
 
-def test_lin_graphnet(X=None,Y=None,l1=5.,l2=0.,l3=0., control=control):
+def test_lin_graphnet(X=None,Y=None,l1=25.,l2=0.,l3=1., control=control,nonneg=False):
 
     if X is None or Y is None:
         X = np.load('X.npy')
@@ -25,11 +25,17 @@ def test_lin_graphnet(X=None,Y=None,l1=5.,l2=0.,l3=0., control=control):
     _ , L = gen_adj(p)
     Lsparse = scipy.sparse.lil_matrix(L)
 
-    Y = np.dot(X.T,Y)
-    Y += - np.mean(Y)
+    #np.random.shuffle(Y)
+    Y = np.dot(Y,X)
+    np.random.shuffle(Y)
+    #Y = np.random.normal(0,1,X.shape[1])
     
     l1 *= X.shape[0]
-    p1 = lin_graphnet.gengrad((X, Y, L))
+    if nonneg:
+        p1 = lin_graphnet.gengrad_nonneg((Y, L))
+    else:
+        p1 = lin_graphnet.gengrad((Y, L))
+
     p1.assign_penalty(l1=l1,l2=l2,l3=l3)
     t1 = time.time()
     opt1 = regreg.FISTA(p1)
@@ -39,7 +45,10 @@ def test_lin_graphnet(X=None,Y=None,l1=5.,l2=0.,l3=0., control=control):
     t2 = time.time()
     ts3 = t2-t1
 
-    p2 = lin_graphnet.gengrad_sparse((X, Y, Lsparse))
+    if nonneg:
+        p2 = lin_graphnet.gengrad_nonneg_sparse((Y, Lsparse))
+    else:
+        p2 = lin_graphnet.gengrad_sparse((Y, Lsparse))
     p2.assign_penalty(l1=l1,l2=l2,l3=l3)
     t1 = time.time()
     opt2 = regreg.FISTA(p2)
@@ -51,7 +60,10 @@ def test_lin_graphnet(X=None,Y=None,l1=5.,l2=0.,l3=0., control=control):
 
 
     def f(beta):
-        return - np.dot(Y, beta) + np.fabs(beta).sum()*l1 + l2 * np.linalg.norm(beta)**2 + l3 * np.dot(beta, np.dot(L, beta))
+        if np.min(beta) < 0 and nonneg:
+            return np.inf
+        else:                
+            return - np.dot(Y, beta) + np.fabs(beta).sum()*l1 + l2 * np.linalg.norm(beta)**2 + l3 * np.dot(beta, np.dot(L, beta))
     
     v = scipy.optimize.fmin_powell(f, np.zeros(len(Y)), ftol=1.0e-10, xtol=1.0e-10,maxfun=100000)
     v = np.asarray(v)

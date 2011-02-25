@@ -27,11 +27,10 @@ class lin_graphnet(linquadmodel):
         Generate initial tuple of arguments for update.
         """
 
-        if len(data) == 3:
-            self.X = data[0]
-            self.Y = data[1]
-            self.Lap = data[2]
-            self.n, self.p = self.X.shape
+        if len(data) == 2:
+            self.Y = data[0]
+            self.Lap = data[1]
+            self.p = len(self.Y)
         else:
             raise ValueError("Data tuple not as expected")
 
@@ -70,6 +69,16 @@ class gengrad(lin_graphnet):
         return np.sign(v) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
 
 
+class gengrad_nonneg(lin_graphnet):
+
+    def grad(self, beta):
+        beta = np.asarray(beta)
+        return -self.Y + 2*beta*self.penalties['l2'] + 2*np.dot(self.Lap,beta)*self.penalties['l3']
+
+    def proximal(self, z, g, L):
+        v = z - g / L
+        return (v >= 0) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
+
 class lin_graphnet_sparse(lin_graphnet):
     
     #Assume Lap given as scipy.sparse matrix
@@ -86,6 +95,17 @@ class gengrad_sparse(lin_graphnet_sparse):
     def proximal(self, z, g, L):
         v = z - g / L
         return np.sign(v) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
+
+
+class gengrad_nonneg_sparse(lin_graphnet_sparse):
+    
+    def grad(self, beta):
+        beta = np.asarray(beta)
+        return -self.Y + 2*beta*self.penalties['l2'] + 2*self.Lap.matvec(beta)*self.penalties['l3']
+
+    def proximal(self, z, g, L):
+        v = z - g / L
+        return (v >= 0) * np.maximum(np.fabs(v)-self.penalties['l1']/L, 0)
 
          
 
