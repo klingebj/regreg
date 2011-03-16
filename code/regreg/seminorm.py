@@ -1,11 +1,7 @@
 import numpy as np
 
-from regression import FISTA
+from regression import FISTA, ISTA
 from problems import linmodel
-from signal_approximator import signal_approximator, signal_approximator_sparse
-
-
-
 
 class problem(object):
 
@@ -83,313 +79,295 @@ class squaredloss(problem):
         XtXbeta = np.dot(self.X.T, np.dot(self.X, beta)) 
         return XtXbeta - np.dot(self.Y,self.X) 
 
-class seminorm(object):
+  
+class dummy_problem(object):
     """
-    A seminorm container class for storing/combining seminorm_atom classes
+    A generic way to specify a problem
     """
-    def __init__(self, atoms):
-        if isinstance(atoms,list):
-            self.atoms = atoms
-        else:
-            self.atoms = [atoms]
-        self.M = len(self.atoms)
-        self.p = 1
+    def __init__(self, smooth, grad_smooth, nonsmooth, prox, initial, L):
+        self.coefs = initial * 1.
+        self.obj_smooth = smooth
+        self.nonsmooth = nonsmooth
+        self.grad = grad_smooth
+        self._prox = prox
+        self.L = L
 
-    def __add__(self,y):
-        #Combine two seminorms
-        atoms = self.atoms + y.atoms
-        return seminorm(atoms)
+    def obj(self, x):
+        return self.obj_smooth(x) + self.nonsmooth(x)
 
-    @property
-    def segments(self):
-        if not hasattr(self, '_segments'):
-            idx = 0
-            self._segments = []
-            for i in range(self.M):
-                self._segments.append(slice(idx, idx+self.p))
-                idx += self.p
-        return self._segments                
+    def proximal(self, x, g, L):
+        z = x - g / L
+        return self._prox(z, L)
 
-    def evaluate(self, beta):
-        out = 0.
-        for i in range(self.M):
-            out += self.atoms[i].evaluate(beta)
-        return out
-    
-    def proximal(self, z, g, L):
-        #Solve the proximal function for the seminorms
-        v = z - g / L
-        out = np.zeros(v.shape)
-
-        for i in range(self.M):
-            out += self.atoms[i].solve_prox(v, L)
-        return out
-        """
-        for i, segment in enumerate(self.segments):
-
-            #segment = self.segments[i]
-            #print "seg", segment, v[segment].shape            
-            #v[segment] =
-
-        return v
-        """
-    
 class seminorm_atom(object):
 
     """
     A seminorm atom class
     """
-    def __init__(self, D, l=1.):
-        self.D = D
+
+    def __init__(self, spec, l=1.):
+        if type(spec) == type(1):
+            self.p = self.m = spec
+            self.D = None
+        else:
+            D = spec
+            D = D.reshape((1,-1))
+            self.D = D
+            self.m, self.p = D.shape
         self.l = l
         
+    def evaluate(self, x):
+        """
+        Abstract method. Evaluate the norm of x.
+        """
+        raise NotImplementedError
+
+    def primal_prox(self, x, L):
+        """
+        Return (unique) minimizer
+
+        .. math::
+
+           v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+           \|x-v\|^2_2 + \lambda h(Dv)
+
+        where *p*=x.shape[0] and :math:`h(v)`=self.evaluate(v).
+        """
+        raise NotImplementedError
+
+    def dual_prox(self, u, L):
+        """
+        Return a minimizer
+
+        .. math::
+
+           v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+           \|u-D'v\|^2_2  s.t.  h^*(v) \leq \lambda
+
+        where *m*=u.shape[0] and :math:`h^*` is the 
+        conjugate of self.evaluate.
+        """
+        raise NotImplementedError
+
+    def multiply_by_DT(self, u):
+        if self.D is not None:
+            return np.dot(u, self.D)
+        else:
+            return u
+
+    def multiply_by_D(self, x):
+        if self.D is not None:
+            return np.dot(self.D, x)
+        else:
+            return x
+
 class l1norm(seminorm_atom):
 
     """
     The l1 norm
     """
 
-    def __init__(self, l=1.):
-        self.l = l
-        
-    def evaluate(self, beta):
-        return self.l * np.fabs(beta).sum()
+    def evaluate(self, x):
+        """
+        The L1 norm of Dx.
+        """
+        if self.D is None:
+            return self.l * np.fabs(x).sum()
+        else:
+            return self.l * np.fabs(np.dot(self.D, x)).sum()
 
-    def solve_prox(self, v,  L):
-        return np.sign(v) * np.maximum(np.fabs(v)-self.l/L, 0)
+    def primal_prox(self, x,  L):
+        """
+        Return (unique) minimizer
 
-class genl1norm(seminorm_atom):
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+            \|x-v\|^2_2 + \lambda \|Dv\|_1
+
+        where *p*=x.shape[0], :math:`\lambda`=self.l. 
+        If :math:`D=I` this is just soft thresholding
+
+        .. math::
+
+            v^{\lambda}(x) = \text{sign}(x) \max(|x|-\lambda/L, 0)
+        """
+
+        if self.D is None:
+            return np.sign(v) * np.maximum(np.fabs(v)-self.l/L, 0)
+        else:
+            return FISTAsoln # will barf
+
+    def dual_prox(self, u,  L):
+        """
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+            \|u-D'v\|^2_2 s.t. \|v\|_{\infty} \leq \lambda
+
+        where *m*=u.shape[0], :math:`\lambda`=self.l. 
+        This is just truncation: np.clip(u, -self.l/L, self.l/L).
+        """
+        return np.clip(u, -self.l/L, self.l/L)
+
+class l2norm(seminorm_atom):
 
     """
-    The generalized l1 norm \|D\beta\|_1
+    The l1 norm
     """
 
-    dualcontrol = {'max_its':5000,
-                   'tol':1.0e-8,
-                   'restart':np.inf}
-
-    def __init__(self, D, l=1.):
-        self.D = D
+    def __init__(self, spec, l=1.):
+        if type(spec) == type(1):
+            self.p = self.m = spec
+            self.D = None
+        else:
+            D = spec
+            D = D.reshape((1,-1))
+            self.D = D
+            self.m, self.p = D.shape
         self.l = l
-        self.dual = signal_approximator_sparse((self.D, np.zeros(self.D.shape[1])))
-        self.dualopt = FISTA(self.dual)
-
-    def evaluate(self, beta):
-        return self.l * np.fabs(self.D.matvec(beta)).sum()
-
-    def solve_prox(self, v, L):
-        self.dual.set_response(v)
-        self.dual.assign_penalty(l1=self.l/L)
-        self.dualopt.debug = True
-        self.dualopt.fit(**self.dualcontrol)
-        return self.dualopt.output[0]
-
-
-
-
-"""
-
-
-class james_stein(proximal):
-
-    def solve(self, v, L):
-        normv = np.linalg.norm(v)
-        if normv <= l:
-            return v
-        else:
-            return v * (l / normv)
-
-
-class truncate(proximal):
-    
-    #Vector truncated to have norm <= l (projection onto
-    #Euclidean ball of radius l.
-    
-    normV = norm2(V)
-    if normV <= l:
-        return V
-    else:
-        return V * (l / normV)
-    
-    def james_stein(V, l):
         
-        #James-Stein estimator:
-        
-        V - truncate(V, l)
-        normV = norm2(V)
-        return max(1 - l / normV, 0) * V
+    def evaluate(self, x):
+        """
+        The L2 norm of Dx.
+        """
+        if self.D is not None:
+            return self.l * np.sqrt((np.dot(self.D,x)**2).sum())
+        else:
+            return self.l * np.sqrt((x**2).sum())
 
-"""
+    def primal_prox(self, x,  L):
+        """
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+            \|x-v\|^2_2 + \lambda \|Dv\|_2
+
+        where *p*=x.shape[0], :math:`\lambda`=self.l. 
+        If :math:`D=I` this is just a "James-Stein" estimator
+
+        .. math::
+
+            v^{\lambda}(x) = \max(1 - \frac{\lambda/L}{\|x\|_2}, 0) x
+        """
+
+        if self.D is None:
+            return x - self.dual_prox(x, L)
+        else:
+            return FISTAsoln
+
+    def dual_prox(self, u,  L):
+        """
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+            \|u-D'v\|^2_2 + \lambda \|v\|_2
+
+        where *m*=u.shape[0], :math:`\lambda`=self.l. 
+        This is just truncation
+
+        .. math::
+
+            v^{\lambda}(u) = \min(1, \frac{\lambda/L}{\|u\|_2}) u
+        """
+        n = self.evaluate(u)
+        return min(1, (self.l/L) / n) * u
+
+class seminorm(object):
+    """
+    A seminorm container class for storing/combining seminorm_atom classes
+    """
+    def __init__(self, *atoms):
+        self.atoms = []
+        self.primal_dim = -1
+        self.segments = []
+        idx = 0
+        for atom in atoms:
+            if self.primal_dim < 0:
+                self.primal_dim = atom.p
+            else:
+                if atom.p != self.primal_dim:
+                    raise ValueError("primal dimensions don't agree")
+            self.atoms.append(atom)
+            self.segments.append(slice(idx, idx+atom.m))
+            idx += atom.m
+        self.total_dual = idx
+
+    def __add__(self,y):
+        #Combine two seminorms
+        def atoms():
+            for obj in [self, y]:
+                for atom in obj.atoms:
+                    yield atom
+        return seminorm(*atoms())
+
+    def evaluate(self, x):
+        out = 0.
+        for atom in self.atoms:
+            out += atom.evaluate(x)
+        return out
     
-"""
-class group_approximator(signal_approximator):
+    def dual_prox(self, u, L):
+        """
+        Return (unique) minimizer
 
+        .. math::
 
-    @property
-    def default_penalties(self):
-        return {}
+           v^{\lambda}(u) = \text{argmin}_{v \in \real^m} \frac{L}{2}
+           \|v-u\|^2_2  s.t.  h^*_i(v) \leq \infty, 0 \leq i \leq M-1
 
-    def initialize(self, data):
+        where *m*=u.shape[0]=np.sum(self.dual_dims), :math:`M`=self.M
+        and :math:`h^*_i` is the conjugate of 
+        self.atoms[i].l * self.atoms[i].evaluate and 
+        :math:`\lambda_i`=self.atoms[i].l.
 
-        #Generate initial tuple of arguments for update.
-
-        if len(data) == 2:
-            penalties = {}
-            self.Ds = []
-            self.segments = []
-            idx = 0
-            for i, v in enumerate(data[0]):
-                D, penalty = v
-                D = np.atleast_2d(D)
-                self.Ds.append(D) 
-                self.segments.append(slice(idx, idx+D.shape[0]))
-                idx += D.shape[0]
-                penalties['V%d' % i] =penalty
-            self.assign_penalty(**penalties)
-            self.Y = data[1]
-            self.D = np.vstack(self.Ds)
-            self.n = self.Y.shape[0]
-        else:
-            raise ValueError("Data tuple not as expected")
-
-        if hasattr(self,'initial_coefs'):
-            self.set_coefs(self.initial_coefs)
-        else:
-            self.set_coefs(self.default_coefs)
-
-    @property
-    def default_coefs(self):
-        return np.zeros(self.D.shape[0])
-
-    def compute_penalty(self, beta):
-        pen = 0
-        for i, D in enumerate(self.Ds):
-            pen += self.penalties['V%d' % i] * norm2(np.dot(D, beta))
-        return pen
-
-    def obj(self, dual):
-        beta = self.Y - np.dot(dual, self.D)
-        return ((self.Y - beta)**2).sum() / 2. + self.compute_penalty(beta)
-
-    def grad(self, dual):
-        dual = np.asarray(dual)
-        return np.dot(self.D, np.dot(dual, self.D) - self.Y)
-
-    def proximal(self, z, g, L):
-        v = z - g / L
-        for i, segment in enumerate(self.segments):
-            l = self.penalties['V%d' % i]
-            v[segment] = truncate(v[segment], l/L)
+        This is used in the inner loop with :math:`u=z-g/L` when finding
+        self.primal_prox, i.e., the signal approximator problem.
+        """
+        v = np.empty(u.shape)
+        for atom, segment in zip(self.atoms, self.segments):
+            v[segment] = atom.dual_prox(v[segment], atom.l/L)
         return v
 
-    def f(self, dual):
-        #Smooth part of objective
-        beta = self.Y - np.dot(dual, self.D)
-        return ((self.Y - beta)**2).sum() / 2.
-                            
+    def primal_prox(self, x, L, solver=ISTA):
+        dualp = self.dual_problem(x, L=L, solver=solver)
+        dualp.debug = True
+        dualp.fit(max_its=20000)
+        return self.primal_from_dual(x, dualp.problem.coefs)
 
-    @property
-    def output(self):
-        r = np.dot(self.coefs, self.D) 
-        return self.Y - r, r
+    def primal_from_dual(self, u, v):
+        """
 
-class group_lasso(linmodel):
+        """
+        x = u * 1.
+        for atom, segment in zip(self.atoms, self.segments):
+            x -= atom.multiply_by_DT(v[segment])
+        return x
 
-    dualcontrol = {'max_its':50,
-                   'tol':1.0e-06}
+    def dual_problem(self, y, L=1, solver=FISTA, initial=None):
+        """
+        Return a problem instance of the dual
+        prox problem with a given y value.
+        """
+        def smooth(v,y=y):
+            primal = self.primal_from_dual(y, v)
+            return L * (primal**2).sum() / 2.
+        def grad_smooth(v,y=y):
+            primal = self.primal_from_dual(y, v)
+            g = np.zeros(self.total_dual)
+            for atom, segment in zip(self.atoms, self.segments):
+                g[segment] = atom.multiply_by_D(primal)
+            g *= -L
+            return g
+        prox = self.dual_prox
+        nonsmooth = self.evaluate #XXX this should be the constraint one
+        if initial is None:
+            initial = np.random.standard_normal(self.total_dual)
+        return solver(dummy_problem(smooth, grad_smooth, nonsmooth, prox, initial, L))
 
-    def initialize(self, data):
-
-        #Generate initial tuple of arguments for update.
-        
-        if len(data) == 3:
-            self.X = data[0]
-            self.Dv = data[1]
-            penalties = {}
-            for i, v in enumerate(data[1]):
-                _, penalty = v
-                penalties['V%d' % i] =penalty
-            self.assign_penalty(**penalties)
-            self.Y = data[2]
-            self.n, self.p = self.X.shape
-        else:
-            #raise ValueError("Data tuple not as expected")
-
-        self.dual = group_approximator((self.Dv, self.Y))
-        self.dualopt = FISTA(self.dual)
-
-        self.m = self.dual.D.shape[0]
-
-        if hasattr(self,'initial_coefs'):
-            self.set_coefs(self.initial_coefs)
-        else:
-            self.set_coefs(self.default_coefs)
-
-    @property
-    def default_penalties(self):
-
-        #Default penalty for Lasso: a single
-        #parameter problem.
-
-        #XXX maybe use a recarray for the penalties
-        return {}
-
-    @property
-    def default_coefs(self):
-        return np.zeros(self.p)
-
-    # this is the core generalized LASSO functionality
-
-    def obj(self, beta):
-        return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. + self.dual.compute_penalty(beta)
-
-    def grad(self, beta):
-        return np.dot(self.X.T, np.dot(self.X, beta) - self.Y)
-
-    def proximal(self, z, g, L):
-        v = z - g / L
-        self.dual.set_response(v)
-        #XXX this is painful -- maybe do it with a recarray multiplication?
-        penalties = {}
-        for i in range(len(self.dual.Ds)):
-            penalties['V%d' % i] = self.penalties['V%d' % i] / L
-        self.dual.assign_penalty(**penalties)
-        self.dualopt.fit(**self.dualcontrol)
-        return self.dualopt.output[0]
-
-    @property
-    def output(self):
-        r = self.Y - np.dot(self.X, self.coefs) 
-        return self.coefs, r
-
-
-def norm2(V):
-
-    #The Euclidean norm of a vector.
-
-    return np.sqrt((V**2).sum())
-
-def truncate(V, l):
-
-    #Vector truncated to have norm <= l (projection onto
-    #Euclidean ball of radius l.
-
-    normV = norm2(V)
-    if normV <= l:
-        return V
-    else:
-        return V * (l / normV)
-
-def james_stein(V, l):
-
-    #James-Stein estimator:
-
-    V - truncate(V, l)
-    normV = norm2(V)
-    return max(1 - l / normV, 0) * V
-
-"""
-# The API is to have a gengrad class in each module.
-# In this module, this is the signal_approximator
-
-#gengrad = group_lasso
