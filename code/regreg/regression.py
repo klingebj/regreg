@@ -102,6 +102,7 @@ class FISTA(Regression):
                 while not stop:
                     beta = self.problem.proximal(r, grad, self.inv_step)
                     trial_f = self.problem.obj_smooth(beta)
+
                     if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-r,grad) + 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     else:
@@ -127,7 +128,7 @@ class FISTA(Regression):
 
         if self.debug:
             print "FISTA used", itercount, "iterations"
-        return objective_hist
+        return objective_hist[:itercount]
     
 class NesterovSmooth(Regression):
     
