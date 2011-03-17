@@ -4,49 +4,7 @@ import regression; reload(regression)
 from regression import FISTA, ISTA
 from problems import linmodel
 
-class problem(object):
-
-    """
-    A problem class with a smooth component, and a seminorm component stored in self.semi
-    """
-
-    def __init__(self, data, semi):
-        self.semi = semi
-        self.initialize(data)
-
-    @property
-    def output(self):
-        r = self.Y - np.dot(self.X, self.coefs)
-        return self.coefs.copy(), r
-    
-    def set_coefs(self, coefs):
-        self._coefs = coefs
-
-    def get_coefs(self):
-        return self._coefs
-    coefs = property(get_coefs, set_coefs)
-
-    def set_response(self,Y):
-        self._Y = Y
-
-    def get_response(self):
-        return self._Y
-    Y = property(get_response, set_response)
-
-    @property
-    def default_coefs(self):
-        return np.zeros(self.p)
-
-    def obj(self, beta):
-        return self.obj_smooth(beta) + self.obj_rough(beta)
-
-    def obj_rough(self, beta):
-        return self.semi.evaluate(beta)
-
-    def proximal(self, coefs, grad, L):
-        return self.semi.proximal(coefs, grad, L)
-
-class squaredloss(problem):
+class squaredloss(object):
 
     """
     A class for combining squared error loss with a general seminorm
@@ -79,7 +37,8 @@ class dummy_problem(object):
     A generic way to specify a problem
     """
     def __init__(self, smooth, grad_smooth, nonsmooth, prox, initial, smooth_multiplier=1):
-        self.coefs = initial * 1.
+        self.initial = initial.copy()
+        self.coefs = initial.copy()
         self.obj_smooth = smooth
         self.nonsmooth = nonsmooth
         self._grad = grad_smooth
@@ -235,7 +194,7 @@ class l2norm(seminorm_atom):
     """
     The l2 norm
     """
-    tol = 1.0e-10
+    tol = 0.
     
     def evaluate(self, x):
         """
@@ -247,7 +206,7 @@ class l2norm(seminorm_atom):
             return self.l * np.linalg.norm(x)
 
     def evaluate_dual(self, u):
-        inball = (np.linalg.norm(u) <= self.l)
+        inball = (np.linalg.norm(u) <= self.l * (1 + self.tol))
         if inball:
             return 0
         else:
@@ -299,7 +258,7 @@ class l2norm(seminorm_atom):
         if n < self.l:
             return u
         else:
-            return (self.l * (1 - l2norm.tol)/ n) * u
+            return (self.l / n) * u
 
 class seminorm(object):
     """
@@ -363,14 +322,15 @@ class seminorm(object):
             v[segment] = atom.dual_prox(u[segment], L_D)
         return v
 
-    default_solver = ISTA
+    default_solver = FISTA
     def primal_prox(self, y, L_P=1, with_history=False, debug=False):
         #XXX make dualp persistent...
-        dualp = self.dual_problem(y, L_P=L_P)
-        solver = seminorm.default_solver(dualp)
+        if not hasattr(self, 'dualp'):
+            self.dualp = self.dual_problem(y, L_P=L_P)
+        self._dual_prox_center = y.copy()
+        solver = seminorm.default_solver(self.dualp)
         solver.debug = debug
         history = solver.fit(max_its=2000)
-        print history.shape, L_P, np.max(history), np.min(history), 'niterations'
         if with_history:
             return self.primal_from_dual(y, solver.problem.coefs), history
         else:
@@ -390,22 +350,24 @@ class seminorm(object):
         Return a problem instance of the dual
         prox problem with a given y value.
         """
-        
-        def smooth(v):
-            primal = self.primal_from_dual(y, v)
-            return (primal**2).sum() / 2.
-        def grad_smooth(v):
-            primal = self.primal_from_dual(y, v)
-            g = np.zeros(self.total_dual)
-            for atom, segment in zip(self.atoms, self.segments):
-                g[segment] = -atom.multiply_by_D(primal)
-            return g
+        self._dual_prox_center = y
         if initial is None:
             z = np.random.standard_normal(self.total_dual)
             initial = self.dual_prox(z, 1./L_P)
         nonsmooth = self.evaluate_dual
         prox = self.dual_prox
-        return dummy_problem(smooth, grad_smooth, nonsmooth, prox, initial, 1./L_P)
+        return dummy_problem(self._dual_smooth, self._dual_grad_smooth, nonsmooth, prox, initial, 1./L_P)
+
+    def _dual_smooth(self, v):
+        primal = self.primal_from_dual(self._dual_prox_center, v)
+        return (primal**2).sum() / 2.
+
+    def _dual_grad_smooth(self, v):
+        primal = self.primal_from_dual(self._dual_prox_center, v)
+        g = np.zeros(self.total_dual)
+        for atom, segment in zip(self.atoms, self.segments):
+            g[segment] = -atom.multiply_by_D(primal)
+        return g
 
     def problem(self, smooth, grad_smooth, smooth_multiplier=1., initial=None):
         prox = self.primal_prox
@@ -447,7 +409,7 @@ def lasso_example():
     Y = np.random.standard_normal((1000,))
     regloss = squaredloss(X,Y)
     p=regloss.add_seminorm(sparsity)
-    solver=ISTA(p)
+    solver=FISTA(p)
     solver.debug = True
     vals = solver.fit(max_its=2000)
     soln = solver.problem.coefs
@@ -464,21 +426,29 @@ def lasso_example():
     pylab.clf()
     pylab.plot(vals)
 
+def group_lasso_signal_approx():
+
+    def selector(p, slice):
+        return np.identity(p)[slice]
+    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=10.) for i in range(5)]
+    group_lasso = seminorm(*penalties)
+    x = np.random.standard_normal(500)
+    a = group_lasso.primal_prox(x, 1., debug=True)
+    
 def group_lasso_example():
 
     def selector(p, slice):
         return np.identity(p)[slice]
-    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=100.) for i in range(5)]
+    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=5.) for i in range(5)]
     group_lasso = seminorm(*penalties)
-    x = np.random.standard_normal(500)
-    group_lasso.primal_prox(x, 1.)
+
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
     regloss = squaredloss(X,Y)
     p=regloss.add_seminorm(group_lasso, smooth_multiplier=1.0e-03)
-    solver=ISTA(p)
+    solver=FISTA(p)
     solver.debug = True
-    vals = solver.fit(max_its=2000, start_inv_step=1000.)
+    vals = solver.fit(max_its=2000, min_its=20)
     soln = solver.problem.coefs
 
     # solution
