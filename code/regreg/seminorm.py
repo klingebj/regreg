@@ -439,13 +439,14 @@ def group_lasso_example():
 
     def selector(p, slice):
         return np.identity(p)[slice]
-    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=5.) for i in range(5)]
+    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
+    penalties[0].l = 2.
     group_lasso = seminorm(*penalties)
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
     regloss = squaredloss(X,Y)
-    p=regloss.add_seminorm(group_lasso, smooth_multiplier=1.0e-03)
+    p=regloss.add_seminorm(group_lasso)
     solver=FISTA(p)
     solver.debug = True
     vals = solver.fit(max_its=2000, min_its=20)
