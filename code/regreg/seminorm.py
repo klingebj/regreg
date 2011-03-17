@@ -3,6 +3,7 @@ import numpy as np
 import regression; reload(regression)
 from regression import FISTA, ISTA
 from problems import linmodel
+import lasso
 
 class squaredloss(object):
 
@@ -384,10 +385,10 @@ def fused_example():
 
     sparsity = l1norm(500, l=1.3)
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
-    fused = l1norm(D, l=1.5)
+    fused = l1norm(D, l=10.5)
 
     pen = seminorm(sparsity,fused)
-    soln, vals = pen.primal_prox(x, 1)
+    soln, vals = pen.primal_prox(x, 1, with_history=True)
     
     # solution
 
@@ -402,29 +403,48 @@ def fused_example():
     pylab.clf()
     pylab.plot(vals)
 
-def lasso_example():
+def lasso_example(compare=False):
 
-    sparsity = l1norm(500, l=20.)
+    l1 = 20.
+    sparsity = l1norm(500, l=l1/2.)
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
     regloss = squaredloss(X,Y)
-    p=regloss.add_seminorm(sparsity)
+    sparsity2 = l1norm(500, l=l1/2.)
+    #p=regloss.add_seminorm(sparsity)
+    p=regloss.add_seminorm(seminorm(sparsity,sparsity2))
     solver=FISTA(p)
     solver.debug = True
-    vals = solver.fit(max_its=2000)
+    vals = solver.fit(max_its=2000, min_its = 100)
     soln = solver.problem.coefs
 
-    # solution
+    if not compare:
+        # solution
+        pylab.figure(num=1)
+        pylab.clf()
+        pylab.plot(soln, c='g')
 
-    pylab.figure(num=1)
-    pylab.clf()
-    pylab.plot(soln, c='g')
+        # objective values
+        pylab.figure(num=2)
+        pylab.clf()
+        pylab.plot(vals)
+    else:
+        p2 = lasso.gengrad((X, Y))
+        p2.assign_penalty(l1=l1)
+        opt = FISTA(p2)
+        opt.debug = True
+        opt.fit(tol=1e-10,max_its=5000)
+        beta = opt.problem.coefs
+        print "Terminal error with seminorm:", np.min(vals), "\tTerminal error with lasso", p.obj(beta) ,"\nTerminal relative error:", (np.min(vals) - p.obj(beta))/p.obj(beta)
 
-    # objective values
-
-    pylab.figure(num=2)
-    pylab.clf()
-    pylab.plot(vals)
+        pylab.figure(num=1)
+        pylab.clf()
+        #pylab.plot(soln, c='g')
+        pylab.scatter(soln,beta)
+        
+        pylab.figure(num=2)
+        pylab.clf()
+        pylab.plot(vals)
 
 def group_lasso_signal_approx():
 
