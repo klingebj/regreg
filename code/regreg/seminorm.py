@@ -456,6 +456,16 @@ def group_lasso_signal_approx():
     x = np.random.standard_normal(500)
     a = group_lasso.primal_prox(x, 1., debug=True)
     
+def lasso_via_dual_split():
+
+    def selector(p, slice):
+        return np.identity(p)[slice]
+    penalties = [l1norm(selector(500, slice(i*100,(i+1)*100)), l=0.2) for i in range(5)]
+    lasso = seminorm(*penalties)
+    x = np.random.standard_normal(500)
+    a = lasso.primal_prox(x, debug=True)
+    np.testing.assert_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), a)
+    
 def group_lasso_example():
 
     def selector(p, slice):
