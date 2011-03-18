@@ -446,6 +446,7 @@ def lasso_example(compare=False):
         pylab.clf()
         pylab.plot(vals)
 
+
 def group_lasso_signal_approx():
 
     def selector(p, slice):
@@ -483,4 +484,21 @@ def group_lasso_example():
     pylab.figure(num=2)
     pylab.clf()
     pylab.plot(vals)
+
+
+
+def test_lasso_dual():
+
+    """
+    Check that the solution of the lasso signal approximator dual problem is soft-thresholding
+    """
+
+    l1 = .1
+    sparsity = l1norm(500, l=l1)
+    x = np.random.normal(0,1,500)
+    pen = seminorm(sparsity)
+    soln, vals = pen.primal_prox(x, 1, with_history=True, debug=True)
+    st = np.maximum(np.fabs(x)-l1,0) * np.sign(x) 
+    assert(np.allclose(soln,st,rtol=1e-3,atol=1e-3))
+
 
