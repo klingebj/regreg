@@ -528,12 +528,35 @@ def test_multiple_lasso_dual():
     assert(np.allclose(soln,st,rtol=1e-3,atol=1e-3))
 
 
+def test_lasso_dual_from_primal(l1 = .1, L = 2.):
+
+    """
+    Check that the solution of the lasso signal approximator dual problem is soft-thresholding, when call from primal problem object
+    """
+
+    sparsity = l1norm(500, l=l1)
+    x = np.random.normal(0,1,500)
+
+    X = np.random.standard_normal((1000,500))
+    Y = np.random.standard_normal((1000,))
+    regloss = squaredloss(X,Y)
+    p=regloss.add_seminorm(seminorm(sparsity))
+
+    soln = p.proximal(x,np.zeros(x.shape),L)
+    st = np.maximum(np.fabs(x)-l1/L,0) * np.sign(x)
+
+    print x[range(10)]
+    print soln[range(10)]
+    print st[range(10)]
+    assert(np.allclose(soln,st,rtol=1e-3,atol=1e-3))
+
 
 def test_lasso():
 
     l1 = 20.
     sparsity1 = l1norm(500, l=l1/2.)
     sparsity2 = l1norm(500, l=l1/2.)
+    
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
     regloss = squaredloss(X,Y)
@@ -542,7 +565,7 @@ def test_lasso():
     p=regloss.add_seminorm(seminorm(sparsity1,sparsity2))
     solver=FISTA(p)
     solver.debug = True
-    vals = solver.fit(max_its=2000)
+    vals = solver.fit(max_its=2000,min_its=50)
     soln = solver.problem.coefs
 
 
