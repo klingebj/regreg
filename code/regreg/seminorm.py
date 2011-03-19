@@ -472,7 +472,10 @@ def group_lasso_example():
     def selector(p, slice):
         return np.identity(p)[slice]
     penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
-    penalties[0].l = 2.
+    penalties[0].l = 250.
+    penalties[1].l = 225.
+    penalties[2].l = 150.
+    penalties[3].l = 100.
     group_lasso = seminorm(*penalties)
 
     X = np.random.standard_normal((1000,500))
