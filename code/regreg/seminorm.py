@@ -326,16 +326,17 @@ class seminorm(object):
     default_solver = FISTA
     def primal_prox(self, y, L_P=1, with_history=False, debug=False):
         #XXX make dualp persistent...
+        yL = L_P * y
         if not hasattr(self, 'dualp'):
-            self.dualp = self.dual_problem(y, L_P=L_P)
-        self._dual_prox_center = y.copy()
+            self.dualp = self.dual_problem(yL, L_P=L_P)
+        self._dual_prox_center = yL
         solver = seminorm.default_solver(self.dualp)
         solver.debug = debug
         history = solver.fit(max_its=2000)
         if with_history:
-            return self.primal_from_dual(y, solver.problem.coefs), history
+            return self.primal_from_dual(y, solver.problem.coefs/L_P), history
         else:
-            return self.primal_from_dual(y, solver.problem.coefs)
+            return self.primal_from_dual(y, solver.problem.coefs/L_P)
 
     def primal_from_dual(self, y, u):
         """
@@ -554,8 +555,8 @@ def test_lasso_dual_from_primal(l1 = .1, L = 2.):
 def test_lasso():
 
     l1 = 20.
-    sparsity1 = l1norm(500, l=l1/2.)
-    sparsity2 = l1norm(500, l=l1/2.)
+    sparsity1 = l1norm(500, l=l1*0.75)
+    sparsity2 = l1norm(500, l=l1*0.25)
     
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
