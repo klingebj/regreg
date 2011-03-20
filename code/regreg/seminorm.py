@@ -1,4 +1,6 @@
 import numpy as np
+from scipy import sparse
+import time
 
 import regression; reload(regression)
 from regression import FISTA, ISTA
@@ -75,6 +77,11 @@ class seminorm_atom(object):
             self.D = D
             self.m, self.p = D.shape
         self.l = l
+        if self.D is not None:
+            self.noneD = False
+            self.sparseD = sparse.isspmatrix(self.D)
+        else:
+            self.noneD = True
         
     def evaluate(self, x):
         """
@@ -109,17 +116,26 @@ class seminorm_atom(object):
         """
         raise NotImplementedError
 
+    #XXX These routines are currently matrix multiplications, but could also call
+    #FFTs if D is a DFT matrix, etc.
     def multiply_by_DT(self, u):
-        if self.D is not None:
-            return np.dot(u, self.D)
+        if not self.noneD:
+            if self.sparseD:
+                return u * self.D
+            else:
+                return np.dot(u, self.D)
         else:
-            return u
-
+                return u
+                                 
     def multiply_by_D(self, x):
-        if self.D is not None:
-            return np.dot(self.D, x)
+        if not self.noneD:
+            if self.sparseD:
+                return self.D * x
+            else:
+                return np.dot(self.D, x)
         else:
-            return x
+                return x
+                                                              
 
     def problem(self, smooth, grad_smooth, smooth_multiplier=1., initial=None):
         """
@@ -142,10 +158,7 @@ class l1norm(seminorm_atom):
         """
         The L1 norm of Dx.
         """
-        if self.D is None:
-            return self.l * np.fabs(x).sum()
-        else:
-            return self.l * np.fabs(np.dot(self.D, x)).sum()
+        return self.l * np.fabs(self.multiply_by_D(x)).sum()
 
     def evaluate_dual(self, u):
         inbox = np.product(np.less_equal(np.fabs(u), self.l))
@@ -201,10 +214,7 @@ class l2norm(seminorm_atom):
         """
         The L2 norm of Dx.
         """
-        if self.D is not None:
-            return self.l * np.linalg.norm(np.dot(self.D, x))
-        else:
-            return self.l * np.linalg.norm(x)
+        return self.l * np.linalg.norm(self.multiply_by_D(x))
 
     def evaluate_dual(self, u):
         inball = (np.linalg.norm(u) <= self.l * (1 + self.tol))
@@ -500,6 +510,56 @@ def group_lasso_example():
     pylab.plot(vals)
 
 
+    
+def test_group_lasso_sparse():
+
+    def selector(p, slice):
+        return np.identity(p)[slice]
+
+    def selector_sparse(p, slice):
+        return sparse.csr_matrix(np.identity(p)[slice])
+
+    X = np.random.standard_normal((1000,500))
+    Y = np.random.standard_normal((1000,))
+
+
+    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
+    penalties[0].l = 250.
+    penalties[1].l = 225.
+    penalties[2].l = 150.
+    penalties[3].l = 100.
+    group_lasso = seminorm(*penalties)
+    regloss = squaredloss(X,Y)
+    p=regloss.add_seminorm(group_lasso)
+    solver=FISTA(p)
+    solver.debug = True
+    t1 = time.time()
+    vals = solver.fit(max_its=2000, min_its=20,tol=1e-8)
+    soln1 = solver.problem.coefs
+    t2 = time.time()
+    dt1 = t2 - t1
+
+
+    penalties = [l2norm(selector_sparse(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
+    penalties[0].l = 250.
+    penalties[1].l = 225.
+    penalties[2].l = 150.
+    penalties[3].l = 100.
+    group_lasso = seminorm(*penalties)
+    regloss = squaredloss(X,Y)
+    p=regloss.add_seminorm(group_lasso)
+    solver=FISTA(p)
+    solver.debug = True
+    t1 = time.time()
+    vals = solver.fit(max_its=2000, min_its=20,tol=1e-8)
+    soln2 = solver.problem.coefs
+    t2 = time.time()
+    dt2 = t2- t1
+
+    print "Times", dt1, dt2
+    print soln1[range(10)]
+    print soln2[range(10)]
+    np.testing.assert_almost_equal(soln1,soln2)
 
 def test_lasso_dual():
 
