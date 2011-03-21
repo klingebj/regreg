@@ -119,13 +119,14 @@ class FISTA(Regression):
             if self.debug:
                 print itercount, obj_cur, self.inv_step, (trial_obj-obj_cur)/obj_cur, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
 
-            """
-            if np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]) < tol and itercount >= min_its:
-                self.problem.coefs = beta
-                break
-            """
-            if np.fabs(trial_obj - obj_cur)/obj_cur < tol and itercount >= min_its:
-                break
+
+            if itercount >= min_its:
+                if np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]) < tol:
+                    self.problem.coefs = beta
+                    break
+                if np.fabs(trial_obj - obj_cur)/obj_cur < tol:
+                    self.problem.coefs = beta
+                    break
 
 
             t_new = 0.5 * (1 + np.sqrt(1+4*(t_old**2)))
