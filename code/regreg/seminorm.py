@@ -208,7 +208,7 @@ class l2norm(seminorm_atom):
     """
     The l2 norm
     """
-    tol = 0.
+    tol = 1e-10
     
     def evaluate(self, x):
         """
@@ -493,7 +493,7 @@ def group_lasso_example():
     p=regloss.add_seminorm(group_lasso)
     solver=FISTA(p)
     solver.debug = True
-    vals = solver.fit(max_its=2000, min_its=20)
+    vals = solver.fit(max_its=2000, min_its=20,tol=1e-10)
     soln = solver.problem.coefs
 
     # solution
