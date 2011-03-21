@@ -113,17 +113,31 @@ class FISTA(Regression):
             else:
                 self.inv_step = self.problem.L
                 beta = self.problem.proximal(r, grad, self.inv_step)
-            if self.debug:
-                print itercount, obj_cur, self.inv_step, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
 
+            trial_obj = f(beta)
+
+            if self.debug:
+                print itercount, obj_cur, self.inv_step, (trial_obj-obj_cur)/obj_cur, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
+
+            """
             if np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]) < tol and itercount >= min_its:
                 self.problem.coefs = beta
                 break
+            """
+            if np.fabs(trial_obj - obj_cur)/obj_cur < tol and itercount >= min_its:
+                break
+
 
             t_new = 0.5 * (1 + np.sqrt(1+4*(t_old**2)))
             r = beta + ((t_old-1)/(t_new)) * (beta - self.problem.coefs)
-            self.problem.coefs = beta
-            t_old = t_new
+            if (trial_obj - obj_cur)/trial_obj > 1e-12:
+                if self.debug:
+                    print "Restarting", trial_obj, obj_cur
+                t_old = 1.
+                r = self.problem.coefs
+            else:
+                self.problem.coefs = beta
+                t_old = t_new
             itercount += 1
 
         if self.debug:
