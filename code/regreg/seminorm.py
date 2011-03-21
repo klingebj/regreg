@@ -342,7 +342,7 @@ class seminorm(object):
         self._dual_prox_center = yL
         solver = seminorm.default_solver(self.dualp)
         solver.debug = debug
-        history = solver.fit(max_its=2000)
+        history = solver.fit(max_its=2000,tol=1e-7)
         if with_history:
             return self.primal_from_dual(y, solver.problem.coefs/L_P), history
         else:
@@ -559,6 +559,45 @@ def test_group_lasso_sparse():
     print "Times", dt1, dt2
     print soln1[range(10)]
     print soln2[range(10)]
+    np.testing.assert_almost_equal(soln1,soln2)
+
+def test_1d_fused_lasso(n=100):
+
+    l1 = 1.
+
+
+    sparsity1 = l1norm(n, l=l1)
+    D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    extra = np.zeros(n)
+    extra[0] = 1.
+    D = np.vstack([D,extra])
+
+    fused = seminorm(l1norm(D, l=l1))
+
+    X = np.random.standard_normal((2*n,n))
+    Y = np.random.standard_normal((2*n,))
+    regloss = squaredloss(X,Y)
+    p=regloss.add_seminorm(fused)
+    solver=FISTA(p)
+    solver.debug = True
+    vals = solver.fit(max_its=5000, min_its=20,tol=1e-8)
+    soln1 = solver.problem.coefs
+
+    B = np.array(sparse.tril(np.ones((n,n))).todense())
+    X2 = np.dot(X,B)
+
+    D2 = np.diag(np.ones(n))
+    p2 = lasso.gengrad((X2, Y))
+    p2.assign_penalty(l1=l1)
+    opt = FISTA(p2)
+    opt.debug = True
+    opt.fit(tol=1e-12,max_its=25000,restart=1000)
+    beta = opt.problem.coefs
+    soln2 = np.dot(B,beta)
+
+    print soln1[range(10)]
+    print soln2[range(10)]
+    print p.obj(soln1), p.obj(soln2)
     np.testing.assert_almost_equal(soln1,soln2)
 
 def test_lasso_dual():
