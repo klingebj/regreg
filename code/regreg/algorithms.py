@@ -160,7 +160,7 @@ class FISTA(algorithm):
                         self.problem.coefs = beta
                         break
                 else:
-                    if obj_rel_change < tol:
+                    if obj_rel_change < tol or obj_change < tol:
                         self.problem.coefs = beta
                         break
 
@@ -168,7 +168,7 @@ class FISTA(algorithm):
             r = beta + ((t_old-1)/(t_new)) * (beta - self.problem.coefs)
 
 
-            if current_obj < trial_obj and obj_rel_change > 1e-12:
+            if current_obj < trial_obj and obj_rel_change > 1e-12 and current_obj > 1e-12:
                 #Adaptive restarting: restart if monotonicity violated
                 if self.debug:
                     print "\tRestarting"

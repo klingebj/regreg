@@ -28,12 +28,12 @@ def lasso_example(n=100):
 
 def fused_approximator_example():
 
-    x=np.random.standard_normal(500); x[100:150] += 7
+    x=np.random.standard_normal(500); x[100:150] += 7; x[250:300] += 14
 
     sparsity = l1norm(500, l=1.3)
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
     D = sparse.csr_matrix(D)
-    fused = l1norm(D, l=10.5)
+    fused = l1norm(D, l=25.5)
 
     pen = seminorm(sparsity,fused)
     soln, vals = pen.primal_prox(x, 1, with_history=True, debug=True,tol=1e-10)
@@ -108,4 +108,32 @@ def group_lasso_example():
     pylab.figure(num=2)
     pylab.clf()
     pylab.plot(vals)
+
+
+
+
+def linear_trend_example(n=500, l1=10.):
+
+    D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    D2 = np.dot(D1[1:,1:], D1)
+    D2 = sparse.csr_matrix(D2)
+
+
+    Y = np.random.standard_normal(n) * 0.2
+    X = np.linspace(0,1,n)
+    mu = 0 * Y
+    mu[int(0.1*n):int(0.3*n)] += (X[int(0.1*n):int(0.3*n)] - X[int(0.1*n)]) * 6
+    mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 2
+    Y += mu
+
+    sparsity = l1norm(500, l=0.1)
+    fused = l1norm(D2, l=l1)
+    pen = seminorm(sparsity,fused)
+    soln, vals = pen.primal_prox(Y, 1, with_history=True, debug=True,tol=1e-10)
+
+    pylab.clf()
+    pylab.plot(X, soln, linewidth=3, c='red')
+    pylab.scatter(X, Y)
+
+
 

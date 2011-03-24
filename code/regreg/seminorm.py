@@ -1,7 +1,6 @@
 import numpy as np
 from scipy import sparse
 from algorithms import FISTA, ISTA
-  
 
 class seminorm(object):
     """
@@ -74,7 +73,7 @@ class seminorm(object):
         if not hasattr(self, 'dualopt'):
             self.dualp = self.dual_problem(yL, L_P=L_P)
             #Approximate Lipschitz constant
-            self.dualp.L = 1.5*self.power_LD()
+            self.dualp.L = 1.1*self.power_LD(debug=debug)
             self.dualopt = seminorm.default_solver(self.dualp)
             self.dualopt.debug = debug
         self._dual_prox_center = yL
@@ -84,7 +83,7 @@ class seminorm(object):
         else:
             return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P)
 
-    def power_LD(self,max_its=50,tol=1e-5):
+    def power_LD(self,max_its=50,tol=1e-5, debug=False):
         """
         Approximate the Lipschitz constant for the dual problem using power iterations
         """
@@ -103,8 +102,11 @@ class seminorm(object):
             old_norm = norm
             norm = np.linalg.norm(v)
             v /= norm
+            if debug:
+                print "L", norm
             itercount += 1
-        return np.sqrt(norm)
+        return norm
+        #return np.sqrt(norm)
 
     def primal_from_dual(self, y, u):
         """
