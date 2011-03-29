@@ -21,7 +21,18 @@ class seminorm(object):
             self.segments.append(slice(idx, idx+atom.m))
             idx += atom.m
         self.total_dual = idx
-
+        self._dual_variables = np.empty(self.total_dual)
+        self._dual_grad = np.empty(self.total_dual)
+        self._pseudo_response = np.empty(self.total_dual)
+        self._pseudo_response_segments = []
+        self._dual_segments = []
+        self._dual_grad_segments = []
+        for i, segment in self.segments:
+            self._dual_segments[i] = self._dual_variables[segment]
+            self._dual_grad_segments[i] = self._dual_grad[segment]
+            self._pseudo_response_segments[i] = self._pseudo_response[segment]
+        self._primal_variables = np.empty(self.primal_dim)
+        
     def __add__(self,y):
         #Combine two seminorms
         def atoms():
@@ -38,8 +49,12 @@ class seminorm(object):
     
     def evaluate_dual(self, u):
         out = 0.
-        for atom, segment in zip(self.atoms, self.segments):
-            out += atom.evaluate_dual(u[segment])
+        if id(u) == id(self._dual_variables):
+            for atom, segment in zip(self.atoms, self._dual_segments):
+                out += atom.evaluate_dual(segment)
+        else:
+            for atom, segment in zip(self.atoms, self.segments):
+                out += atom.evaluate_dual(u[segment])
         return out
     
     def dual_prox(self, u, L_D=1.):
@@ -59,9 +74,15 @@ class seminorm(object):
         This is used in the inner loop with :math:`u=z-g/L` when finding
         self.primal_prox, i.e., the signal approximator problem.
         """
-        v = np.empty(u.shape)
-        for atom, segment in zip(self.atoms, self.segments):
-            v[segment] = atom.dual_prox(u[segment], L_D)
+        if id(u) != id(self._pseudo_response):
+            v = np.empty(u.shape)
+            for atom, segment in zip(self.atoms, self.segments):
+                v[segment] = atom.dual_prox(u[segment], L_D)
+        else:
+            for atom, pseudo_response, dual in zip(self.atoms,
+                                                   self._pseudo_response_segments,
+                                                   self._dual_segments):
+                dual[:] = atom.dual_prox(pseudo_response, L_D)
         return v
 
     default_solver = FISTA
@@ -78,6 +99,7 @@ class seminorm(object):
             self.dualopt.debug = debug
         self._dual_prox_center = yL
         history = self.dualopt.fit(max_its=5000, min_its=5, tol=tol, backtrack=False)
+        self._dual_variables[:] = self.dualopt.problem.coefs
         if with_history:
             return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P), history
         else:
@@ -112,10 +134,18 @@ class seminorm(object):
         """
         Calculate the primal coefficients from the dual coefficients
         """
-        x = y * 1.
-        for atom, segment in zip(self.atoms, self.segments):
-            x -= atom.multiply_by_DT(u[segment])
-        return x
+        if id(u) != id(self._dual_variables):
+            x = y * 1.
+            for atom, segment in zip(self.atoms, self.segments):
+                x -= atom.multiply_by_DT(u[segment])
+            return x
+        else:
+            x = self._primal_variables
+            x[:] = y
+            for atom, dual in zip(self.atoms, self._dual_segments):
+                x -= atom.multiply_by_DT(dual)
+            return x
+            
 
     def dual_problem(self, y, L_P=1, initial=None):
         """
@@ -141,11 +171,17 @@ class seminorm(object):
         """
         The gradient of the smooth component of the dual objective
         """
-        primal = self.primal_from_dual(self._dual_prox_center, v)
-        g = np.zeros(self.total_dual)
-        for atom, segment in zip(self.atoms, self.segments):
-            g[segment] = -atom.multiply_by_D(primal)
-        return g
+        if id(v) != id(self._dual_variables):
+            primal = self.primal_from_dual(self._dual_prox_center, v)
+            g = np.zeros(self.total_dual)
+            for atom, segment in zip(self.atoms, self.segments):
+                g[segment] = -atom.multiply_by_D(primal)
+            return g
+        else:
+            primal = self.primal_from_dual(self._dual_prox_center, self._dual_variables)
+            for atom, dual_grad in zip(self.atoms, self._dual_grad_segments):
+                dual_grad[:] = -atom.multiply_by_D(primal)
+            return dual_grad
 
     def problem(self, smooth, grad_smooth, smooth_multiplier=1., initial=None):
         prox = self.primal_prox
@@ -162,6 +198,7 @@ class dummy_problem(object):
     """
     def __init__(self, smooth, grad_smooth, nonsmooth, prox, initial, smooth_multiplier=1):
         self.initial = initial.copy()
+        self._pseudo_response = np.empty(self.initial.shape)
         self.coefs = initial.copy()
         self.obj_smooth = smooth
         self.obj_rough = nonsmooth
@@ -176,8 +213,10 @@ class dummy_problem(object):
         return self.smooth_multiplier * self._grad(x)
 
     def proximal(self, x, g, L, tol=None):
-        z = x - g / L
+        self._pseudo_response[:] = x - g / L
+        # XXX maybe allow atoms to have tol -- which are automatically
+        # satisfied because they solve the problems to machine precision
         if tol is None:
-            return self._prox(z, L)
+            return self._prox(self._pseudo_response, L)
         else:
-            return self._prox(z, L, tol=tol)
+            return self._prox(self._pseudo_response, L, tol=tol)
