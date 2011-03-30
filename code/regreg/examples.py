@@ -92,8 +92,9 @@ def isotonic_example(n=100, plot=True):
     soln = solver.problem.coefs
     if plot:
         X = np.arange(n)
+        pylab.clf()
         pylab.scatter(X, Y)
-        pylab.step(X, soln)
+        pylab.step(X, soln, 'r--')
 
     return vals
 
@@ -107,21 +108,22 @@ def concave_example(n=100, plot=True):
     D2 = np.dot(D1[1:,1:], D1)
     D2 = sparse.csr_matrix(D2)
 
-    isotonic = seminorm(nonnegative(-D2))
+    concave = seminorm(nonnegative(-D2))
     Y = np.random.standard_normal(n)
     X = np.linspace(0,1,n)
     Y -= (X-0.5)**2 * 10.
     loss = signal_approximator(Y)
-    p = loss.add_seminorm(isotonic, initial=np.ones(Y.shape)*Y.mean())
-    p.L = isotonic.power_LD()
+    p = loss.add_seminorm(concave, initial=np.ones(Y.shape)*Y.mean())
+    p.L = concave.power_LD()
     solver=FISTA(p)
 
     solver.debug = True
     vals = solver.fit(max_its=25000, tol=1e-05, monotonicity_restart=False)
     soln = solver.problem.coefs
     if plot:
+        pylab.clf()
         pylab.scatter(X, Y)
-        pylab.plot(X, soln)
+        pylab.plot(X, soln, 'r--')
 
     return vals
 
