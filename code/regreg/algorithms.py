@@ -85,7 +85,8 @@ class FISTA(algorithm):
             start_inv_step=1.,
             restart=np.inf,
             coef_stop=False,
-            set_prox_tol=False):
+            set_prox_tol=False,
+            monotonicity_restart=True):
 
 
         #Choose initial tolerance for proximal problem
@@ -147,6 +148,7 @@ class FISTA(algorithm):
                 trial_f = self.problem.obj_smooth(beta)
                 
             trial_obj = trial_f + self.problem.obj_rough(beta)
+
             obj_change = np.fabs(trial_obj - current_obj)
             obj_rel_change = obj_change/current_obj 
 
@@ -168,7 +170,7 @@ class FISTA(algorithm):
             r = beta + ((t_old-1)/(t_new)) * (beta - self.problem.coefs)
 
 
-            if current_obj < trial_obj and obj_rel_change > 1e-12 and current_obj > 1e-12:
+            if current_obj < trial_obj and obj_rel_change > 1e-12 and current_obj > 1e-12 and monotonicity_restart:
                 #Adaptive restarting: restart if monotonicity violated
                 if self.debug:
                     print "\tRestarting"

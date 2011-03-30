@@ -139,7 +139,7 @@ class l1norm(seminorm_atom):
         .. math::
 
             v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
-            \|u-D'v\|^2_2 s.t. \|v\|_{\infty} \leq \lambda
+            \|u-v\|^2_2 s.t. \|v\|_{\infty} \leq \lambda
 
         where *m*=u.shape[0], :math:`\lambda`=self.l. 
         This is just truncation: np.clip(u, -self.l/L, self.l/L).
@@ -200,7 +200,7 @@ class l2norm(seminorm_atom):
         .. math::
 
             v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
-            \|u-D'v\|^2_2 + \lambda \|v\|_2
+            \|u-v\|^2_2 + \lambda \|v\|_2
 
         where *m*=u.shape[0], :math:`\lambda`=self.l. 
         This is just truncation
@@ -214,3 +214,75 @@ class l2norm(seminorm_atom):
             return u
         else:
             return (self.l / n) * u
+
+class nonnegative(seminorm_atom):
+
+    """
+    The non-negative cone constraint (which is the support
+    function of the non-positive cone constraint).
+    """
+    tol = 1e-05
+    
+    def evaluate(self, x):
+        """
+        The non-negative constraint of Dx.
+        """
+        tol_lim = np.fabs(x).max() * self.tol
+        incone = np.all(np.greater_equal(self.multiply_by_D(x), -tol_lim))
+        if incone:
+            return 0
+        return np.inf
+
+    def evaluate_dual(self, u):
+        """
+        The non-positive constraint of u.
+        """
+        tol_lim = np.fabs(u).max() * self.tol
+        indual = np.all(np.less_equal(u, tol_lim))
+        if indual:
+            return 0
+        else:
+            return np.inf
+
+    def primal_prox(self, x,  L=1):
+        """
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+            \|x-v\|^2_2 s.t. (Dv)_i \geq 0.
+
+        where *p*=x.shape[0], :math:`\lambda`=self.l. 
+        If :math:`D=I` this is just a element-wise
+        np.maximum(x, 0)
+
+        .. math::
+
+            v^{\lambda}(x)_i = \min(x_i, 0)
+
+        """
+
+        if self.D is None:
+            return np.maximum(x, 0)
+        else:
+            raise NotImplementedError
+
+
+    def dual_prox(self, u,  L=1):
+        """
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+            \|u-v\|^2_2 s.t. v_i \leq 0
+
+        where *m*=u.shape[0], :math:`\lambda`=self.l. 
+        This is just truncation
+
+        .. math::
+
+            v^{\lambda}(u)_i = \min(u_i, 0)
+        """
+        return np.minimum(u, 0)

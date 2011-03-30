@@ -4,9 +4,9 @@ from scipy import sparse
 import time
 
 from algorithms import FISTA
-from atoms import l1norm, l2norm
+from atoms import l1norm, l2norm, nonnegative
 from seminorm import seminorm
-from problems import squaredloss
+from problems import squaredloss, signal_approximator
 
 import old_framework.lasso as lasso
 
@@ -24,6 +24,7 @@ def lasso_example(n=100):
     vals = solver.fit(max_its=800,tol=1e-12)
     soln = solver.problem.coefs
     return vals
+
 
 
 def fused_approximator_example():
@@ -74,6 +75,55 @@ def fused_lasso_example(n=100):
 
     return vals
 
+
+def isotonic_example(n=100, plot=True):
+
+    D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    isotonic = seminorm(nonnegative(D))
+    Y = np.random.standard_normal(n)
+    Y[:-30] += np.arange(n-30) * 0.2
+    loss = signal_approximator(Y)
+    p = loss.add_seminorm(isotonic, initial=np.ones(Y.shape)*Y.mean())
+    p.L = isotonic.power_LD()
+    solver=FISTA(p)
+
+    solver.debug = True
+    vals = solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    soln = solver.problem.coefs
+    if plot:
+        X = np.arange(n)
+        pylab.scatter(X, Y)
+        pylab.step(X, soln)
+
+    return vals
+
+
+def concave_example(n=100, plot=True):
+    """
+    second differences of fit must be non-positive
+    """
+
+    D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    D2 = np.dot(D1[1:,1:], D1)
+    D2 = sparse.csr_matrix(D2)
+
+    isotonic = seminorm(nonnegative(-D2))
+    Y = np.random.standard_normal(n)
+    X = np.linspace(0,1,n)
+    Y -= (X-0.5)**2 * 10.
+    loss = signal_approximator(Y)
+    p = loss.add_seminorm(isotonic, initial=np.ones(Y.shape)*Y.mean())
+    p.L = isotonic.power_LD()
+    solver=FISTA(p)
+
+    solver.debug = True
+    vals = solver.fit(max_its=25000, tol=1e-05, monotonicity_restart=False)
+    soln = solver.problem.coefs
+    if plot:
+        pylab.scatter(X, Y)
+        pylab.plot(X, soln)
+
+    return vals
 
     
 def group_lasso_example():

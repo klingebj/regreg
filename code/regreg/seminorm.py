@@ -151,7 +151,10 @@ class seminorm(object):
         prox = self.primal_prox
         nonsmooth = self.evaluate
         if initial is None:
-            initial = self.dual_prox(np.random.standard_normal(self.primal_dim))
+            initial = np.random.standard_normal(self.primal_dim)
+        if self.evaluate(initial) + smooth(initial) == np.inf:
+            raise ValueError('initial point is not feasible')
+        
         return dummy_problem(smooth, grad_smooth, nonsmooth, prox, initial, smooth_multiplier)
 
 
