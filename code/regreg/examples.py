@@ -116,12 +116,51 @@ def nearly_isotonic_example(n=100, plot=True):
     nisotonic.atoms[0].l = 100.
     solver.fit(max_its=25000, tol=1e-05, backtrack=False)
     soln2 = solver.problem.coefs.copy()
+
+    nisotonic.atoms[0].l = 1000.
+    solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    soln3 = solver.problem.coefs.copy()
+
     if plot:
         X = np.arange(n)
         pylab.clf()
         pylab.scatter(X, Y)
         pylab.step(X, soln, 'r--', linewidth=3)
         pylab.step(X, soln2, 'g--', linewidth=3)
+        pylab.step(X, soln3, 'y--', linewidth=3)
+
+    return vals
+
+def nearly_concave_example(n=100, plot=True):
+
+    D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    D2 = np.dot(D1[1:,1:], D1)
+    D2 = sparse.csr_matrix(D2)
+    nisotonic = seminorm(positive_part(-D2, l=3))
+
+    Y = np.random.standard_normal(n)
+    X = np.linspace(0,1,n)
+    Y -= (X-0.5)**2 * 10.
+    loss = signal_approximator(Y)
+    p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
+    p.L = nisotonic.power_LD()
+    solver=FISTA(p)
+
+    solver.debug = True
+    vals = solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    soln = solver.problem.coefs.copy()
+
+    nisotonic.atoms[0].l = 100.
+    solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    soln2 = solver.problem.coefs.copy()
+
+
+    if plot:
+        X = np.arange(n)
+        pylab.clf()
+        pylab.scatter(X, Y)
+        pylab.plot(X, soln, 'r--', linewidth=3)
+        pylab.plot(X, soln2, 'y--', linewidth=3)
 
     return vals
 
