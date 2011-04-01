@@ -4,7 +4,7 @@ from scipy import sparse
 import time
 
 from algorithms import FISTA
-from atoms import l1norm, l2norm, nonnegative
+from atoms import l1norm, l2norm, nonnegative, positive_part
 from seminorm import seminorm
 from problems import squaredloss, signal_approximator
 
@@ -95,6 +95,33 @@ def isotonic_example(n=100, plot=True):
         pylab.clf()
         pylab.scatter(X, Y)
         pylab.step(X, soln, 'r--')
+
+    return vals
+
+def nearly_isotonic_example(n=100, plot=True):
+
+    D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    nisotonic = seminorm(positive_part(-D, l=3))
+    Y = np.random.standard_normal(n)
+    Y[:-30] += np.arange(n-30) * 0.2
+    loss = signal_approximator(Y)
+    p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
+    p.L = nisotonic.power_LD()
+    solver=FISTA(p)
+
+    solver.debug = True
+    vals = solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    soln = solver.problem.coefs.copy()
+
+    nisotonic.atoms[0].l = 100.
+    solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    soln2 = solver.problem.coefs.copy()
+    if plot:
+        X = np.arange(n)
+        pylab.clf()
+        pylab.scatter(X, Y)
+        pylab.step(X, soln, 'r--', linewidth=3)
+        pylab.step(X, soln2, 'g--', linewidth=3)
 
     return vals
 

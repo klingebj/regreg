@@ -286,3 +286,77 @@ class nonnegative(seminorm_atom):
             v^{\lambda}(u)_i = \min(u_i, 0)
         """
         return np.minimum(u, 0)
+
+class positive_part(seminorm_atom):
+
+    """
+    The positive_part seminorm (which is the support
+    function of [0,l]^p).
+    """
+    tol = 1e-10
+    
+    def evaluate(self, x):
+        """
+        The non-negative constraint of Dx.
+        """
+        Dx = self.multiply_by_D(x)
+        return self.l * np.maximum(Dx, 0).sum()
+
+    def evaluate_dual(self, u):
+        inbox = np.product(np.less_equal(u, self.l) * np.greater_equal(u, 0))
+        if inbox:
+            return 0
+        else:
+            return np.inf
+
+    def primal_prox(self, x,  L=1):
+        """
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+            \|x-v\|^2_2  + \sum_i \lambda \max(Dv_i, 0)
+
+        where *p*=x.shape[0], :math:`\lambda`=self.l. 
+        If :math:`D=I` this is just soft-thresholding
+        positive values and leaving negative values untouched.
+
+        .. math::
+
+            v^{\lambda}(x)_i = \begin{cases}
+            \max(x_i - \lambda, 0) & x_i \geq 0 \\
+            x_i & x_i \leq 0.  
+            \end{cases} 
+
+        """
+
+        if self.D is None:
+            pos = x > 0
+            v = x.copy()
+            v[pos] -= np.maximum(v[pos] - self.l, 0)
+            return v
+        else:
+            raise NotImplementedError
+
+    def dual_prox(self, u,  L=1):
+        """
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+            \|u-v\|^2_2 s.t. v_i \leq 0
+
+        where *m*=u.shape[0], :math:`\lambda`=self.l. 
+        This is just truncation
+
+        .. math::
+
+            v^{\lambda}(u)_i = \min(u_i, 0)
+        """
+        neg = u < 0
+        v = u.copy()
+        v[neg] = 0
+        v[~neg] = np.minimum(self.l, u[~neg])
+        return v
