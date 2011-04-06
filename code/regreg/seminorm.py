@@ -151,24 +151,6 @@ class seminorm(object):
         else:
             raise ValueError("mode not specified correctly")
 
-
-    def _dual_smooth(self, v):
-        """
-        The smooth component of the dual objective
-        """
-        primal = self.primal_from_dual(self._dual_prox_center, v)
-        return (primal**2).sum() / 2.
-
-    def _dual_grad_smooth(self, v):
-        """
-        The gradient of the smooth component of the dual objective
-        """
-        primal = self.primal_from_dual(self._dual_prox_center, v)
-        g = np.zeros(self.total_dual)
-        for atom, segment in zip(self.atoms, self.segments):
-            g[segment] = -atom.multiply_by_D(primal)
-        return g
-
     def problem(self, smooth_eval, smooth_multiplier=1., initial=None):
         prox = self.primal_prox
         nonsmooth = self.evaluate
@@ -188,10 +170,8 @@ class dummy_problem(object):
     def __init__(self, smooth_eval, nonsmooth, prox, initial, smooth_multiplier=1):
         self.initial = initial.copy()
         self.coefs = initial.copy()
-        #self.obj_smooth = smooth
         self.obj_rough = nonsmooth
         self._smooth_eval = smooth_eval
-        #self._grad = grad_smooth
         self._prox = prox
         self.smooth_multiplier = smooth_multiplier
 
