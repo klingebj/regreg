@@ -128,7 +128,29 @@ class seminorm(object):
             initial = self.dual_prox(z, 1.)
         nonsmooth = self.evaluate_dual
         prox = self.dual_prox
-        return dummy_problem(self._dual_smooth, self._dual_grad_smooth, nonsmooth, prox, initial, 1.)
+        return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1.)
+
+    def _dual_smooth_eval(self,v,mode='both'):
+
+        """
+        The smooth component and/or gradient of the dual objective        
+        """
+        
+        primal = self.primal_from_dual(self._dual_prox_center, v)
+
+        if mode == 'func':
+            return (primal**2).sum() / 2.
+        elif mode == 'both' or mode == 'grad':
+            g = np.zeros(self.total_dual)
+            for atom, segment in zip(self.atoms, self.segments):
+                g[segment] = -atom.multiply_by_D(primal)
+            if mode == 'grad':
+                return g
+            if mode == 'both':
+                return (primal**2).sum() / 2., g
+        else:
+            raise ValueError("mode not specified correctly")
+
 
     def _dual_smooth(self, v):
         """
@@ -147,15 +169,15 @@ class seminorm(object):
             g[segment] = -atom.multiply_by_D(primal)
         return g
 
-    def problem(self, smooth, grad_smooth, smooth_multiplier=1., initial=None):
+    def problem(self, smooth_eval, smooth_multiplier=1., initial=None):
         prox = self.primal_prox
         nonsmooth = self.evaluate
         if initial is None:
             initial = np.random.standard_normal(self.primal_dim)
-        if self.evaluate(initial) + smooth(initial) == np.inf:
+        if self.evaluate(initial) + smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
         
-        return dummy_problem(smooth, grad_smooth, nonsmooth, prox, initial, smooth_multiplier)
+        return dummy_problem(smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
 
 
 
@@ -163,20 +185,28 @@ class dummy_problem(object):
     """
     A generic way to specify a problem
     """
-    def __init__(self, smooth, grad_smooth, nonsmooth, prox, initial, smooth_multiplier=1):
+    def __init__(self, smooth_eval, nonsmooth, prox, initial, smooth_multiplier=1):
         self.initial = initial.copy()
         self.coefs = initial.copy()
-        self.obj_smooth = smooth
+        #self.obj_smooth = smooth
         self.obj_rough = nonsmooth
-        self._grad = grad_smooth
+        self._smooth_eval = smooth_eval
+        #self._grad = grad_smooth
         self._prox = prox
         self.smooth_multiplier = smooth_multiplier
 
-    def obj(self, x):
-        return self.smooth_multiplier * self.obj_smooth(x) + self.obj_rough(x)
 
-    def grad(self, x):
-        return self.smooth_multiplier * self._grad(x)
+    def smooth_eval(self,x, mode='both'):
+        output = self._smooth_eval(x, mode=mode)
+        if mode == 'both':
+            return self.smooth_multiplier * output[0], self.smooth_multiplier * output[1]
+        elif mode == 'grad' or mode == 'func':
+            return self.smooth_multiplier * output
+        else:
+            raise ValueError("mode incorrectly specified")
+
+    def obj(self, x):
+        return self.smooth_eval(x,mode='func') + self.obj_rough(x)
 
     def proximal(self, x, g, L, tol=None):
         z = x - g / L

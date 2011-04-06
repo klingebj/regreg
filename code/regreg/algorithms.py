@@ -103,8 +103,8 @@ class FISTA(algorithm):
         r = self.problem.coefs
         t_old = 1.
         beta = self.problem.coefs
-        current_f = self.problem.obj_smooth(r)
-        current_obj = self.problem.obj(self.problem.coefs)
+        current_f = self.problem.smooth_eval(r,mode='func')
+        current_obj = current_f + self.problem.obj_rough(r)
         
         itercount = 0
         while itercount < max_its:
@@ -117,13 +117,15 @@ class FISTA(algorithm):
                 t_old = 1.
 
             objective_hist[itercount] = current_obj
-            grad = self.problem.grad(r)
+
 
             # Backtracking loop
             if backtrack:
                 if np.mod(itercount+1,100)==0:
                     self.inv_step *= 1/alpha
-                current_f = self.problem.obj_smooth(r)
+                #grad = self.problem.grad(r)
+                #current_f = self.problem.obj_smooth(r)
+                current_f, grad = self.problem.smooth_eval(r,mode='both')
                 stop = False
                 while not stop:
                     if set_prox_tol:
@@ -131,21 +133,22 @@ class FISTA(algorithm):
                     else:
                         beta = self.problem.proximal(r, grad, self.inv_step)
 
-                    trial_f = self.problem.obj_smooth(beta)
+                    trial_f = self.problem.smooth_eval(beta,mode='func')
 
                     if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-15:
                         stop = trial_f <= current_f + np.dot(beta-r,grad) + 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     else:
-                        trial_grad = self.problem.grad(beta)
+                        trial_grad = self.problem.smooth_eval(beta,mode='grad')
                         stop = np.fabs(np.dot(beta-r,grad-trial_grad)) <= 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     if not stop:
                         self.inv_step *= alpha
                      
             else:
                 #Use specified Lipschitz constant
+                grad = self.problem.smooth_eval(r,mode='grad')
                 self.inv_step = self.problem.L
                 beta = self.problem.proximal(r, grad, self.inv_step)
-                trial_f = self.problem.obj_smooth(beta)
+                trial_f = self.problem.smooth_eval(beta,mode='func')
                 
             trial_obj = trial_f + self.problem.obj_rough(beta)
 

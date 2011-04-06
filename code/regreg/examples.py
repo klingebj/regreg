@@ -6,7 +6,8 @@ import time
 from algorithms import FISTA
 from atoms import l1norm, l2norm, nonnegative, positive_part
 from seminorm import seminorm
-from problems import squaredloss, signal_approximator
+from smooth import squaredloss, signal_approximator
+
 
 import old_framework.lasso as lasso
 
