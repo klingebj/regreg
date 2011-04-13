@@ -63,7 +63,7 @@ class seminorm_atom(object):
         r"""
         Return :math:`D^Tu`
 
-        This routine are currently matrix multiplications, but could
+        This routine is currently a matrix multiplication, but could
         also call FFTs if D is a DFT matrix, in a subclass.
         """
         if not self.noneD:
@@ -78,7 +78,7 @@ class seminorm_atom(object):
         r"""
         Return :math:`Dx`
 
-        This routine are currently matrix multiplications, but could
+        This routine is currently a matrix multiplications, but could
         also call FFTs if D is a DFT matrix, in a subclass.
         """
         if not self.noneD:

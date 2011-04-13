@@ -7,7 +7,7 @@ RegReg
 RegReg is a python project for fitting
 regularized regression models such as the LASSO.
 
-Please see our :ref:`documentation-main`.
+Please see the  :ref:`gallery` and  :ref:`documentation-main`.
 
 *The RegReg team*
 
@@ -15,6 +15,7 @@ Please see our :ref:`documentation-main`.
 .. in the document heirarchy - see http://sphinx.pocoo.org/concepts.html
 .. toctree::
 
+   gallery.rst
    documentation
    users
    example.rst
