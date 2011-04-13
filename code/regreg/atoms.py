@@ -33,12 +33,12 @@ class seminorm_atom(object):
         raise NotImplementedError
 
     def primal_prox(self, x, L):
-        """
+        r"""
         Return (unique) minimizer
 
         .. math::
 
-           v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
            \|x-v\|^2_2 + \lambda h(Dv)
 
         where *p*=x.shape[0] and :math:`h(v)`=self.evaluate(v).
@@ -46,12 +46,12 @@ class seminorm_atom(object):
         raise NotImplementedError
 
     def dual_prox(self, u, L):
-        """
+        r"""
         Return a minimizer
 
         .. math::
 
-           v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+           v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
            \|u-D'v\|^2_2  s.t.  h^*(v) \leq \lambda
 
         where *m*=u.shape[0] and :math:`h^*` is the 
@@ -111,12 +111,12 @@ class l1norm(seminorm_atom):
             return np.inf
 
     def primal_prox(self, x,  L=1):
-        """
+        r"""
         Return (unique) minimizer
 
         .. math::
 
-            v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2 + \lambda \|Dv\|_1
 
         where *p*=x.shape[0], :math:`\lambda`=self.l. 
@@ -133,12 +133,12 @@ class l1norm(seminorm_atom):
             raise NotImplementedError
 
     def dual_prox(self, u, L=1):
-        """
+        r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 s.t. \|v\|_{\infty} \leq \lambda
 
         where *m*=u.shape[0], :math:`\lambda`=self.l. 
@@ -167,12 +167,12 @@ class l2norm(seminorm_atom):
             return np.inf
 
     def primal_prox(self, x,  L=1):
-        """
+        r"""
         Return (unique) minimizer
 
         .. math::
 
-            v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2 + \lambda \|Dv\|_2
 
         where *p*=x.shape[0], :math:`\lambda`=self.l. 
@@ -194,12 +194,12 @@ class l2norm(seminorm_atom):
 
 
     def dual_prox(self, u,  L=1):
-        """
+        r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 + \lambda \|v\|_2
 
         where *m*=u.shape[0], :math:`\lambda`=self.l. 
@@ -245,12 +245,12 @@ class nonnegative(seminorm_atom):
             return np.inf
 
     def primal_prox(self, x,  L=1):
-        """
+        r"""
         Return (unique) minimizer
 
         .. math::
 
-            v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2 s.t. (Dv)_i \geq 0.
 
         where *p*=x.shape[0], :math:`\lambda`=self.l. 
@@ -270,12 +270,12 @@ class nonnegative(seminorm_atom):
 
 
     def dual_prox(self, u,  L=1):
-        """
+        r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 s.t. v_i \leq 0
 
         where *m*=u.shape[0], :math:`\lambda`=self.l. 
@@ -310,12 +310,12 @@ class positive_part(seminorm_atom):
             return np.inf
 
     def primal_prox(self, x,  L=1):
-        """
+        r"""
         Return (unique) minimizer
 
         .. math::
 
-            v^{\lambda}(x) = \text{argmin}_{v \in \real^p} \frac{L}{2}
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2  + \sum_i \lambda \max(Dv_i, 0)
 
         where *p*=x.shape[0], :math:`\lambda`=self.l. 
@@ -340,12 +340,12 @@ class positive_part(seminorm_atom):
             raise NotImplementedError
 
     def dual_prox(self, u,  L=1):
-        """
+        r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \real^m} \frac{L}{2}
+            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 s.t. v_i \leq 0
 
         where *m*=u.shape[0], :math:`\lambda`=self.l. 

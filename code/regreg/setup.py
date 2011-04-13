@@ -14,12 +14,7 @@ def cython_extension(srcfile):
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration
     config = Configuration('regreg',parent_package,top_path)
-    config.add_extension('subfunctions',
-                         sources = ["subfunctions.c"],
-                         )
-    config.add_extension('updates',
-                         sources = ["updates.c"],
-                         )
+    config.add_subpackage('old_framework')
 
     return config
 

@@ -214,6 +214,7 @@ latex_use_parts = True
 latex_preamble = """
    \usepackage{amsmath}
    \usepackage{amssymb}
+   \newcommand{\real}{\mathbb{R}}
    % Uncomment these two if needed
    %\usepackage{amsfonts}
    %\usepackage{txfonts}

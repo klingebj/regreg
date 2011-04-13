@@ -13,16 +13,19 @@ def cython_extension(srcfile):
 
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration
-    config = Configuration(None,parent_package,top_path)
-
-    config.add_subpackage('regreg')
+    config = Configuration('old_framework',parent_package,top_path)
+    config.add_extension('subfunctions',
+                         sources = ["subfunctions.c"],
+                         )
+    config.add_extension('updates',
+                         sources = ["updates.c"],
+                         )
 
     return config
 
 if __name__ == '__main__':
 
-    cython_extension("regreg/old_framework/subfunctions.pyx")
-    cython_extension("regreg/old_framework/updates.pyx")
+
     
     from numpy.distutils.core import setup
 
