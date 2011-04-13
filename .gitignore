@@ -70,8 +70,6 @@ Thumbs.db
 
 # Things specific to this project #
 ###################################
-nipy/__config__.py
-nipy/neurospin/__config__.py
 doc/api/generated
 doc/build
 doc/manual
