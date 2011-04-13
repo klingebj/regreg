@@ -52,16 +52,20 @@ class seminorm_atom(object):
         .. math::
 
            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-           \|u-D'v\|^2_2  s.t.  h^*(v) \leq \lambda
+           \|u-D'v\|^2_2  \ \text{s.t.} \   h^*(v) \leq \lambda
 
         where *m*=u.shape[0] and :math:`h^*` is the 
         conjugate of self.evaluate.
         """
         raise NotImplementedError
 
-    #XXX These routines are currently matrix multiplications, but could also call
-    #FFTs if D is a DFT matrix, etc.
     def multiply_by_DT(self, u):
+        r"""
+        Return :math:`D^Tu`
+
+        This routine are currently matrix multiplications, but could
+        also call FFTs if D is a DFT matrix, in a subclass.
+        """
         if not self.noneD:
             if self.sparseD:
                 return u * self.D
@@ -71,6 +75,12 @@ class seminorm_atom(object):
                 return u
                                  
     def multiply_by_D(self, x):
+        r"""
+        Return :math:`Dx`
+
+        This routine are currently matrix multiplications, but could
+        also call FFTs if D is a DFT matrix, in a subclass.
+        """
         if not self.noneD:
             if self.sparseD:
                 return self.D * x
@@ -119,7 +129,7 @@ class l1norm(seminorm_atom):
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2 + \lambda \|Dv\|_1
 
-        where *p*=x.shape[0], :math:`\lambda`=self.l. 
+        where *p*=x.shape[0], :math:`\lambda` = self.l. 
         If :math:`D=I` this is just soft thresholding
 
         .. math::
@@ -139,9 +149,9 @@ class l1norm(seminorm_atom):
         .. math::
 
             v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 s.t. \|v\|_{\infty} \leq \lambda
+            \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{\infty} \leq \lambda
 
-        where *m*=u.shape[0], :math:`\lambda`=self.l. 
+        where *m*=u.shape[0], :math:`\lambda` = self.l. 
         This is just truncation: np.clip(u, -self.l/L, self.l/L).
         """
         return np.clip(u, -self.l, self.l)
@@ -175,12 +185,12 @@ class l2norm(seminorm_atom):
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2 + \lambda \|Dv\|_2
 
-        where *p*=x.shape[0], :math:`\lambda`=self.l. 
+        where *p*=x.shape[0], :math:`\lambda` = self.l. 
         If :math:`D=I` this is just a "James-Stein" estimator
 
         .. math::
 
-            v^{\lambda}(x) = \max(1 - \frac{\lambda}{\|x\|_2}, 0) x
+            v^{\lambda}(x) = \max\left(1 - \frac{\lambda/L}{\|x\|_2}, 0\right) x
         """
 
         if self.D is None:
@@ -202,12 +212,12 @@ class l2norm(seminorm_atom):
             v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 + \lambda \|v\|_2
 
-        where *m*=u.shape[0], :math:`\lambda`=self.l. 
+        where *m*=u.shape[0], :math:`\lambda` = self.l. 
         This is just truncation
 
         .. math::
 
-            v^{\lambda}(u) = \min(1, \frac{\lambda/L}{\|u\|_2}) u
+            v^{\lambda}(u) = \min\left(1, \frac{\lambda/L}{\|u\|_2}\right) u
         """
         n = np.linalg.norm(u)
         if n < self.l:
@@ -251,15 +261,15 @@ class nonnegative(seminorm_atom):
         .. math::
 
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 s.t. (Dv)_i \geq 0.
+            \|x-v\|^2_2 \ \text{s.t.} \  (Dv)_i \geq 0.
 
-        where *p*=x.shape[0], :math:`\lambda`=self.l. 
+        where *p*=x.shape[0], :math:`\lambda` = self.l. 
         If :math:`D=I` this is just a element-wise
         np.maximum(x, 0)
 
         .. math::
 
-            v^{\lambda}(x)_i = \min(x_i, 0)
+            v^{\lambda}(x)_i = \max(x_i, 0)
 
         """
 
@@ -276,10 +286,9 @@ class nonnegative(seminorm_atom):
         .. math::
 
             v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 s.t. v_i \leq 0
+            \|u-v\|^2_2 \ \text{s.t.} \  v_i \leq 0
 
-        where *m*=u.shape[0], :math:`\lambda`=self.l. 
-        This is just truncation
+        where *m*=u.shape[0], :math:`\lambda` = self.l. 
 
         .. math::
 
@@ -318,14 +327,14 @@ class positive_part(seminorm_atom):
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2  + \sum_i \lambda \max(Dv_i, 0)
 
-        where *p*=x.shape[0], :math:`\lambda`=self.l. 
+        where *p*=x.shape[0], :math:`\lambda` = self.l. 
         If :math:`D=I` this is just soft-thresholding
         positive values and leaving negative values untouched.
 
         .. math::
 
             v^{\lambda}(x)_i = \begin{cases}
-            \max(x_i - \lambda, 0) & x_i \geq 0 \\
+            \max(x_i - \frac{\lambda}{L}, 0) & x_i \geq 0 \\
             x_i & x_i \leq 0.  
             \end{cases} 
 
@@ -346,14 +355,18 @@ class positive_part(seminorm_atom):
         .. math::
 
             v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 s.t. v_i \leq 0
+            \|u-v\|^2_2 \ \text{s.t.} \  0 \leq v_i \leq \lambda
 
-        where *m*=u.shape[0], :math:`\lambda`=self.l. 
+        where *m*=u.shape[0], :math:`\lambda` = self.l. 
         This is just truncation
 
         .. math::
 
-            v^{\lambda}(u)_i = \min(u_i, 0)
+            v^{\lambda}(u)_i = \begin{cases}
+            \min(u_i, \lambda) & u_i \geq 0 \\
+            0 & u_i \leq 0.  
+            \end{cases} 
+
         """
         neg = u < 0
         v = u.copy()

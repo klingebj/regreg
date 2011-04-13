@@ -37,6 +37,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.pngmath',
               'sphinx.ext.autosummary',
               'ipython_console_highlighting', 
+              'ipython_directive',
               'inheritance_diagram', 
               ]
 
