@@ -57,7 +57,6 @@ def fused_lasso_example(n=100):
 
     l1 = 1.
 
-
     sparsity1 = l1norm(n, l=l1)
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D = sparse.csr_matrix(D)
@@ -101,6 +100,7 @@ def isotonic_example(n=100, plot=True):
 def nearly_isotonic_example(n=100, plot=True):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    isotonic = seminorm(nonnegative(D))
     nisotonic = seminorm(positive_part(-D, l=3))
     Y = np.random.standard_normal(n)
     Y[:-30] += np.arange(n-30) * 0.2
@@ -121,6 +121,12 @@ def nearly_isotonic_example(n=100, plot=True):
     solver.fit(max_its=25000, tol=1e-05, backtrack=False)
     soln3 = solver.problem.coefs.copy()
 
+    p2 = loss.add_seminorm(isotonic, initial=np.ones(Y.shape)*Y.mean())
+    p2.L = isotonic.power_LD()
+    solver=FISTA(p2)
+    solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    soln4 = solver.problem.coefs.copy()
+
     if plot:
         X = np.arange(n)
         pylab.clf()
@@ -128,6 +134,7 @@ def nearly_isotonic_example(n=100, plot=True):
         pylab.step(X, soln, 'r--', linewidth=3)
         pylab.step(X, soln2, 'g--', linewidth=3)
         pylab.step(X, soln3, 'y--', linewidth=3)
+        pylab.step(X, soln4, 'b', linewidth=1)
 
     return vals
 
@@ -136,24 +143,35 @@ def nearly_concave_example(n=100, plot=True):
     D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D2 = np.dot(D1[1:,1:], D1)
     D2 = sparse.csr_matrix(D2)
-    nisotonic = seminorm(positive_part(-D2, l=3))
+    nconcave = seminorm(positive_part(-D2, l=3))
 
     Y = np.random.standard_normal(n)
     X = np.linspace(0,1,n)
     Y -= (X-0.5)**2 * 10.
     loss = signal_approximator(Y)
-    p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
-    p.L = nisotonic.power_LD()
+    p = loss.add_seminorm(nconcave, initial=np.ones(Y.shape)*Y.mean())
+    p.L = nconcave.power_LD()
     solver=FISTA(p)
 
     solver.debug = True
     vals = solver.fit(max_its=25000, tol=1e-05, backtrack=False)
     soln = solver.problem.coefs.copy()
-
-    nisotonic.atoms[0].l = 100.
+    print 'soln1'
+    
+    nconcave.atoms[0].l = 400.
+    solver.problem.coefs = np.ones(Y.shape) * Y.mean()
     solver.fit(max_its=25000, tol=1e-05, backtrack=False)
     soln2 = solver.problem.coefs.copy()
+    print 'soln2'
 
+    concave = seminorm(nonnegative(-D2))
+    p2 = loss.add_seminorm(concave, initial=np.ones(Y.shape) * Y.mean())
+    p2.L = concave.power_LD()
+    solver=FISTA(p2)
+    solver.debug = True
+    solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    soln3 = solver.problem.coefs.copy()
+    print 'soln3'
 
     if plot:
         X = np.arange(n)
@@ -161,6 +179,7 @@ def nearly_concave_example(n=100, plot=True):
         pylab.scatter(X, Y)
         pylab.plot(X, soln, 'r--', linewidth=3)
         pylab.plot(X, soln2, 'y--', linewidth=3)
+        pylab.plot(X, soln3, 'b--', linewidth=2)
 
     return vals
 
@@ -189,7 +208,7 @@ def concave_example(n=100, plot=True):
     if plot:
         pylab.clf()
         pylab.scatter(X, Y)
-        pylab.plot(X, soln, 'r--')
+        pylab.plot(X, soln, 'r--', linewidth=3)
 
     return vals
 
