@@ -45,7 +45,7 @@ RegReg examples gallery
 * :ref:`nearly-isotonic`
 
     .. math::
-       ||y - \beta||^{2}_{2} + \lambda_{1}\|D\beta\|^+
+       ||y - \beta||^{2}_{2} + \lambda_{1}\|D\beta\|_+
 
     with
 

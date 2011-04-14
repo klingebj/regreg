@@ -16,11 +16,9 @@ RegReg documentation
 .. toctree::
    :maxdepth: 2
 
-   users/index.rst
-   faq/index.rst
+   download.rst
    publications
    license
-   .. devel/index.rst
 
 .. htmlonly::
 
