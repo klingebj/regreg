@@ -2,54 +2,79 @@ import numpy as np
 import seminorm, smooth, algorithms
 import pylab
 
+class Block(object):
+
+    r"""
+    A Block can solve a problem of the form
+
+    .. math::
+
+       \text{minimize} \frac{1}{2} \|Y - D^Tu\|^2_2 \ \text{s.t.} \ h^*(u)
+       \leq \lambda
+    """
+
+    def __init__(self, atom, initial=None):
+        self.atom = atom
+        Y = np.zeros(atom.p)
+        if initial is None:
+            initial = np.zeros(atom.m) 
+        if not atom.noneD:
+            self.loss = smooth.squaredloss(atom.D.T, Y)
+        else:
+            self.loss = smooth.signal_approximator(Y)
+
+        dual_atom = atom.dual
+        prox = dual_atom.primal_prox
+        nonsmooth = dual_atom.evaluate
+        if dual_atom.evaluate(initial) == np.inf:
+            raise ValueError('initial point is not feasible')
+        
+        self.problem = seminorm.dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial)
+
+    def fit(self, *solver_args, **solver_kw):
+        if not hasattr(self, '_solver'):
+            self._solver = algorithms.FISTA(self.problem)
+        self._solver.fit(*solver_args, **solver_kw)
+        return self.problem.coefs
+
+    def set_coefs(self, coefs):
+        self.problem.coefs[:] = coefs
+
+    def get_coefs(self):
+        return self.problem.coefs
+    coefs = property(get_coefs, set_coefs)
+    
+    def set_Y(self, Y):
+        self.loss.Y[:] = Y
+    def get_Y(self):
+        return self.loss.Y
+    Y = property(get_Y, set_Y)
+    
 def dual_blocks(semi, Y, initial=None):
-    problems = []
-    solvers = []
-    losses = []
+    blocks = []
     if initial is None:
         initial = [None] * len(semi.atoms)
     for atom, atom_initial in zip(semi.atoms, initial):
-        if atom.D is not None:
-            loss = smooth.squaredloss(atom.D.T, Y.copy())
-        else:
-            loss = smooth.signal_approximator(Y.copy())
-        losses.append(loss)
+        blocks.append(Block(atom, initial=atom_initial))
+    return blocks
 
-        dual_atom = atom.dual_constraint
-        prox = dual_atom.primal_prox
-        nonsmooth = dual_atom.evaluate
-        if atom_initial is None:
-            atom_initial = np.zeros(dual_atom.p) 
-        if dual_atom.evaluate(atom_initial) == np.inf:
-            raise ValueError('initial point is not feasible')
-        
-        problem = seminorm.dummy_problem(loss.smooth_eval, nonsmooth, prox, atom_initial)
-        problems.append(problem)
-        solvers.append(algorithms.FISTA(problem))
-    return problems, solvers, losses
-
-def blockwise(semi, Y, p=None, initial=None):
-    problems, solvers, losses = dual_blocks(semi, Y)
+def blockwise(semi, Y, p=None, initial=None, max_its=50, tol=1.0e-06,
+              min_its=5):
+    blocks = dual_blocks(semi, Y)
     current_resid = Y.copy() 
-    for atom, problem in zip(semi.atoms, problems):
-        current_resid -= atom.multiply_by_DT(problem.coefs)
+    adjusted_resid = Y.copy()
+    primal_soln = current_resid
+    for block in blocks:
+        current_resid -= block.atom.multiply_by_DT(block.coefs)
 
-    for i in range(5):
-        for atom, problem, loss, solver in zip(semi.atoms, problems, losses, solvers):
-            old_coefs = problem.coefs.copy()
-            adjusted_resid = current_resid + atom.multiply_by_DT(old_coefs)
-            loss.set_Y(adjusted_resid)
-            h = solver.fit(max_its=800,tol=1e-10)
-            current_resid -= atom.multiply_by_DT(problem.coefs)
-            primal_soln = current_resid #semi.primal_from_dual(Y, dual_soln)
-            print primal_soln, problem.coefs, loss.Y
-            print p.obj(primal_soln)
-        pylab.clf()
-        pylab.figure(num=1)
-        pylab.scatter(np.arange(Y.shape[0]), Y, c='r')
-        pylab.plot(primal_soln, c='g')
-        pylab.draw()
-
+    for itercount in range(max_its):
+        for block in blocks:
+            block.Y = current_resid + block.atom.multiply_by_DT(block.coefs)# adjusted_resid
+            block.fit(max_its=800,tol=1e-10)
+            current_resid[:] = block.Y - block.atom.multiply_by_DT(block.coefs)
+            if np.linalg.norm(primal_soln - current_resid) / np.max([1.,np.linalg.norm(current_resid)]) < tol and itercount >= min_its:
+                return current_resid
+            primal_soln = current_resid
     return primal_soln
 
 def test1():
@@ -64,23 +89,30 @@ def test1():
 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
-    sparsity = l1norm(500, l=1.3)
+    sparsity = l1norm(500, l=1.0)
     #Create D
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
     D = sparse.csr_matrix(D)
-    fused = l1norm(D, l=25.5)
+    fused = l1norm(D, l=19.5)
 
     pen = seminorm(sparsity,fused)
     loss = signal_approximator(Y)
     p = loss.add_seminorm(pen)
 
-    pylab.show()
-    soln = blockwise(pen, Y, p)
+    
+    soln1 = blockwise(pen, Y, p)
+
+    solver = FISTA(p)
+    solver.fit(max_its=800,tol=1e-10)
+    soln2 = solver.problem.coefs
 
     #plot solution
     pylab.figure(num=1)
+    pylab.clf()
     pylab.scatter(np.arange(Y.shape[0]), Y, c='r')
-    pylab.plot(soln, c='g')
+    pylab.plot(soln1, c='y', linewidth=6)
+    pylab.plot(soln2, c='b', linewidth=2)
+
 
 def test2():
 
@@ -95,9 +127,10 @@ def test2():
 
     n1, n2 = l1norm(1), l1norm(1)
     s=seminorm(n1,n2)
-    Y = np.array([3.])
+    Y = np.array([30.])
     l=signal_approximator(Y)
     blockwise(s, Y,l.add_seminorm(s))
 
+
 if __name__ == "__main__":
-    test2()
+    test1()

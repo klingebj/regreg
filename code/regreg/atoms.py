@@ -31,6 +31,10 @@ class seminorm_atom(object):
     def dual_constraint(self):
         return primal_dual_pairs[self.__class__](self.m, self.l)
 
+    @property
+    def dual(self):
+        return self.dual_constraint
+
     def evaluate(self, x):
         """
         Abstract method. Evaluate the norm of x.
@@ -393,6 +397,7 @@ class constraint_atom(object):
         self.l = l
         self.noneD = True
         self.dual_seminorm = dual_seminorm(self.p, self.l)
+        self.dual = self.dual_seminorm
         
     def evaluate(self, x):
         """
