@@ -9,6 +9,7 @@ class seminorm_atom(object):
 
     #XXX spec as 1d array could mean weights?
     #XXX matrix multiply should be sparse if possible
+
     def __init__(self, spec, l=1.):
         if type(spec) == type(1):
             self.p = self.m = spec
@@ -25,10 +26,20 @@ class seminorm_atom(object):
             self.sparseD = sparse.isspmatrix(self.D)
         else:
             self.noneD = True
-        
+    
+    @property
+    def dual_constraint(self):
+        return primal_dual_pairs[self.__class__](self.m, self.l)
+
     def evaluate(self, x):
         """
         Abstract method. Evaluate the norm of x.
+        """
+        raise NotImplementedError
+
+    def evaluate_dual(self, u):
+        """
+        Abstract method. Evaluate the constraint on the dual norm of x.
         """
         raise NotImplementedError
 
@@ -41,7 +52,7 @@ class seminorm_atom(object):
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
            \|x-v\|^2_2 + \lambda h(Dv)
 
-        where *p*=x.shape[0] and :math:`h(v)`=self.evaluate(v).
+        where *p*=x.shape[0] and :math:`h(v)` = self.evaluate(v).
         """
         raise NotImplementedError
 
@@ -89,7 +100,6 @@ class seminorm_atom(object):
         else:
                 return x
                                                               
-
     def problem(self, smooth, grad_smooth, smooth_multiplier=1., initial=None):
         """
         Return a problem instance 
@@ -99,7 +109,6 @@ class seminorm_atom(object):
         if initial is None:
             initial = np.random.standard_normal(self.p)
         return dummy_problem(smooth, grad_smooth, nonsmooth, prox, initial, smooth_multiplier)
-
 
 class l1norm(seminorm_atom):
 
@@ -373,3 +382,79 @@ class positive_part(seminorm_atom):
         v[neg] = 0
         v[~neg] = np.minimum(self.l, u[~neg])
         return v
+
+class constraint_atom(object):
+
+    def __init__(self, p, l, dual_seminorm):
+        if type(p) == type(1):
+            self.p = self.m = p
+        else:
+            raise ValueError("constraints cannot be specified with D at this time")
+        self.l = l
+        self.noneD = True
+        self.dual_seminorm = dual_seminorm(self.p, self.l)
+        
+    def evaluate(self, x):
+        """
+        Abstract method. Evaluate the constraint on the norm of x.
+        """
+        return self.dual_seminorm.evaluate_dual(x)
+
+    def evaluate_dual(self, u):
+        """
+        Abstract method. Evaluate the dual norm of x.
+        """
+        return self.dual_seminorm.evaluate(u)
+
+    def primal_prox(self, x, L):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+           \|x-v\|^2_2 \ \text{s.t.} \|v\| \leq \lambda
+
+        where *p*=x.shape[0] and :math:`\lambda` = self.l
+        and the norm is the dual of self.evaluate.
+        """
+        return self.dual_seminorm.dual_prox(x, L)
+
+    def dual_prox(self, u, L):
+        r"""
+        Return a minimizer
+
+        .. math::
+
+           v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+           \|u-D'v\|^2_2  + \lambda \|v\|^*
+
+        where *p*=u.shape[0], :math:`\lambda` = self.l and :math:`h^*` is the 
+        conjugate of self.evaluate, i.e. a seminorm.
+        """
+        return self.dual_seminorm.primal_prox(u, L)
+
+    def random_initial(self):
+        """
+        Return a random feasible point for use as an initial condition.
+        """
+        Z = np.random.standard_normal(self.p)
+        return self.dual_seminorm.dual_prox(Z, 1)
+
+def box_constraint(p, l=1):
+    return constraint_atom(p, l, l1norm)
+
+def l2_constraint(p, l=1):
+    return constraint_atom(p, l, l2norm)
+
+def negative_constraint(p, l=1):
+    return constraint_atom(p, l, nonnegative)
+
+def negative_part_constraint(constraint_atom):
+    return constraint_atom(p, l, positive_part)
+
+primal_dual_pairs = {l1norm:box_constraint,
+                     l2norm:l2_constraint,
+                     negative_constraint:nonnegative,
+                     negative_part_constraint:positive_part}
+
