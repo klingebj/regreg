@@ -194,3 +194,4 @@ class dummy_problem(object):
             return self._prox(z, L)
         else:
             return self._prox(z, L, tol=tol)
+

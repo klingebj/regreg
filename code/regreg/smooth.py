@@ -1,6 +1,5 @@
 import numpy as np
-
-
+from scipy import sparse
 
 class smooth_function(object):
 
@@ -15,7 +14,8 @@ class smooth_function(object):
         raise NotImplementedError
 
     def add_seminorm(self, seminorm, initial=None, smooth_multiplier=1):
-        return seminorm.problem(self.smooth_eval, smooth_multiplier=smooth_multiplier,
+        return seminorm.problem(self.smooth_eval, 
+                                smooth_multiplier=smooth_multiplier,
                                 initial=initial)
 
 
@@ -34,6 +34,17 @@ class squaredloss(smooth_function):
         self.Y = Y
         self.n, self.p = self.X.shape
 
+    def _dot(self, beta):
+        if not sparse.isspmatrix(self.X):
+            return np.dot(self.X,beta)
+        else:
+            return self.X * beta
+
+    def _dotT(self, r):
+        if not sparse.isspmatrix(self.X):
+            return np.dot(self.X.T, r)
+        else:
+            return self.X.T * r
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -43,18 +54,21 @@ class squaredloss(smooth_function):
         if mode == 'grad', return only the gradient
         if mode == 'func', return only the function value
         """
-
-        yhat = np.dot(self.X,beta)
-
+        yhat = self._dot(beta)
         if mode == 'both':
-            return ((self.Y - np.dot(self.X, beta))**2).sum() / 2. , np.dot(self.X.T,yhat-self.Y)
+            return ((self.Y - yhat)**2).sum() / 2. , self._dotT(yhat-self.Y)
         elif mode == 'grad':
-            return np.dot(self.X.T,yhat-self.Y)
+            return self._dotT(yhat-self.Y)
         elif mode == 'func':
-            return ((self.Y - np.dot(self.X, beta))**2).sum() / 2.
+            return ((self.Y - yhat)**2).sum() / 2.
         else:
             raise ValueError("mode incorrectly specified")
 
+    def set_Y(self, Y):
+        self._Y = Y
+    def get_Y(self):
+        return self._Y
+    Y = property(get_Y, set_Y)
 
 class signal_approximator(smooth_function):
 
@@ -87,3 +101,8 @@ class signal_approximator(smooth_function):
         else:
             raise ValueError("mode incorrectly specified")
 
+    def set_Y(self, Y):
+        self._Y = Y
+    def get_Y(self):
+        return self._Y
+    Y = property(get_Y, set_Y)
