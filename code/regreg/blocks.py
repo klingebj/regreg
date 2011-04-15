@@ -5,12 +5,13 @@ import pylab
 class Block(object):
 
     r"""
-    A Block can solve a problem of the form
+    A Block can solve a signal approximator problem of the form
 
     .. math::
 
        \text{minimize} \frac{1}{2} \|Y - D^Tu\|^2_2 \ \text{s.t.} \ h^*(u)
        \leq \lambda
+
     """
 
     def __init__(self, atom, initial=None):
@@ -44,6 +45,7 @@ class Block(object):
         return self.problem.coefs
     coefs = property(get_coefs, set_coefs)
     
+
     def set_Y(self, Y):
         self.loss.Y[:] = Y
     def get_Y(self):
@@ -60,6 +62,7 @@ def dual_blocks(semi, Y, initial=None):
 
 def blockwise(semi, Y, p=None, initial=None, max_its=50, tol=1.0e-06,
               min_its=5):
+
     blocks = dual_blocks(semi, Y)
     current_resid = Y.copy() 
     adjusted_resid = Y.copy()
@@ -69,7 +72,13 @@ def blockwise(semi, Y, p=None, initial=None, max_its=50, tol=1.0e-06,
 
     for itercount in range(max_its):
         for block in blocks:
-            block.Y = current_resid + block.atom.multiply_by_DT(block.coefs)# adjusted_resid
+
+            # XXX for a distributed version
+            # each block can maintain a copy of
+            # current resid that should be reset by a scatter
+            # before each block updates its coefficients
+
+            block.Y = current_resid + block.atom.multiply_by_DT(block.coefs)
             block.fit(max_its=800,tol=1e-10)
             current_resid[:] = block.Y - block.atom.multiply_by_DT(block.coefs)
             if np.linalg.norm(primal_soln - current_resid) / np.max([1.,np.linalg.norm(current_resid)]) < tol and itercount >= min_its:
