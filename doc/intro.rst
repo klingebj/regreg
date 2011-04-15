@@ -1,0 +1,12 @@
+.. _intro:
+
+The RegReg project
+~~~~~~~
+
+RegReg is a simple multi-algorithm framework for prototyping and solving regularized regression problems. The goal is to enable practitioners to quickly experiment with a variety of different models and choices of regularization. In that spirit, the emphasis is on the flexibility of the framework instead of computational speed for any particular problem.
+
+For a quick introduction, take a look at the :ref:`gallery` and the :ref:`tutorial`.
+
+(TODO: describe basic problem, with references to paper with Ryan/Rahul/Jonathan)
+
+See :ref:`agenda` for development goals.
