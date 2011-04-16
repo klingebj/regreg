@@ -168,7 +168,8 @@ class dummy_problem(object):
     A generic way to specify a problem
     """
     def __init__(self, smooth_eval, nonsmooth, prox, initial, smooth_multiplier=1):
-        self.initial = initial.copy()
+        # Do we need to store this?
+        #self.initial = initial.copy()
         self.coefs = initial.copy()
         self.obj_rough = nonsmooth
         self._smooth_eval = smooth_eval
@@ -176,7 +177,7 @@ class dummy_problem(object):
         self.smooth_multiplier = smooth_multiplier
 
 
-    def smooth_eval(self,x, mode='both'):
+    def smooth_eval(self, x, mode='both'):
         output = self._smooth_eval(x, mode=mode)
         if mode == 'both':
             return self.smooth_multiplier * output[0], self.smooth_multiplier * output[1]
