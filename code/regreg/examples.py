@@ -137,22 +137,24 @@ def nearly_concave_example(n=100, plot=True):
     D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D2 = np.dot(D1[1:,1:], D1)
     D2 = sparse.csr_matrix(D2)
-    nisotonic = seminorm(positive_part(-D2, l=3))
+    nisotonic = seminorm(positive_part(-D2, l=5))
 
     Y = np.random.standard_normal(n)
     X = np.linspace(0,1,n)
     Y -= (X-0.5)**2 * 10.
     loss = signal_approximator(Y)
     p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
-    p.L = nisotonic.power_LD()
     solver=FISTA(p)
 
     solver.debug = True
-    vals = solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    tol = 1e-6
+    p.L = 1.01
+    vals = solver.fit(prox_max_its=25000, prox_tol=1e-10, prox_debug=False,
+                      tol=tol, backtrack=False, monotonicity_restart=False)
     soln = solver.problem.coefs.copy()
 
-    nisotonic.atoms[0].l = 100.
-    solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    nisotonic.atoms[0].l = 50.
+    solver.fit(prox_max_its=25000, prox_tol=1e-10, tol=tol, monotonicity_restart=False, backtrack=False)
     soln2 = solver.problem.coefs.copy()
 
 

@@ -85,13 +85,30 @@ class FISTA(algorithm):
             start_inv_step=1.,
             restart=np.inf,
             coef_stop=False,
-            set_prox_tol=False,
+            prox_tol = None,
+            prox_max_its = None,
+            prox_debug = None,
             monotonicity_restart=True):
 
 
-        #Choose initial tolerance for proximal problem
-        if set_prox_tol:
-            prox_tol = 1e-6
+        #Specify convergence criteria for proximal problem
+        # This is a bit inconsistent: simple prox functions don't accept tolerance parameters, but when the prox function
+        # is an optimization (like primal_prox) then it accepts some control paramters. This checks whether the user
+        # gave the parameters before passing them on
+        if (prox_tol is not None) or (prox_max_its is not None) or (prox_debug is not None):
+            set_prox_control = True
+            if prox_tol is None:
+                prox_tol = 1e-14
+            if prox_max_its is None:
+                prox_max_its = 5000
+            if prox_debug is None:
+                prox_debug=False
+            prox_control = {'tol':prox_tol,
+                            'max_its':prox_max_its,
+                            'debug':prox_debug}
+        else:
+            set_prox_control = False
+
         objective_hist = np.zeros(max_its)
         
         if self.inv_step is None:
@@ -118,18 +135,15 @@ class FISTA(algorithm):
 
             objective_hist[itercount] = current_obj
 
-
             # Backtracking loop
             if backtrack:
                 if np.mod(itercount+1,100)==0:
                     self.inv_step *= 1/alpha
-                #grad = self.problem.grad(r)
-                #current_f = self.problem.obj_smooth(r)
                 current_f, grad = self.problem.smooth_eval(r,mode='both')
                 stop = False
                 while not stop:
-                    if set_prox_tol:
-                        beta = self.problem.proximal(r, grad, self.inv_step, tol=prox_tol)
+                    if set_prox_control:
+                        beta = self.problem.proximal(r, grad, self.inv_step, prox_control=prox_control)
                     else:
                         beta = self.problem.proximal(r, grad, self.inv_step)
 
@@ -149,7 +163,10 @@ class FISTA(algorithm):
                 #Use specified Lipschitz constant
                 grad = self.problem.smooth_eval(r,mode='grad')
                 self.inv_step = self.problem.L
-                beta = self.problem.proximal(r, grad, self.inv_step)
+                if set_prox_control:
+                    beta = self.problem.proximal(r, grad, self.inv_step, prox_control=prox_control)
+                else:
+                    beta = self.problem.proximal(r, grad, self.inv_step)
                 trial_f = self.problem.smooth_eval(beta,mode='func')
                 
             trial_obj = trial_f + self.problem.obj_rough(beta)
@@ -180,11 +197,6 @@ class FISTA(algorithm):
                 if self.debug:
                     print "\tRestarting"
 
-                if set_prox_tol and t_old==1.:
-                    #Gradient step increased objective - likely a tolerance problem
-                    prox_tol /= 10.
-                    print "\tSettubg proximal tolerance", prox_tol
-                    
                 t_old = 1.
                 r = self.problem.coefs
 
