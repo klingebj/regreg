@@ -178,12 +178,12 @@ class logistic_loglikelihood(smooth_function):
         exp_yhat = np.exp(yhat)
         if mode == 'both':
             ratio = exp_yhat/(1.+exp_yhat)
-            return -2*np.dot(self.Y,yhat) + 2* np.sum(np.log(1+exp_yhat)), -2*self._dotT(yhat-ratio)
+            return -2*(np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat))), -2*self._dotT(self.Y-ratio)
         elif mode == 'grad':
             ratio = exp_yhat/(1.+exp_yhat)
-            return -2*self._dotT(yhat-ratio)
+            return -2*self._dotT(self.Y-ratio)
         elif mode == 'func':
-            return -2* np.dot(self.Y,yhat) +2* np.sum(np.log(1+exp_yhat))
+            return -2*(np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat)))
         else:
             raise ValueError("mode incorrectly specified")
 

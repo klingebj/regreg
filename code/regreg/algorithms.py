@@ -142,6 +142,8 @@ class FISTA(algorithm):
                         stop = np.fabs(np.dot(beta-r,grad-trial_grad)) <= 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     if not stop:
                         self.inv_step *= alpha
+                        if self.debug:
+                            print "Increasing inv_step", self.inv_step
                      
             else:
                 #Use specified Lipschitz constant

@@ -6,7 +6,7 @@ import time
 from algorithms import FISTA
 from atoms import l1norm, l2norm, nonnegative, positive_part
 from seminorm import seminorm
-from smooth import squaredloss, signal_approximator
+from smooth import squaredloss, signal_approximator, logistic_loglikelihood
 
 
 import old_framework.lasso as lasso
@@ -80,7 +80,7 @@ def fused_lasso_example(n=100):
 def isotonic_example(n=100, plot=True):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
-    isotonic = seminorm(nonnegative(D))
+    isotonic = seminorm(nonnegative(sparse.csr_matrix(D)))
     Y = np.random.standard_normal(n)
     Y[:-30] += np.arange(n-30) * 0.2
     loss = signal_approximator(Y)
@@ -102,7 +102,7 @@ def isotonic_example(n=100, plot=True):
 def nearly_isotonic_example(n=100, plot=True):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
-    nisotonic = seminorm(positive_part(-D, l=3))
+    nisotonic = seminorm(positive_part(-sparse.csr_matrix(D), l=3))
     Y = np.random.standard_normal(n)
     Y[:-30] += np.arange(n-30) * 0.2
     loss = signal_approximator(Y)
@@ -255,4 +255,16 @@ def linear_trend_example(n=500, l1=10.):
     pylab.scatter(X, Y)
 
 
+
+def logistic_regression_example(n=100):
+
+    X = np.random.normal(0,1,n*n*5).reshape((5*n,n))
+    Y = np.random.randint(0,2,5*n)
+
+    loss = logistic_loglikelihood(X,Y,initial=np.zeros(n))
+
+    solver = FISTA(loss)
+    solver.debug = True
+    vals = solver.fit(max_its=500, tol=1e-10)
+    soln = solver.problem.coefs
 
