@@ -1,17 +1,79 @@
 import numpy as np
 from scipy import sparse
 
+
 class smooth_function(object):
-
     """
-    A class for representing a smooth function and its gradient
+    A container class for smooth_atom classes
     """
 
-    def __init__(self):
-        raise NotImplementedError
+    def __init__(self, *atoms):
+        self.atoms = []
+        self.p = None
+        for atom in atoms:
+            if self.p is None:
+                self.p = atom.p
+            elif atom.p != self.p:
+                raise ValueError("Smooth function dimensions don't agree")
+            self.atoms.append(atom)
 
-    def smooth_eval(self):
-        raise NotImplementedError
+        self.coefs = np.zeros(self.p)
+
+        self.M = len(atoms)
+
+    #TODO: add addition overload
+
+    def smooth_eval(self, beta, mode='both'):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        if mode == 'func':
+            if self.M > 1:
+                v = 0.
+                for atom in self.atoms:
+                    v += atom.smooth_eval(beta, mode=mode)
+                return v
+            else:
+                return self.atoms[0].smooth_eval(beta, mode=mode)
+        elif mode == 'grad':
+            if self.M > 1:
+                g = np.zeros(self.p)
+                for atom in self.atoms:
+                    g += atom.smooth_eval(beta, mode=mode)
+                return g
+            else:
+                return self.atoms[0].smooth_eval(beta, mode=mode)
+        elif mode == 'both':
+            if self.M > 1:
+                v = 0.
+                g = np.zeros(self.p)
+                for atom in self.atoms:
+                    output = atom.smooth_eval(beta, mode=mode)
+                    v += output[0]
+                    g += output[1]
+                return v, g
+            else:
+                return self.atoms[0].smooth_eval(beta, mode=mode)
+        else:
+            raise ValueError("Mode specified incorrectly")
+
+    
+    def proximal(self, x, g, L):
+        """
+        Take a gradient step
+        """
+        return x - g / L
+
+    def obj_rough(self, x):
+        """
+        There is no nonsmooth objective component - return 0
+        """
+        return 0.
 
     def add_seminorm(self, seminorm, initial=None, smooth_multiplier=1):
         """
@@ -26,35 +88,36 @@ class smooth_function(object):
                                     smooth_multiplier=smooth_multiplier,
                                     initial=initial)
 
-    def proximal(self, x, g, L):
-        """
-        Take a gradient step
-        """
-        return x - g / L
+class smooth_atom(object):
 
-    def obj_rough(self, x):
-        """
-        There is no nonsmooth objective component - return 0
-        """
-        return 0.
+    """
+    A class for representing a smooth function and its gradient
+    """
+
+    l = 1.
+
+    def __init__(self):
+        raise NotImplementedError
+
+    def smooth_eval(self):
+        raise NotImplementedError
     
-class squaredloss(smooth_function):
+class squaredloss(smooth_atom):
 
     """
     A class for combining squared error loss with a general seminorm
     """
 
-    def __init__(self, X, Y, initial=None):
+    def __init__(self, X, Y, l = None):
         """
         Generate initial tuple of arguments for update.
         """
         self.X = X
         self.Y = Y
         self.n, self.p = self.X.shape
-        if initial is not None:
-            self.coefs = initial.copy()
-        else:
-            self.coefs = np.zeros(self.p)
+
+        if l is not None:
+            self.l = l
 
     def _dot(self, beta):
         if not sparse.isspmatrix(self.X):
@@ -78,13 +141,14 @@ class squaredloss(smooth_function):
         """
         yhat = self._dot(beta)
         if mode == 'both':
-            return ((self.Y - yhat)**2).sum() / 2. , self._dotT(yhat-self.Y)
+            return self.l * ((self.Y - yhat)**2).sum() / 2. , self.l * self._dotT(yhat-self.Y)
         elif mode == 'grad':
-            return self._dotT(yhat-self.Y)
+            return self.l * self._dotT(yhat-self.Y)
         elif mode == 'func':
-            return ((self.Y - yhat)**2).sum() / 2.
+            return self.l * ((self.Y - yhat)**2).sum() / 2.
         else:
             raise ValueError("mode incorrectly specified")
+        
 
     def set_Y(self, Y):
         self._Y = Y
@@ -92,22 +156,19 @@ class squaredloss(smooth_function):
         return self._Y
     Y = property(get_Y, set_Y)
 
-class signal_approximator(smooth_function):
 
+class l2normsq(smooth_atom):
     """
-    A class for combining squared error loss with a general seminorm
+    The square of the l2 norm
     """
 
-    def __init__(self, Y, initial=None):
-        """
-        Generate initial tuple of arguments for update.
-        """
-        self.Y = Y
-        self.n = self.p = self.Y.shape[0]
-        if initial is not None:
-            self.coefs = initial.copy()
-        else:
-            self.coefs = np.zeros(self.p)
+    #TODO: generalize input to allow for a matrix D, making a generalized l2 norm with syntax like l2norm seminorm_atom
+
+    def __init__(self, p, l=None):
+        self.p = p
+
+        if l is not None:
+            self.l = l
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -119,11 +180,48 @@ class signal_approximator(smooth_function):
         """
 
         if mode == 'both':
-            return ((self.Y - beta)**2).sum() / 2., beta - self.Y
+            return self.l * np.linalg.norm(beta)**2, self.l * 2 * beta
         elif mode == 'grad':
-            return beta - self.Y
+            return self.l * 2 * beta
         elif mode == 'func':
-            return ((self.Y - beta)**2).sum() / 2.
+            return self.l * np.linalg.norm(beta)**2
+        else:
+            raise ValueError("mode incorrectly specified")
+
+
+            
+class signal_approximator(smooth_atom):
+
+    """
+    A class for combining squared error loss with a general seminorm
+    """
+
+    def __init__(self, Y, l=None):
+        """
+        Generate initial tuple of arguments for update.
+        """
+        self.Y = Y
+        self.n = self.p = self.Y.shape[0]
+
+        if l is not None:
+            self.l = l
+
+
+    def smooth_eval(self, beta, mode='both'):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        if mode == 'both':
+            return self.l * ((self.Y - beta)**2).sum() / 2., self.l * (beta - self.Y)
+        elif mode == 'grad':
+            return self.l * (beta - self.Y)
+        elif mode == 'func':
+            return self.l * ((self.Y - beta)**2).sum() / 2.
         else:
             raise ValueError("mode incorrectly specified")
 
@@ -135,23 +233,22 @@ class signal_approximator(smooth_function):
 
 
     
-class logistic_loglikelihood(smooth_function):
+class logistic_loglikelihood(smooth_atom):
 
     """
     A class for combining the logistic log-likelihood with a general seminorm
     """
 
-    def __init__(self, X, Y, initial=None):
+    def __init__(self, X, Y, l = None):
         """
         Generate initial tuple of arguments for update.
         """
         self.X = X
         self.Y = Y
         self.n, self.p = self.X.shape
-        if initial is not None:
-            self.coefs = initial.copy()
-        else:
-            self.coefs = np.zeros(self.p)
+
+        if l is not None:
+            self.l = l
 
     def _dot(self, beta):
         if not sparse.isspmatrix(self.X):
@@ -178,12 +275,12 @@ class logistic_loglikelihood(smooth_function):
         exp_yhat = np.exp(yhat)
         if mode == 'both':
             ratio = exp_yhat/(1.+exp_yhat)
-            return -2*(np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat))), -2*self._dotT(self.Y-ratio)
+            return -2 * self.l * (np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat))), -2 * self.l * self._dotT(self.Y-ratio)
         elif mode == 'grad':
             ratio = exp_yhat/(1.+exp_yhat)
-            return -2*self._dotT(self.Y-ratio)
+            return - 2 * self.l * self._dotT(self.Y-ratio)
         elif mode == 'func':
-            return -2*(np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat)))
+            return -2 * self.l * (np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat)))
         else:
             raise ValueError("mode incorrectly specified")
 

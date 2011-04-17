@@ -6,7 +6,7 @@ import time
 from algorithms import FISTA
 from atoms import l1norm, l2norm, nonnegative, positive_part
 from seminorm import seminorm
-from smooth import squaredloss, signal_approximator, logistic_loglikelihood
+from smooth import squaredloss, signal_approximator, logistic_loglikelihood, smooth_function, l2normsq
 
 
 import old_framework.lasso as lasso
@@ -16,7 +16,7 @@ def lasso_example(n=100):
     l1 = 1.
     X = np.random.standard_normal((5000,n))
     Y = np.random.standard_normal((5000,))
-    regloss = squaredloss(X,Y)
+    regloss = smooth_function(squaredloss(X,Y))
     sparsity = l1norm(n, l=l1)
     p=regloss.add_seminorm(seminorm(sparsity),initial=np.zeros(n))
     
@@ -67,7 +67,7 @@ def fused_lasso_example(n=100):
 
     X = np.random.standard_normal((2*n,n))
     Y = np.random.standard_normal((2*n,))
-    regloss = squaredloss(X,Y)
+    regloss = smooth_function(squaredloss(X,Y))
     p=regloss.add_seminorm(fused)
     solver=FISTA(p)
     solver.debug = True
@@ -83,7 +83,7 @@ def isotonic_example(n=100, plot=True):
     isotonic = seminorm(nonnegative(sparse.csr_matrix(D)))
     Y = np.random.standard_normal(n)
     Y[:-30] += np.arange(n-30) * 0.2
-    loss = signal_approximator(Y)
+    loss = smooth_function(signal_approximator(Y))
     p = loss.add_seminorm(isotonic, initial=np.ones(Y.shape)*Y.mean())
     p.L = isotonic.power_LD()
     solver=FISTA(p)
@@ -105,7 +105,7 @@ def nearly_isotonic_example(n=100, plot=True):
     nisotonic = seminorm(positive_part(-sparse.csr_matrix(D), l=3))
     Y = np.random.standard_normal(n)
     Y[:-30] += np.arange(n-30) * 0.2
-    loss = signal_approximator(Y)
+    loss = smooth_function(signal_approximator(Y))
     p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
     p.L = nisotonic.power_LD()
     solver=FISTA(p)
@@ -142,7 +142,7 @@ def nearly_concave_example(n=100, plot=True):
     Y = np.random.standard_normal(n)
     X = np.linspace(0,1,n)
     Y -= (X-0.5)**2 * 10.
-    loss = signal_approximator(Y)
+    loss = smooth_function(signal_approximator(Y))
     p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
     solver=FISTA(p)
 
@@ -181,7 +181,7 @@ def concave_example(n=100, plot=True):
     Y = np.random.standard_normal(n)
     X = np.linspace(0,1,n)
     Y -= (X-0.5)**2 * 10.
-    loss = signal_approximator(Y)
+    loss = smooth_function(signal_approximator(Y))
     p = loss.add_seminorm(concave, initial=np.ones(Y.shape)*Y.mean())
     p.L = concave.power_LD()
     solver=FISTA(p)
@@ -211,7 +211,7 @@ def group_lasso_example():
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
-    regloss = squaredloss(X,Y)
+    regloss = smooth_function(squaredloss(X,Y))
     p=regloss.add_seminorm(group_lasso)
     solver=FISTA(p)
     solver.debug = True
@@ -263,10 +263,25 @@ def logistic_regression_example(n=100):
     X = np.random.normal(0,1,n*n*5).reshape((5*n,n))
     Y = np.random.randint(0,2,5*n)
 
-    loss = logistic_loglikelihood(X,Y,initial=np.zeros(n))
+    loss = smooth_function(logistic_loglikelihood(X,Y))
 
     solver = FISTA(loss)
     solver.debug = True
     vals = solver.fit(max_its=500, tol=1e-10)
     soln = solver.problem.coefs
 
+
+
+def logistic_ridge_regression_example(n=100, l2 = 1.):
+
+    X = np.random.normal(0,1,n*n*5).reshape((5*n,n))
+    Y = np.random.randint(0,2,5*n)
+
+    loss = smooth_function(logistic_loglikelihood(X,Y),l2normsq(n,l=l2))
+
+    solver = FISTA(loss)
+    solver.debug = True
+    vals = solver.fit(max_its=500, tol=1e-10)
+    soln = solver.problem.coefs
+
+    pylab.plot(soln)

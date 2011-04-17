@@ -5,7 +5,7 @@ from scipy import sparse
 from regreg.algorithms import FISTA
 from regreg.atoms import positive_part
 from regreg.seminorm import seminorm
-from regreg.smooth import signal_approximator
+from regreg.smooth import signal_approximator, smooth_function
 
 
 n = 100
@@ -15,7 +15,7 @@ Y[:-30] += np.arange(n-30) * 0.2
 D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
 nisotonic = seminorm(positive_part(-sparse.csr_matrix(D), l=3))
 
-loss = signal_approximator(Y)
+loss = smooth_function(signal_approximator(Y))
 p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
 p.L = nisotonic.power_LD()
 solver=FISTA(p)

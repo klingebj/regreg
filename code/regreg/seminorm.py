@@ -149,7 +149,7 @@ class seminorm(object):
             if mode == 'both':
                 return (primal**2).sum() / 2., g
         else:
-            raise ValueError("mode not specified correctly")
+            raise ValueError("Mode not specified correctly")
 
     def problem(self, smooth_eval, smooth_multiplier=1., initial=None):
         prox = self.primal_prox
@@ -184,7 +184,7 @@ class dummy_problem(object):
         elif mode == 'grad' or mode == 'func':
             return self.smooth_multiplier * output
         else:
-            raise ValueError("mode incorrectly specified")
+            raise ValueError("Mode incorrectly specified")
 
     def obj(self, x):
         return self.smooth_eval(x,mode='func') + self.obj_rough(x)
