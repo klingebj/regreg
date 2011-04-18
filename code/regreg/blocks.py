@@ -20,9 +20,9 @@ class Block(object):
         if initial is None:
             initial = np.zeros(atom.m) 
         if not atom.noneD:
-            self.loss = smooth.squaredloss(atom.D.T, Y)
+            self.loss = smooth.smooth_function(smooth.squaredloss(atom.D.T, Y))
         else:
-            self.loss = smooth.signal_approximator(Y)
+            self.loss = smooth.smooth_function(smooth.signal_approximator(Y))
 
         dual_atom = atom.dual
         prox = dual_atom.primal_prox
@@ -47,9 +47,9 @@ class Block(object):
     
 
     def set_Y(self, Y):
-        self.loss.Y[:] = Y
+        self.loss.atoms[0].Y[:] = Y
     def get_Y(self):
-        return self.loss.Y
+        return self.loss.atoms[0].Y
     Y = property(get_Y, set_Y)
     
 def dual_blocks(semi, Y, initial=None):
@@ -94,7 +94,7 @@ def test1():
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
     from regreg.seminorm import seminorm, dummy_problem
-    from regreg.smooth import signal_approximator
+    from regreg.smooth import signal_approximator, smooth_function
 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
@@ -105,7 +105,7 @@ def test1():
     fused = l1norm(D, l=19.5)
 
     pen = seminorm(sparsity,fused)
-    loss = signal_approximator(Y)
+    loss = smooth_function(signal_approximator(Y))
     p = loss.add_seminorm(pen)
 
     
@@ -132,12 +132,12 @@ def test2():
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
     from regreg.seminorm import seminorm, dummy_problem
-    from regreg.smooth import signal_approximator
+    from regreg.smooth import signal_approximator, smooth_function
 
     n1, n2 = l1norm(1), l1norm(1)
     s=seminorm(n1,n2)
     Y = np.array([30.])
-    l=signal_approximator(Y)
+    l=smooth_function(signal_approximator(Y))
     blockwise(s, Y,l.add_seminorm(s))
 
 
