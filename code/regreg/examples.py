@@ -8,9 +8,6 @@ from atoms import l1norm, l2norm, nonnegative, positive_part
 from seminorm import seminorm
 from smooth import squaredloss, signal_approximator, logistic_loglikelihood, smooth_function, l2normsq
 
-
-import old_framework.lasso as lasso
-
 def lasso_example(n=100):
 
     l1 = 1.
