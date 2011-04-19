@@ -17,6 +17,7 @@ RegReg documentation
    :maxdepth: 2
 
    download.rst
+   algorithms
    publications
    license
 
