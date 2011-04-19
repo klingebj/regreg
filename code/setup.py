@@ -21,8 +21,7 @@ def configuration(parent_package='',top_path=None):
 
 if __name__ == '__main__':
 
-    cython_extension("regreg/old_framework/subfunctions.pyx")
-    cython_extension("regreg/old_framework/updates.pyx")
+    #cython_extension("regreg/old_framework/subfunctions.pyx")
     
     from numpy.distutils.core import setup
 
