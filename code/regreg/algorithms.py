@@ -23,52 +23,118 @@ class algorithm(object):
 
 class ISTA(algorithm):
 
-    def fit(self,tol=1e-4,max_its=100,min_its=5,backtrack=True,alpha=1.1,start_inv_step=1.):
+    def fit(self,
+            max_its=10000,
+            min_its=5,
+            tol=1e-5,
+            backtrack=True,
+            alpha=1.1,
+            start_inv_step=1.,
+            coef_stop=False,
+            prox_tol = None,
+            prox_max_its = None,
+            prox_debug = None):
+
+
+
+        #Specify convergence criteria for proximal problem
+        # This is a bit inconsistent: simple prox functions don't accept tolerance parameters, but when the prox function
+        # is an optimization (like primal_prox) then it accepts some control paramters. This checks whether the user
+        # gave the parameters before passing them on
+        if (prox_tol is not None) or (prox_max_its is not None) or (prox_debug is not None):
+            set_prox_control = True
+            if prox_tol is None:
+                prox_tol = 1e-14
+            if prox_max_its is None:
+                prox_max_its = 5000
+            if prox_debug is None:
+                prox_debug=False
+            prox_control = {'tol':prox_tol,
+                            'max_its':prox_max_its,
+                            'debug':prox_debug}
+        else:
+            set_prox_control = False
 
         objective_hist = np.zeros(max_its)
-        itercount = 0
-        obj_cur = np.inf
+        
         if self.inv_step is None:
+            #If available, use Lipschitz constant from last fit
             self.inv_step = start_inv_step
+        else:
+            self.inv_step *= 1/alpha
+
+        current_f = self.problem.smooth_eval(self.problem.coefs,mode='func')
+        current_obj = current_f + self.problem.obj_rough(self.problem.coefs)
+        
+        itercount = 0
         while itercount < max_its:
-            f_beta = self.problem.obj(self.problem.coefs)
-            grad = self.problem.grad(self.problem.coefs)
-            objective_hist[itercount] = f_beta
+
+            objective_hist[itercount] = current_obj
+
             # Backtracking loop
             if backtrack:
-                current_f = self.problem.obj_smooth(self.problem.coefs)
+                if np.mod(itercount+1,100)==0:
+                    self.inv_step *= 1/alpha
+                current_f, grad = self.problem.smooth_eval(self.problem.coefs,mode='both')
                 stop = False
                 while not stop:
-                    beta = self.problem.proximal(self.problem.coefs, grad, self.inv_step)
-                    trial_f = self.problem.obj_smooth(beta)
-                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
+                    if set_prox_control:
+                        beta = self.problem.proximal(self.problem.coefs, grad, self.inv_step, prox_control=prox_control)
+                    else:
+                        beta = self.problem.proximal(self.problem.coefs, grad, self.inv_step)
+
+                    trial_f = self.problem.smooth_eval(beta,mode='func')
+
+                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-15:
                         stop = trial_f <= current_f + np.dot(beta-self.problem.coefs,grad) + 0.5*self.inv_step*np.linalg.norm(beta-self.problem.coefs)**2
                     else:
-                        trial_grad = self.problem.grad(beta)
+                        trial_grad = self.problem.smooth_eval(beta,mode='grad')
                         stop = np.fabs(np.dot(beta-self.problem.coefs,grad-trial_grad)) <= 0.5*self.inv_step*np.linalg.norm(beta-self.problem.coefs)**2
-                        stop = True
                     if not stop:
                         self.inv_step *= alpha
+                        if self.debug:
+                            print "Increasing inv_step", self.inv_step
+                     
             else:
+                #Use specified Lipschitz constant
+                grad = self.problem.smooth_eval(self.problem.coefs,mode='grad')
                 self.inv_step = self.problem.L
-                beta = self.problem.proximal(self.problem.coefs, grad, self.inv_step)
+                if set_prox_control:
+                    beta = self.problem.proximal(self.problem.coefs, grad, self.inv_step, prox_control=prox_control)
+                else:
+                    beta = self.problem.proximal(self.problem.coefs, grad, self.inv_step)
+                trial_f = self.problem.smooth_eval(beta,mode='func')
+                
+            trial_obj = trial_f + self.problem.obj_rough(beta)
+
+            obj_change = np.fabs(trial_obj - current_obj)
+            obj_rel_change = obj_change/current_obj 
 
             if self.debug:
-                print itercount, obj_cur, self.inv_step, (obj_cur - f_beta) / f_beta, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
+                print itercount, current_obj, self.inv_step, obj_rel_change, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]), tol
 
 
-            if np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]) < tol and itercount >= min_its:
-            #if np.fabs((obj_cur - f_beta) / f_beta) < tol and itercount >= min_its:
-                self.problem.coefs = beta
-                break
+            if itercount >= min_its:
+                if coef_stop:
+                    if np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]) < tol:
+                        self.problem.coefs = beta
+                        break
+                else:
+                    if obj_rel_change < tol or obj_change < tol:
+                        self.problem.coefs = beta
+                        break
+
             self.problem.coefs = beta
-            obj_cur = self.problem.obj(self.problem.coefs)
-            
-
             itercount += 1
+            current_obj = trial_obj
+            
         if self.debug:
             print "ISTA used", itercount, "iterations"
-        return objective_hist
+        return objective_hist[:itercount]
+
+
+
+
 
 class FISTA(algorithm):
 
@@ -77,7 +143,7 @@ class FISTA(algorithm):
     """
 
     def fit(self,
-            max_its=100,
+            max_its=10000,
             min_its=5,
             tol=1e-5,
             backtrack=True,

@@ -3,7 +3,7 @@ import pylab; pylab.ion()
 from scipy import sparse
 import time
 
-from algorithms import FISTA
+from algorithms import FISTA, ISTA
 from atoms import l1norm, l2norm, nonnegative, positive_part
 from seminorm import seminorm
 from smooth import squaredloss, signal_approximator, logistic_loglikelihood, smooth_function, l2normsq
@@ -71,7 +71,7 @@ def fused_lasso_example(n=100):
     p=regloss.add_seminorm(fused)
     solver=FISTA(p)
     solver.debug = True
-    vals = solver.fit(max_its=25000, tol=1e-10)
+    vals = solver.fit(prox_max_its=25000, tol=1e-10)
     soln = solver.problem.coefs
 
     return vals
@@ -85,11 +85,11 @@ def isotonic_example(n=100, plot=True):
     Y[:-30] += np.arange(n-30) * 0.2
     loss = smooth_function(signal_approximator(Y))
     p = loss.add_seminorm(isotonic, initial=np.ones(Y.shape)*Y.mean())
-    p.L = isotonic.power_LD()
+    p.L = 1.1
     solver=FISTA(p)
 
     solver.debug = True
-    vals = solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    vals = solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False)
     soln = solver.problem.coefs
     if plot:
         X = np.arange(n)
@@ -107,19 +107,19 @@ def nearly_isotonic_example(n=100, plot=True):
     Y[:-30] += np.arange(n-30) * 0.2
     loss = smooth_function(signal_approximator(Y))
     p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
-    p.L = nisotonic.power_LD()
+    p.L = 1.1
     solver=FISTA(p)
 
     solver.debug = True
-    vals = solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    vals = solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False)
     soln = solver.problem.coefs.copy()
 
     nisotonic.atoms[0].l = 100.
-    solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False)
     soln2 = solver.problem.coefs.copy()
 
     nisotonic.atoms[0].l = 1000.
-    solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+    solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False)
     soln3 = solver.problem.coefs.copy()
 
     if plot:
@@ -147,7 +147,7 @@ def nearly_concave_example(n=100, plot=True):
     solver=FISTA(p)
 
     solver.debug = True
-    tol = 1e-6
+    tol = 1e-5
     p.L = 1.01
     vals = solver.fit(prox_max_its=25000, prox_tol=1e-10, prox_debug=False,
                       tol=tol, backtrack=False, monotonicity_restart=False)
@@ -183,11 +183,11 @@ def concave_example(n=100, plot=True):
     Y -= (X-0.5)**2 * 10.
     loss = smooth_function(signal_approximator(Y))
     p = loss.add_seminorm(concave, initial=np.ones(Y.shape)*Y.mean())
-    p.L = concave.power_LD()
+    p.L = 1.1
     solver=FISTA(p)
 
     solver.debug = True
-    vals = solver.fit(max_its=25000, tol=1e-05, monotonicity_restart=False)
+    vals = solver.fit(prox_max_its=25000, tol=1e-05, monotonicity_restart=False)
     soln = solver.problem.coefs
     if plot:
         pylab.clf()
