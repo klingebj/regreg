@@ -8,6 +8,7 @@ RegReg tutorials
   * Illustrates using two seminorms
   * Solved with generalized gradient strategy
 
+
 * Logistic regression tutorials
 
   * :ref:`logisticl2tutorial`
@@ -16,9 +17,11 @@ RegReg tutorials
 
   * Sparse logistic regression tutorial (TODO)
 
+
 * :ref:`elasticnettutorial` (TODO: add citation)
 
   * Example with an objective with two smooth components and one non-smooth component
+
 
 * GraphNet tutorials (TODO: add citation)
 

@@ -13,8 +13,6 @@ To solve this problem using RegReg we begin by loading the necessary numerical l
 .. ipython::
 
    import numpy as np
-   import pylab	
-   from scipy import sparse
 
 and the RegReg classes necessary for this problem,
 

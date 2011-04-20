@@ -13,8 +13,6 @@ To solve this problem using RegReg we begin by loading the necessary numerical l
 .. ipython::
 
    import numpy as np
-   import pylab	
-   from scipy import sparse
 
 and the RegReg classes necessary for this problem,
 
@@ -34,7 +32,7 @@ Next, let's generate some example data,
 .. ipython::
  
    X = np.random.normal(0,1,500000).reshape((500,1000))
-   Y = np.random.randint(0,2,500)
+   Y = np.random.normal(0,1,500)
 
 Now we can create the problem object, beginning with the loss function
 
@@ -50,6 +48,7 @@ The penalty contains the regularization parameter that can be easily accessed an
 
    grouping.l 
    grouping.l += 1 
+   grouping.l 
    sparsity.l
  
 
@@ -59,7 +58,7 @@ Now we can create the final problem object by comining the smooth functions and 
 
    problem = smooth_function(loss, grouping).add_seminorm(seminorm(sparsity))
 
-The penalty parameters can still be changing grouping and sparsity directly.
+The penalty parameters can still be changed by accessing grouping and sparsity directly.
 
 Next, we can select our algorithm of choice and use it solve the problem,
 

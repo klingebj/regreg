@@ -43,5 +43,5 @@ This strategy is described in [semipaper]_. RegReg provides several general stra
   * TODO: add smoothing tutorial
 
 
-.. [semipaper] Mazumder, R., Taylor, T., Tibshirani, R.J. "*Simple, fexible and scalable algorithms for penalized regression.*" **In preparation**
+.. [semipaper] Mazumder, R., Taylor, T., Tibshirani, R.J. "*Simple, flexible and scalable algorithms for penalized regression.*" **In preparation**
 .. [FISTA] Beck, A., Teboulle, M. "*A Fast Iterative Shrinkage-Thresholding Algorithm for Linear Inverse Problems*" (http://iew3.technion.ac.il/~becka/papers/71654.pdf) TODO: Add formal citation
