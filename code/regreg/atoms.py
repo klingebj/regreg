@@ -26,7 +26,8 @@ class seminorm_atom(object):
             self.sparseD = sparse.isspmatrix(self.D)
         else:
             self.noneD = True
-    
+        self.atoms = [self]
+        
     @property
     def dual_constraint(self):
         return primal_dual_pairs[self.__class__](self.m, self.l)
@@ -386,6 +387,44 @@ class positive_part(seminorm_atom):
         v[neg] = 0
         v[~neg] = np.minimum(self.l, u[~neg])
         return v
+
+class zero(seminorm_atom):
+
+    """
+    The zero seminorm
+    """
+
+    def evaluate(self, x):
+        """
+        The zero normL1 norm of Dx.
+        """
+        return np.zeros(x.shape)
+
+    def evaluate_dual(self, u):
+        iszero = np.equal(u, 0)
+        iszero[iszero] = np.inf
+        return iszero
+
+    def primal_prox(self, x,  L=1):
+        r"""
+        Return x
+        """
+        return x
+
+    def dual_prox(self, u, L=1):
+        r"""
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{\infty} \leq \lambda
+
+        where *m*=u.shape[0], :math:`\lambda` = self.l. 
+        This is just truncation: np.clip(u, -self.l/L, self.l/L).
+        """
+        return np.clip(u, -self.l, self.l)
+    
 
 class constraint_atom(object):
 
