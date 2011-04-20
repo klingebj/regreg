@@ -12,9 +12,10 @@ Software License
 Except where otherwise noted, all RegReg software is licensed under a
 `revised BSD license <http://www.opensource.org/licenses/bsd-license.php>`_.
 
-See our :ref:`licensing` page for more details.
+For a discussion on this choice see 
+`the NIPY license page <http://nipy.sourceforge.net/nipy/stable/license.html>`_.
 
-.. _nipy-documentation-license:
+.. _regreg-documentation-license:
 
 Documentation License
 ---------------------

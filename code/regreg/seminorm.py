@@ -65,7 +65,7 @@ class seminorm(object):
         return v
 
     default_solver = FISTA
-    def primal_prox(self, y, L_P=1, with_history=False, debug=False,tol=1e-15):
+    def primal_prox(self, y, L_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
         """
         The proximal function for the primal problem
         """
@@ -77,7 +77,7 @@ class seminorm(object):
             self.dualopt = seminorm.default_solver(self.dualp)
             self.dualopt.debug = debug
         self._dual_prox_center = yL
-        history = self.dualopt.fit(max_its=5000, min_its=5, tol=tol, backtrack=False)
+        history = self.dualopt.fit(max_its=max_its, min_its=5, tol=tol, backtrack=False)
         if with_history:
             return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P), history
         else:
@@ -149,7 +149,7 @@ class seminorm(object):
             if mode == 'both':
                 return (primal**2).sum() / 2., g
         else:
-            raise ValueError("mode not specified correctly")
+            raise ValueError("Mode not specified correctly")
 
     def problem(self, smooth_eval, smooth_multiplier=1., initial=None):
         prox = self.primal_prox
@@ -168,7 +168,8 @@ class dummy_problem(object):
     A generic way to specify a problem
     """
     def __init__(self, smooth_eval, nonsmooth, prox, initial, smooth_multiplier=1):
-        self.initial = initial.copy()
+        # Do we need to store this?
+        #self.initial = initial.copy()
         self.coefs = initial.copy()
         self.obj_rough = nonsmooth
         self._smooth_eval = smooth_eval
@@ -176,22 +177,27 @@ class dummy_problem(object):
         self.smooth_multiplier = smooth_multiplier
 
 
-    def smooth_eval(self,x, mode='both'):
+    def smooth_eval(self, x, mode='both'):
         output = self._smooth_eval(x, mode=mode)
         if mode == 'both':
             return self.smooth_multiplier * output[0], self.smooth_multiplier * output[1]
         elif mode == 'grad' or mode == 'func':
             return self.smooth_multiplier * output
         else:
-            raise ValueError("mode incorrectly specified")
+            raise ValueError("Mode incorrectly specified")
 
     def obj(self, x):
         return self.smooth_eval(x,mode='func') + self.obj_rough(x)
 
-    def proximal(self, x, g, L, tol=None):
+    def proximal(self, x, g, L, prox_control=None):
+        """
+        Compute the proximal optimization
+
+        prox_control: If not None, then a dictionary of parameters for the prox procedure
+        """
         z = x - g / L
-        if tol is None:
+        if prox_control is None:
             return self._prox(z, L)
         else:
-            return self._prox(z, L, tol=tol)
+            return self._prox(z, L, **prox_control)
 

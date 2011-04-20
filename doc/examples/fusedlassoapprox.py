@@ -5,7 +5,7 @@ from scipy import sparse
 from regreg.algorithms import FISTA
 from regreg.atoms import l1norm
 from regreg.seminorm import seminorm
-from regreg.smooth import signal_approximator
+from regreg.smooth import signal_approximator, smooth_function
 
 Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
@@ -16,7 +16,7 @@ D = sparse.csr_matrix(D)
 fused = l1norm(D, l=25.5)
 
 pen = seminorm(sparsity,fused)
-loss = signal_approximator(Y)
+loss = smooth_function(signal_approximator(Y))
 
 p = loss.add_seminorm(pen)
 solver = FISTA(p)

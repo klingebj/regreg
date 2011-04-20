@@ -5,7 +5,7 @@ from scipy import sparse
 from regreg.algorithms import FISTA
 from regreg.atoms import nonnegative
 from regreg.seminorm import seminorm
-from regreg.smooth import signal_approximator
+from regreg.smooth import signal_approximator, smooth_function
 
 n = 100
 Y = np.random.standard_normal(n)
@@ -15,7 +15,7 @@ D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
 
 
 isotonic = seminorm(nonnegative(sparse.csr_matrix(D)))
-loss = signal_approximator(Y)
+loss = smooth_function(signal_approximator(Y))
 p = loss.add_seminorm(isotonic, initial=np.ones(Y.shape)*Y.mean())
 p.L = isotonic.power_LD()
 solver=FISTA(p)

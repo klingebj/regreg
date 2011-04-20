@@ -17,3 +17,5 @@ RegReg is a Python project for fitting regularized regression models such as the
    gallery.rst
    agenda.rst
    documentation
+
+This website is based on the `NIPY website <http://nipy.sourceforge.net/nipy/stable/index.html>`_, see :ref:`doc-attribute` for details.
