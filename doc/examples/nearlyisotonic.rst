@@ -7,7 +7,7 @@ Nearly isotonic signal approximator
 Solves
 
     .. math::
-       ||y - \beta||^{2}_{2} + \lambda_{1}\|D\beta\|_+
+       \frac{1}{2}||y - \beta||^{2}_{2} + \lambda_{1}\|D\beta\|_+
 
     with
 

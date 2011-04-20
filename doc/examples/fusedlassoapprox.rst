@@ -7,7 +7,7 @@ Fused lasso signal approximator
 Solves
 
     .. math::
-       ||y - \beta||^{2}_{2} + \lambda_{1}||D\beta||_{1} + \lambda_2 \|\beta\|_1
+       \frac{1}{2}||y - \beta||^{2}_{2} + \lambda_{1}||D\beta||_{1} + \lambda_2 \|\beta\|_1
 
     with
 

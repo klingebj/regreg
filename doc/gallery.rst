@@ -9,18 +9,18 @@ RegReg examples gallery
 * LASSO signal approximator
 
     .. math::
-       ||y - \beta||^{2}_{2} + \lambda_{1}||\beta||_{1}
+       \frac{1}{2}||y - \beta||^{2}_{2} + \lambda_{1}||\beta||_{1}
 
 * LASSO
 
     .. math::
-       ||y - X\beta||^{2}_{2} + \lambda_{1}||\beta||_{1}
+       \frac{1}{2}||y - X\beta||^{2}_{2} + \lambda_{1}||\beta||_{1}
 
 
 * :ref:`fusedlassoapprox`
 
     .. math::
-       ||y - \beta||^{2}_{2} + \lambda_{1}||D\beta||_{1}
+       \frac{1}{2}||y - \beta||^{2}_{2} + \lambda_{1}||D\beta||_{1}
 
     with
 
@@ -34,7 +34,7 @@ RegReg examples gallery
 * :ref:`isotonic`
 
     .. math::
-       ||y - \beta||^{2}_{2} \quad \mbox{subject to } D\beta \geq 0
+       \frac{1}{2}||y - \beta||^{2}_{2} \quad \mbox{subject to } D\beta \geq 0
 
     with
 
@@ -45,7 +45,7 @@ RegReg examples gallery
 * :ref:`nearly-isotonic`
 
     .. math::
-       ||y - \beta||^{2}_{2} + \lambda_{1}\|D\beta\|_+
+       \frac{1}{2}||y - \beta||^{2}_{2} + \lambda_{1}\|D\beta\|_+
 
     with
 
