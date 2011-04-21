@@ -25,16 +25,20 @@ def lasso_example(n=100):
 
 
 
-def fused_approximator_example():
+def fused_approximator_example(l=25):
 
     x=np.random.standard_normal(500); x[100:150] += 7; x[250:300] += 14
 
     sparsity = l1norm(500, l=1.3)
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
     D = sparse.csr_matrix(D)
-    fused = l1norm(D, l=25.5)
+    fused = l1norm(D, l=l)
 
     pen = seminorm(sparsity,fused)
+    soln, vals = pen.primal_prox(x, 1, with_history=True, debug=True,tol=1e-10)
+
+    time.sleep(1)
+    fused.l = 2*l
     soln, vals = pen.primal_prox(x, 1, with_history=True, debug=True,tol=1e-10)
     
     # solution
@@ -86,7 +90,7 @@ def isotonic_example(n=100, plot=True):
     solver=FISTA(p)
 
     solver.debug = True
-    vals = solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False)
+    vals = solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False, prox_debug=True)
     soln = solver.problem.coefs
     if plot:
         X = np.arange(n)
@@ -108,15 +112,15 @@ def nearly_isotonic_example(n=100, plot=True):
     solver=FISTA(p)
 
     solver.debug = True
-    vals = solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False)
+    vals = solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False, prox_debug=True)
     soln = solver.problem.coefs.copy()
 
     nisotonic.atoms[0].l = 100.
     solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False)
     soln2 = solver.problem.coefs.copy()
 
-    nisotonic.atoms[0].l = 1000.
-    solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False)
+    nisotonic.atoms[0].l = 1000000.
+    solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False, monotonicity_restart=False)
     soln3 = solver.problem.coefs.copy()
 
     if plot:
@@ -146,11 +150,15 @@ def nearly_concave_example(n=100, plot=True):
     solver.debug = True
     tol = 1e-5
     p.L = 1.01
-    vals = solver.fit(prox_max_its=25000, prox_tol=1e-10, prox_debug=False,
+    vals = solver.fit(prox_max_its=25000, prox_tol=1e-10, prox_debug=True,
                       tol=tol, backtrack=False, monotonicity_restart=False)
     soln = solver.problem.coefs.copy()
 
     nisotonic.atoms[0].l = 50.
+    solver.fit(prox_max_its=25000, prox_tol=1e-10, tol=tol, monotonicity_restart=False, backtrack=False)
+
+
+    nisotonic.atoms[0].l = 150.
     solver.fit(prox_max_its=25000, prox_tol=1e-10, tol=tol, monotonicity_restart=False, backtrack=False)
     soln2 = solver.problem.coefs.copy()
 

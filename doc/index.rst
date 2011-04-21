@@ -10,6 +10,8 @@ For a quick introduction, take a look at the :ref:`tutorial` and the :ref:`galle
 
 For more details, see the :ref:`algorithms` page.
 
+If you are interested in contributing as a developer, please see the :ref:`agenda` page.
+
 *The RegReg team*
 
 .. We need the following toctree directive to include the documentation

@@ -1,6 +1,6 @@
 .. _logisticl2tutorial:
 
-:math:`\ell_2` regularized logistic regression tutorial
+l2 regularized logistic regression tutorial
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The :math:`\ell_2` regularized logistic regression problem minimizes the objective
