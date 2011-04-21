@@ -289,3 +289,49 @@ class logistic_loglikelihood(smooth_atom):
     def get_Y(self):
         return self._Y
     Y = property(get_Y, set_Y)
+
+
+
+class huber_loss(squaredloss):
+
+    """
+    A class for representing the Huber loss function
+    """
+
+    def __init__(self, X, Y, delta = 1., l = None):
+        """
+        Generate initial tuple of arguments for update.
+        """
+        self.X = X
+        self.Y = Y
+        self.delta = delta
+        self.n, self.p = self.X.shape
+
+        if l is not None:
+            self.l = l
+    
+    def smooth_eval(self, beta, mode='both'):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+        
+        resid = self.Y - self._dot(beta)
+        quad = np.fabs(resid) <= self.delta
+
+        if mode == 'both':
+            #This could be made more efficient in cython...
+            func = 0.5 * np.sum(quad*(resid**2) + (1-quad)*(2*self.delta*resid - self.delta**2))
+            grad = - 0.5 * self._dotT( quad*resid + (1-quad)*2*self.delta )
+            return self.l * func, self.l * grad
+        elif mode == 'grad':
+            grad = -0.5 * self._dotT( quad*resid + (1-quad)*2*self.delta )
+            return self.l * grad
+        elif mode == 'func':
+            func = 0.5 * np.sum(quad*(resid**2) + (1-quad)*(2*self.delta*resid - self.delta**2))
+            return self.l * func
+        else:
+            raise ValueError("mode incorrectly specified")

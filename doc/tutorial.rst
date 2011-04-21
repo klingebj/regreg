@@ -25,4 +25,6 @@ RegReg tutorials
 
 * GraphNet tutorials (TODO: add citation)
 
-   
+* :ref:`hubertutorial`
+
+  * A "robust" objective function with an :math:`\ell_1` penalty   

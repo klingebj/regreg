@@ -1,5 +1,5 @@
 """
-The coordinate-wise path setup.py script.
+A setup script for RegReg
 """
 
 from numpy.distutils.misc_util import Configuration
