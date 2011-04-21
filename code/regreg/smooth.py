@@ -324,14 +324,14 @@ class huber_loss(squaredloss):
 
         if mode == 'both':
             #This could be made more efficient in cython...
-            func = 0.5 * np.sum(quad*(resid**2) + (1-quad)*(2*self.delta*resid - self.delta**2))
-            grad = - 0.5 * self._dotT( quad*resid + (1-quad)*2*self.delta )
+            func = 0.5 * np.sum(quad*(resid**2) + (1-quad)*(2*self.delta*np.fabs(resid) - self.delta**2))
+            grad = - self._dotT( quad*resid + (1-quad)*self.delta*np.sign(resid) )
             return self.l * func, self.l * grad
         elif mode == 'grad':
-            grad = -0.5 * self._dotT( quad*resid + (1-quad)*2*self.delta )
+            grad = - self._dotT( quad*resid + (1-quad)*self.delta*np.sign(resid) )
             return self.l * grad
         elif mode == 'func':
-            func = 0.5 * np.sum(quad*(resid**2) + (1-quad)*(2*self.delta*resid - self.delta**2))
+            func = 0.5 * np.sum(quad*(resid**2) + (1-quad)*(2*self.delta*np.fabs(resid) - self.delta**2))
             return self.l * func
         else:
             raise ValueError("mode incorrectly specified")
