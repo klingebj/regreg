@@ -282,3 +282,19 @@ def logistic_ridge_regression_example(n=100, l2 = 1.):
     soln = solver.problem.coefs
 
     pylab.plot(soln)
+
+
+def logistic_genridge_regression_example(n=100, l2 = 1.):
+
+    X = np.random.normal(0,1,n*n*5).reshape((5*n,n))
+    Y = np.random.randint(0,2,5*n)
+    D = np.random.normal(0,1,n*50).reshape((50,n))
+
+    loss = smooth_function(logistic_loglikelihood(X,Y),l2normsq(D,l=l2))
+
+    solver = FISTA(loss)
+    solver.debug = True
+    vals = solver.fit(max_its=500, tol=1e-10)
+    soln = solver.problem.coefs
+
+    pylab.plot(soln)

@@ -159,16 +159,39 @@ class squaredloss(smooth_atom):
 
 class l2normsq(smooth_atom):
     """
-    The square of the l2 norm
+    The square of a general l2 norm
     """
 
-    #TODO: generalize input to allow for a matrix D, making a generalized l2 norm with syntax like l2norm seminorm_atom
-
-    def __init__(self, p, l=None):
-        self.p = p
-
+    def __init__(self, spec, l=None):
+        if type(spec) == type(1):
+            self.p = spec
+        else:
+            D = spec
+            if D.ndim == 1:
+                D = D.reshape((1,-1))
+            self.D = D
+            _ , self.p = D.shape
+            self.sparseD = sparse.isspmatrix(self.D)
         if l is not None:
             self.l = l
+
+    def _dot(self, beta):
+        if hasattr(self,'sparseD'):
+            if not self.sparseD:
+                return np.dot(self.D,beta)
+            else:
+                return self.D * beta
+        else:
+            return beta
+
+    def _dotT(self, beta):
+        if hasattr(self,'sparseD'):
+            if not self.sparseD:
+                return np.dot(self.D.T,beta)
+            else:
+                return self.D.T * beta
+        else:
+            return beta
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -179,12 +202,13 @@ class l2normsq(smooth_atom):
         if mode == 'func', return only the function value
         """
 
+        v = self._dot(beta)
         if mode == 'both':
-            return self.l * np.linalg.norm(beta)**2, self.l * 2 * beta
+            return self.l * np.linalg.norm(v)**2, self.l * 2 * self._dotT(v)
         elif mode == 'grad':
-            return self.l * 2 * beta
+            return self.l * 2 * self._dotT(v)
         elif mode == 'func':
-            return self.l * np.linalg.norm(beta)**2
+            return self.l * np.linalg.norm(v)**2
         else:
             raise ValueError("mode incorrectly specified")
 
