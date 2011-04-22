@@ -1,6 +1,6 @@
 .. _logisticl2tutorial:
 
-l2 regularized logistic regression tutorial
+:math:`\ell_2` regularized logistic regression tutorial
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The :math:`\ell_2` regularized logistic regression problem minimizes the objective
@@ -22,6 +22,13 @@ and the RegReg classes necessary for this problem,
    from regreg.smooth import logistic_loglikelihood, smooth_function, l2normsq
 
 The l2normsq class is used to represent the :math:`\ell_2` squared norm, the logistic_loglikelihood class represents the loss function and smooth_function is a container class for combining smooth functions. FISTA is a first-order algorithm and seminorm is a class for combining different seminorm penalties. 
+
+The only code needed to add logistic regression is a class
+with one method which computes the objective and its gradient.
+
+.. literalinclude:: ../code/regreg/smooth.py
+   :pyobject: logistic_loglikelihood
+   
 
 [TODO: Add some real or more interesting data.]
 
