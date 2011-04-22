@@ -1,13 +1,18 @@
 import numpy as np
 from scipy import sparse
-
+import warnings
 
 class smooth_function(object):
     """
     A container class for smooth_atom classes
     """
 
-    def __init__(self, *atoms):
+    def __init__(self, *atoms, **keywords):
+        if not set(keywords.keys()).issubset(['l']):
+            warnings.warn('only keyword argument should be multiplier, "l", got %s' % `keywords`)
+        self.l = 1
+        if keywords.has_key('l'):
+            self.l *= keywords['l']
         self.atoms = []
         self.p = None
         for atom in atoms:
@@ -37,17 +42,17 @@ class smooth_function(object):
                 v = 0.
                 for atom in self.atoms:
                     v += atom.smooth_eval(beta, mode=mode)
-                return v
+                return self.scale(v)
             else:
-                return self.atoms[0].smooth_eval(beta, mode=mode)
+                return self.scale(self.atoms[0].smooth_eval(beta, mode=mode))
         elif mode == 'grad':
             if self.M > 1:
                 g = np.zeros(self.p)
                 for atom in self.atoms:
                     g += atom.smooth_eval(beta, mode=mode)
-                return g
+                return self.scale(g)
             else:
-                return self.atoms[0].smooth_eval(beta, mode=mode)
+                return self.scale(self.atoms[0].smooth_eval(beta, mode=mode))
         elif mode == 'both':
             if self.M > 1:
                 v = 0.
@@ -56,13 +61,18 @@ class smooth_function(object):
                     output = atom.smooth_eval(beta, mode=mode)
                     v += output[0]
                     g += output[1]
-                return v, g
+                return self.scale(v), self.scale(g)
             else:
-                return self.atoms[0].smooth_eval(beta, mode=mode)
+                v, g = self.atoms[0].smooth_eval(beta, mode=mode)
+                return self.scale(v), self.scale(g)
         else:
             raise ValueError("Mode specified incorrectly")
 
-    
+    def scale(self, arg):
+        if self.l is not None:
+            return self.l * arg
+        return arg
+
     def proximal(self, x, g, L):
         """
         Take a gradient step
@@ -79,6 +89,7 @@ class smooth_function(object):
         """
         Create a new problem object using the seminorm
         """
+        # XXX the class now has self.l -- no need form smooth_multiplier
         if initial is None:
             return seminorm.problem(self.smooth_eval, 
                                     smooth_multiplier=smooth_multiplier,
@@ -88,67 +99,45 @@ class smooth_function(object):
                                     smooth_multiplier=smooth_multiplier,
                                     initial=initial)
 
-class smooth_atom(object):
+class affine_atom(smooth_function):
 
-    """
-    A class for representing a smooth function and its gradient
-    """
-
-    l = 1.
-
-    def __init__(self):
-        raise NotImplementedError
-
-    def smooth_eval(self):
-        raise NotImplementedError
-    
-class squaredloss(smooth_atom):
-
-    """
-    A class for combining squared error loss with a general seminorm
-    """
-
-    def __init__(self, X, Y, l = None):
-        """
-        Generate initial tuple of arguments for update.
-        """
+    def __init__(self, sm_atom, X=None, Y=None, l=1):
         self.X = X
-        self.Y = Y
-        self.n, self.p = self.X.shape
+        self._Y = Y
+        self.sm_atom = sm_atom
+        smooth_function.__init__(self, self, l=l)
 
-        if l is not None:
-            self.l = l
+    def smooth_eval(self, beta, mode='both'):
+        eta = self._dot(beta)
+        if self.Y is not None:
+            eta += self.Y
+        if mode == 'both':
+            v, g = self.sm_atom.smooth_eval(eta, mode='both')
+            g = self._dotT(g)
+            return self.scale(v), self.scale(g)
+        elif mode == 'grad':
+            g = self.sm_atom.smooth_eval(eta, mode='grad')
+            g = self._dotT(g)
+            return self.scale(g)
+        elif mode == 'func':
+            v = self.sm_atom.smooth_eval(eta, mode='func')
+            return self.scale(v)
 
     def _dot(self, beta):
-        if not sparse.isspmatrix(self.X):
+        if self.X is None:
+            return beta
+        elif not sparse.isspmatrix(self.X):
             return np.dot(self.X,beta)
         else:
             return self.X * beta
 
     def _dotT(self, r):
+        if self.X is None:
+            return r
         if not sparse.isspmatrix(self.X):
             return np.dot(self.X.T, r)
         else:
             return self.X.T * r
-
-    def smooth_eval(self, beta, mode='both'):
-        """
-        Evaluate a smooth function and/or its gradient
-
-        if mode == 'both', return both function value and gradient
-        if mode == 'grad', return only the gradient
-        if mode == 'func', return only the function value
-        """
-        yhat = self._dot(beta)
-        if mode == 'both':
-            return self.l * ((self.Y - yhat)**2).sum() / 2. , self.l * self._dotT(yhat-self.Y)
-        elif mode == 'grad':
-            return self.l * self._dotT(yhat-self.Y)
-        elif mode == 'func':
-            return self.l * ((self.Y - yhat)**2).sum() / 2.
-        else:
-            raise ValueError("mode incorrectly specified")
-        
 
     def set_Y(self, Y):
         self._Y = Y
@@ -156,6 +145,32 @@ class squaredloss(smooth_atom):
         return self._Y
     Y = property(get_Y, set_Y)
 
+
+class smooth_atom(smooth_function):
+
+    """
+    A class for representing a smooth function and its gradient
+    """
+
+    def __init__(self, p, l=1):
+        self.p = p
+        self.l = l
+        self.coefs = np.zeros(self.p)
+        raise NotImplementedError
+
+    def smooth_eval(self):
+        raise NotImplementedError
+    
+    @classmethod
+    def affine(cls, X, Y, l=1):
+        smoothf = cls(X.shape[1], l=l)
+        return affine_atom(smoothf, X, Y)
+
+
+def squaredloss(X, Y, l=1):
+    # the affine method gets rid of the need for the squaredloss class
+    # as previously written squared loss had a factor of 2
+    return l2normsq.affine(-X, Y, l=l/2.)
 
 class l2normsq(smooth_atom):
     """
@@ -166,9 +181,7 @@ class l2normsq(smooth_atom):
 
     def __init__(self, p, l=None):
         self.p = p
-
-        if l is not None:
-            self.l = l
+        self.l = l
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -180,15 +193,13 @@ class l2normsq(smooth_atom):
         """
 
         if mode == 'both':
-            return self.l * np.linalg.norm(beta)**2, self.l * 2 * beta
+            return self.scale(np.linalg.norm(beta)**2), self.scale(2 * beta)
         elif mode == 'grad':
-            return self.l * 2 * beta
+            return self.scale(2 * beta)
         elif mode == 'func':
-            return self.l * np.linalg.norm(beta)**2
+            return self.scale(np.linalg.norm(beta)**2)
         else:
             raise ValueError("mode incorrectly specified")
-
-
             
 class signal_approximator(smooth_atom):
 
@@ -202,9 +213,7 @@ class signal_approximator(smooth_atom):
         """
         self.Y = Y
         self.n = self.p = self.Y.shape[0]
-
-        if l is not None:
-            self.l = l
+        self.l = l
 
 
     def smooth_eval(self, beta, mode='both'):
@@ -217,11 +226,11 @@ class signal_approximator(smooth_atom):
         """
 
         if mode == 'both':
-            return self.l * ((self.Y - beta)**2).sum() / 2., self.l * (beta - self.Y)
+            return self.scale(((self.Y - beta)**2).sum() / 2.), self.scale(beta - self.Y)
         elif mode == 'grad':
-            return self.l * (beta - self.Y)
+            return self.scale(beta - self.Y)
         elif mode == 'func':
-            return self.l * ((self.Y - beta)**2).sum() / 2.
+            return self.scale(((self.Y - beta)**2).sum() / 2.)
         else:
             raise ValueError("mode incorrectly specified")
 
@@ -231,13 +240,15 @@ class signal_approximator(smooth_atom):
         return self._Y
     Y = property(get_Y, set_Y)
 
-
     
-class logistic_loglikelihood(squaredloss):
+class logistic_loglikelihood(affine_atom):
 
     """
     A class for combining the logistic log-likelihood with a general seminorm
     """
+
+    def __init__(self, X, Y, l=1):
+        affine_atom.__init__(self, None, X, Y, l=l)
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -252,12 +263,12 @@ class logistic_loglikelihood(squaredloss):
         exp_yhat = np.exp(yhat)
         if mode == 'both':
             ratio = exp_yhat/(1.+exp_yhat)
-            return -2 * self.l * (np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat))), -2 * self.l * self._dotT(self.Y-ratio)
+            return -2 * self.scale((np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat)))), -2 * self.scale(self._dotT(self.Y-ratio))
         elif mode == 'grad':
             ratio = exp_yhat/(1.+exp_yhat)
-            return - 2 * self.l * self._dotT(self.Y-ratio)
+            return - 2 * self.scale(self._dotT(self.Y-ratio))
         elif mode == 'func':
-            return -2 * self.l * (np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat)))
+            return -2 * self.scale(np.dot(self.Y,yhat) - np.sum(np.log(1+exp_yhat)))
         else:
             raise ValueError("mode incorrectly specified")
 
