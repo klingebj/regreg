@@ -385,8 +385,11 @@ class positive_part(seminorm_atom):
         """
         neg = u < 0
         v = u.copy()
-        v[neg] = 0
-        v[~neg] = np.minimum(self.l, u[~neg])
+        if np.asarray(v).shape != ():
+            v[neg] = 0
+            v[~neg] = np.minimum(self.l, u[~neg])
+        else:
+            v = np.minimum(self.l, u) * (u > 0)
         return v
 
 class zero(seminorm_atom):
