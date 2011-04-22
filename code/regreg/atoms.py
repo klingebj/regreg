@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import sparse
+from problem import dummy_problem
 
 class seminorm_atom(object):
 
@@ -105,7 +106,7 @@ class seminorm_atom(object):
         else:
                 return x
                                                               
-    def problem(self, smooth, grad_smooth, smooth_multiplier=1., initial=None):
+    def problem(self, smooth_func, smooth_multiplier=1., initial=None):
         """
         Return a problem instance 
         """
@@ -113,7 +114,7 @@ class seminorm_atom(object):
         nonsmooth = self.evaluate
         if initial is None:
             initial = np.random.standard_normal(self.p)
-        return dummy_problem(smooth, grad_smooth, nonsmooth, prox, initial, smooth_multiplier)
+        return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
 
 class l1norm(seminorm_atom):
 
@@ -501,4 +502,6 @@ primal_dual_pairs = {l1norm:box_constraint,
                      l2norm:l2_constraint,
                      negative_constraint:nonnegative,
                      negative_part_constraint:positive_part}
+
+
 
