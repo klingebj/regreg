@@ -1,5 +1,5 @@
 """
-A package to solve separable convex optimization problems, based on 
+Cython setup file for RegReg
 """
 
 import os, sys

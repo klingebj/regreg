@@ -7,7 +7,7 @@ Isotonic signal approximator
 Solves
 
     .. math::
-       ||y - \beta||^{2}_{2} \quad \mbox{subject to } D\beta \geq 0
+       \frac{1}{2}||y - \beta||^{2}_{2} \quad \mbox{subject to } D\beta \geq 0
 
     with
 

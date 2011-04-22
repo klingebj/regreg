@@ -159,16 +159,39 @@ class squaredloss(smooth_atom):
 
 class l2normsq(smooth_atom):
     """
-    The square of the l2 norm
+    The square of a general l2 norm
     """
 
-    #TODO: generalize input to allow for a matrix D, making a generalized l2 norm with syntax like l2norm seminorm_atom
-
-    def __init__(self, p, l=None):
-        self.p = p
-
+    def __init__(self, spec, l=None):
+        if type(spec) == type(1):
+            self.p = spec
+        else:
+            D = spec
+            if D.ndim == 1:
+                D = D.reshape((1,-1))
+            self.D = D
+            _ , self.p = D.shape
+            self.sparseD = sparse.isspmatrix(self.D)
         if l is not None:
             self.l = l
+
+    def _dot(self, beta):
+        if hasattr(self,'sparseD'):
+            if not self.sparseD:
+                return np.dot(self.D,beta)
+            else:
+                return self.D * beta
+        else:
+            return beta
+
+    def _dotT(self, beta):
+        if hasattr(self,'sparseD'):
+            if not self.sparseD:
+                return np.dot(self.D.T,beta)
+            else:
+                return self.D.T * beta
+        else:
+            return beta
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -179,12 +202,13 @@ class l2normsq(smooth_atom):
         if mode == 'func', return only the function value
         """
 
+        v = self._dot(beta)
         if mode == 'both':
-            return self.l * np.linalg.norm(beta)**2, self.l * 2 * beta
+            return self.l * np.linalg.norm(v)**2, self.l * 2 * self._dotT(v)
         elif mode == 'grad':
-            return self.l * 2 * beta
+            return self.l * 2 * self._dotT(v)
         elif mode == 'func':
-            return self.l * np.linalg.norm(beta)**2
+            return self.l * np.linalg.norm(v)**2
         else:
             raise ValueError("mode incorrectly specified")
 
@@ -289,3 +313,49 @@ class logistic_loglikelihood(smooth_atom):
     def get_Y(self):
         return self._Y
     Y = property(get_Y, set_Y)
+
+
+
+class huber_loss(squaredloss):
+
+    """
+    A class for representing the Huber loss function
+    """
+
+    def __init__(self, X, Y, delta = 1., l = None):
+        """
+        Generate initial tuple of arguments for update.
+        """
+        self.X = X
+        self.Y = Y
+        self.delta = delta
+        self.n, self.p = self.X.shape
+
+        if l is not None:
+            self.l = l
+    
+    def smooth_eval(self, beta, mode='both'):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+        
+        resid = self.Y - self._dot(beta)
+        quad = np.fabs(resid) <= self.delta
+
+        if mode == 'both':
+            #This could be made more efficient in cython...
+            func = 0.5 * np.sum(quad*(resid**2) + (1-quad)*(2*self.delta*np.fabs(resid) - self.delta**2))
+            grad = - self._dotT( quad*resid + (1-quad)*self.delta*np.sign(resid) )
+            return self.l * func, self.l * grad
+        elif mode == 'grad':
+            grad = - self._dotT( quad*resid + (1-quad)*self.delta*np.sign(resid) )
+            return self.l * grad
+        elif mode == 'func':
+            func = 0.5 * np.sum(quad*(resid**2) + (1-quad)*(2*self.delta*np.fabs(resid) - self.delta**2))
+            return self.l * func
+        else:
+            raise ValueError("mode incorrectly specified")

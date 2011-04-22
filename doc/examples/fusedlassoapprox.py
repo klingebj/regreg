@@ -19,6 +19,7 @@ pen = seminorm(sparsity,fused)
 loss = smooth_function(signal_approximator(Y))
 
 p = loss.add_seminorm(pen)
+solver.debug =True
 solver = FISTA(p)
 solver.fit(max_its=800,tol=1e-10)
 soln = solver.problem.coefs
