@@ -66,6 +66,11 @@ else: # probably sphinx >= 1.0
 # any modifications to these extensions will be done upstream in
 # matplotlib!  The matplotlib trunk will have more bug fixes and
 # feature updates so we'll try to use that one first.
+
+from matplotlib import rc
+rc('text', usetex=True)
+import matplotlib.sphinxext
+
 try:
     import matplotlib.sphinxext
     extensions.append('matplotlib.sphinxext.only_directives')

@@ -466,6 +466,11 @@ class affine_atom(seminorm_atom):
 
         return self.atom.primal_prox(x - self.affine_term, L) + self.affine_term
 
+    @property
+    def dual_constraint(self):
+        return primal_dual_pairs[self.atom.__class__](self.m, self.l)
+
+
     def dual_prox(self, u, L=1):
         r"""
         Return a minimizer

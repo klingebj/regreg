@@ -79,8 +79,20 @@ Finally, we can create the final problem object, and solve it.
    penalty.atoms
    penalty.atoms[0].l
    solver = FISTA(problem)
-   solver.fit(max_its=200, tol=1e-07)
+   # This problem seems to get stuck restarting
+   _ip.magic("time solver.fit(max_its=200, tol=1e-10, monotonicity_restart=False)")
    solution = solver.problem.coefs
+
+Since this problem is a signal approximator, we can also solve
+it using blockwise coordinate descent. This is generally faster
+for this problem
+
+.. ipython::
+
+   from regreg.blocks import blockwise
+   _ip.magic("time block_soln = blockwise(penalty, Y, max_its=500, tol=1.0e-10, min_its=100)")
+   np.linalg.norm(block_soln - solution) / np.linalg.norm(solution)
+   problem.obj(block_soln), problem.obj(solution)
 
 We can then plot solution to see the result of the regression,
 
@@ -94,6 +106,7 @@ We can then plot solution to see the result of the regression,
    from regreg.seminorm import seminorm
    from regreg.smooth import signal_approximator, smooth_function, l2normsq, linear
    from regreg.problem import dummy_problem
+   from regreg.blocks import blockwise
 
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
    loss = smooth_function(signal_approximator(Y))
@@ -111,9 +124,11 @@ We can then plot solution to see the result of the regression,
 
    problem = loss.add_seminorm(penalty)
    solver = FISTA(problem)
-   solver.fit(max_its=200, tol=1.0e-07)
+   solver.fit(max_its=200, tol=1.0e-07, monotonicity_restart=False)
    solution = solver.problem.coefs
-   pylab.plot(solution, c='g', linewidth=4)#, label=r'$\hat{Y}$')	
-   pylab.plot(alpha, c='black', linewidth=2)#, label=r'$\alpha$')	
-   pylab.scatter(np.arange(Y.shape[0]), Y)#, label='$Y$')
-   # pylab.legend()
+   pylab.plot(solution, c='g', linewidth=4, label=r'$\hat{Y}$')	
+   pylab.plot(alpha, c='black', linewidth=3, label=r'$\alpha$')	
+   pylab.scatter(np.arange(Y.shape[0]), Y, color='red', label=r'$Y$')
+   soln2 = blockwise(penalty, Y, max_its=500, tol=1.0e-10, min_its=100)
+   pylab.plot(soln2, c='purple', linewidth=3, label='blockwise')	
+   pylab.legend()

@@ -60,7 +60,7 @@ def dual_blocks(semi, Y, initial=None):
         blocks.append(Block(atom, initial=atom_initial))
     return blocks
 
-def blockwise(semi, Y, p=None, initial=None, max_its=50, tol=1.0e-06,
+def blockwise(semi, Y, initial=None, max_its=50, tol=1.0e-06,
               min_its=5):
 
     blocks = dual_blocks(semi, Y)
@@ -109,7 +109,7 @@ def test1():
     p = loss.add_seminorm(pen)
 
     
-    soln1 = blockwise(pen, Y, p)
+    soln1 = blockwise(pen, Y)
 
     solver = FISTA(p)
     solver.fit(max_its=800,tol=1e-10)

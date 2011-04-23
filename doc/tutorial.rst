@@ -8,6 +8,11 @@ RegReg tutorials
   * Illustrates using two seminorms
   * Solved with generalized gradient strategy
 
+* :ref:`affinetutorial`
+
+  * Illustrates adding an affine offset to seminorms
+  * Solved with generalized gradient strategy
+  * Also solved with blocks
 
 * Logistic regression tutorials
 
