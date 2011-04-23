@@ -12,6 +12,11 @@ class seminorm_atom(object):
     #XXX matrix multiply should be sparse if possible
 
     def __init__(self, spec, l=1.):
+        # this affine term appears in the gradient of the dual
+        # problem of the atom
+        # for affine seminorms, this can be an array of
+        # shape (self.p,)
+        self.affine_term = None
         if type(spec) == type(1):
             self.p = self.m = spec
             self.D = None
@@ -114,8 +119,13 @@ class seminorm_atom(object):
         nonsmooth = self.evaluate
         if initial is None:
             initial = np.random.standard_normal(self.p)
-        return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
+        return dummy_problem(smooth_func.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
 
+    @classmethod
+    def affine(cls, spec, alpha, l=1):
+        atom = cls(spec, l=l)
+        return affine_atom(atom, spec, alpha)
+    
 class l1norm(seminorm_atom):
 
     """
@@ -392,28 +402,69 @@ class positive_part(seminorm_atom):
             v = np.minimum(self.l, u) * (u > 0)
         return v
 
-class zero(seminorm_atom):
+class affine_atom(seminorm_atom):
 
     """
-    The zero seminorm
+    Given a seminorm on :math:`\mathbb{R}^p`, i.e.
+    :math:`\beta \mapsto h_K(D\beta)`
+    this class creates a new seminorm 
+    that evaluates :math:`h_K(D\beta+\alpha)`
+
+    The dual prox is unchanged, though the instance
+    gets a affine_term which shows up in the
+    gradient of the dual problem for this atom.
+
+    The dual problem is
+
+    .. math::
+
+       \text{minimize} \frac{1}{2} \|y-D^Tu\|^2_2 + u^T\alpha
+       \ \text{s.t.} \ u \in \lambda K
+    
     """
+
+    def __init__(self, atom, spec, alpha):
+        self.atom = atom
+        seminorm_atom.__init__(self, spec)
+        self.l = atom.l
+        # an instance with D=I
+        # all atoms should (?) be such that this
+        # is the conjugate of atom.evaluate
+        self.affine_term = alpha
+        self.pure_atom = atom.__class__(atom.m, l=atom.l)
+
+    def _getl(self):
+        return self.atom.l
+
+    def _setl(self, l):
+        self.atom.l = l
+    l = property(_getl, _setl)
 
     def evaluate(self, x):
         """
-        The zero normL1 norm of Dx.
+        Return self.atom_I(np.dot(self.atom.D, x)+self.affine_term)
+
         """
-        return np.zeros(x.shape)
+        return self.pure_atom.evaluate(self.multiply_by_D(x) + self.affine_term)
 
     def evaluate_dual(self, u):
-        iszero = np.equal(u, 0)
-        iszero[iszero] = np.inf
-        return iszero
+        return self.atom.evaluate_dual(u)
 
     def primal_prox(self, x,  L=1):
         r"""
-        Return x
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 + \lambda h_K(Dv+\alpha)
+
+        where *p*=x.shape[0], :math:`\lambda` = self.l. 
+
+        This is just self.atom.primal_prox(x - self.affine_term, L) + self.affine_term
         """
-        return x
+
+        return self.atom.primal_prox(x - self.affine_term, L) + self.affine_term
 
     def dual_prox(self, u, L=1):
         r"""
@@ -427,9 +478,9 @@ class zero(seminorm_atom):
         where *m*=u.shape[0], :math:`\lambda` = self.l. 
         This is just truncation: np.clip(u, -self.l/L, self.l/L).
         """
-        return np.clip(u, -self.l, self.l)
-    
+        return self.atom.dual_prox(u, L)
 
+        
 class constraint_atom(object):
 
     def __init__(self, p, l, dual_seminorm):

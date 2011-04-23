@@ -137,18 +137,25 @@ class seminorm(object):
         The smooth component and/or gradient of the dual objective        
         """
         
+        # primal is the residual from the fit
         primal = self.primal_from_dual(self._dual_prox_center, v)
-
+        affine_term = 0
         if mode == 'func':
-            return (primal**2).sum() / 2.
+            for atom, segment in zip(self.atoms, self.segments):
+                if atom.affine_term is not None:
+                    affine_term += np.dot(atom.affine_term, v[segment])
+            return (primal**2).sum() / 2. + affine_term
         elif mode == 'both' or mode == 'grad':
             g = np.zeros(self.total_dual)
             for atom, segment in zip(self.atoms, self.segments):
                 g[segment] = -atom.multiply_by_D(primal)
+                if atom.affine_term is not None:
+                    g[segment] += atom.affine_term
+                    affine_term += np.dot(atom.affine_term, v[segment])
             if mode == 'grad':
                 return g
             if mode == 'both':
-                return (primal**2).sum() / 2., g
+                return (primal**2).sum() / 2. + affine_term, g
         else:
             raise ValueError("Mode not specified correctly")
 

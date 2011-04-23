@@ -125,7 +125,8 @@ class affine_atom(smooth_function):
 
     def _dot(self, beta):
         if self.X is None:
-            return beta
+            # a copy is necessary because the return value is modified in smooth_eval
+            return beta.copy()
         elif not sparse.isspmatrix(self.X):
             return np.dot(self.X,beta)
         else:
@@ -133,6 +134,7 @@ class affine_atom(smooth_function):
 
     def _dotT(self, r):
         if self.X is None:
+            # a copy is necessary because the return value is modified in smooth_eval
             return r
         if not sparse.isspmatrix(self.X):
             return np.dot(self.X.T, r)
@@ -165,6 +167,16 @@ class smooth_atom(smooth_function):
     def affine(cls, X, Y, l=1):
         smoothf = cls(X.shape[1], l=l)
         return affine_atom(smoothf, X, Y)
+
+    @classmethod
+    def linear(cls, X, l=1):
+        smoothf = cls(X.shape[1], l=l)
+        return affine_atom(smoothf, X, None)
+
+    @classmethod
+    def shift(cls, Y, l=1):
+        smoothf = cls(Y.shape[0], l=l)
+        return affine_atom(smoothf, None, Y)
 
 
 def squaredloss(X, Y, l=1):
@@ -201,6 +213,33 @@ class l2normsq(smooth_atom):
         else:
             raise ValueError("mode incorrectly specified")
             
+class linear(smooth_atom):
+
+    def __init__(self, vector, l=1):
+        self.vector = l * vector
+        self.p = vector.shape[0]
+        self.l = 1
+        self.coefs = np.zeros(self.p)
+
+    def smooth_eval(self, beta, mode='both'):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        if mode == 'both':
+            return np.dot(self.vector, beta), self.vector
+        elif mode == 'grad':
+            return self.vector
+        elif mode == 'func':
+            return np.dot(self.vector, beta)
+        else:
+            raise ValueError("mode incorrectly specified")
+    
+
 class signal_approximator(smooth_atom):
 
     """

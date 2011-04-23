@@ -13,7 +13,8 @@ def lasso_example(n=100):
     l1 = 1.
     X = np.random.standard_normal((5000,n))
     Y = np.random.standard_normal((5000,))
-    regloss = smooth_function(squaredloss(X,Y))
+    # regloss = smooth_function(squaredloss(X,Y))
+    regloss = squaredloss(X,Y)
     sparsity = l1norm(n, l=l1)
     p=regloss.add_seminorm(seminorm(sparsity),initial=np.zeros(n))
     
