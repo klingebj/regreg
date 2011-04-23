@@ -6,7 +6,7 @@ import time
 from algorithms import FISTA, ISTA
 from atoms import l1norm, l2norm, nonnegative, positive_part
 from seminorm import seminorm
-from smooth import squaredloss, signal_approximator, logistic_loglikelihood, smooth_function, l2normsq
+from smooth import squaredloss, signal_approximator, logistic_loglikelihood, smooth_function, l2normsq, smoothed_seminorm
 
 def lasso_example(n=100):
 
@@ -261,6 +261,40 @@ def linear_trend_example(n=500, l1=10.):
     pylab.clf()
     pylab.plot(X, soln, linewidth=3, c='red')
     pylab.scatter(X, Y)
+
+
+def nesta_linear_trend_example(n=500, l1=10., epsilon=0.8):
+
+    D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
+    D2 = np.dot(D1[1:,1:], D1)
+    D2 = sparse.csr_matrix(D2)
+
+
+    Y = np.random.standard_normal(n) * 0.2
+    X = np.linspace(0,1,n)
+    mu = 0 * Y
+    mu[int(0.1*n):int(0.3*n)] += (X[int(0.1*n):int(0.3*n)] - X[int(0.1*n)]) * 6
+    mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 2
+    Y += mu
+
+    sparsity = l1norm(500, l=0.1)
+    fused = l1norm(D2, l=l1)
+
+    smoothed_fused = smoothed_seminorm(fused, epsilon=epsilon)
+    smoothed_fused.p = n
+
+    smoothfcn = smooth_function(signal_approximator(Y),smoothed_fused)
+    
+    p = smoothfcn.add_seminorm(sparsity)
+    solver = FISTA(p)
+    solver.debug=True
+    vals = solver.fit(max_its = 5000,tol=1e-6)
+    soln = solver.problem.coefs
+
+    pylab.clf()
+    pylab.plot(X, soln, linewidth=3, c='red')
+    pylab.scatter(X, Y)
+
 
 
 

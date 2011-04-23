@@ -347,6 +347,7 @@ class smoothed_seminorm(smooth_function):
         self.epsilon = epsilon
         if epsilon <= 0:
             raise ValueError('to smooth, epsilon must be positive')
+        self.p = semi.primal_dim
         
     def smooth_eval(self, beta, mode='both'):
         """
