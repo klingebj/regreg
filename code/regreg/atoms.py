@@ -81,6 +81,12 @@ class seminorm_atom(object):
         """
         raise NotImplementedError
 
+    # JT: these two methods are used in 
+    # computing the gradient
+    # and proximal problems
+    # currently, the affine_term
+    # are handled in those modules but
+    # probably should be handled in these two methods
     def multiply_by_DT(self, u):
         r"""
         Return :math:`D^Tu`
@@ -94,7 +100,12 @@ class seminorm_atom(object):
             else:
                 return np.dot(u, self.D)
         else:
-                return u
+            # this might have to be a copy
+            # but we only multiply by D.T when
+            # computing gradient -- 
+            # this currently doesn't happen in seminorm or
+            # smoothed_seminorm
+            return u
                                  
     def multiply_by_D(self, x):
         r"""
@@ -109,7 +120,10 @@ class seminorm_atom(object):
             else:
                 return np.dot(self.D, x)
         else:
-                return x
+            # this has to be a copy
+            # because the array can later be modified
+            # in place -- see the smoothed_seminorm
+            return x.copy()
                                                               
     def problem(self, smooth_func, smooth_multiplier=1., initial=None):
         """

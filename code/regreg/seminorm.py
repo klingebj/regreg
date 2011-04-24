@@ -143,6 +143,7 @@ class seminorm(object):
         if mode == 'func':
             for atom, segment in zip(self.atoms, self.segments):
                 if atom.affine_term is not None:
+                    # this can be done within the atom
                     affine_term += np.dot(atom.affine_term, v[segment])
             return (primal**2).sum() / 2. + affine_term
         elif mode == 'both' or mode == 'grad':
@@ -150,6 +151,7 @@ class seminorm(object):
             for atom, segment in zip(self.atoms, self.segments):
                 g[segment] = -atom.multiply_by_D(primal)
                 if atom.affine_term is not None:
+                    # this can be done within the atom
                     g[segment] += atom.affine_term
                     affine_term += np.dot(atom.affine_term, v[segment])
             if mode == 'grad':

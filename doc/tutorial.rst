@@ -14,6 +14,10 @@ RegReg tutorials
   * Solved with generalized gradient strategy
   * Also solved with blocks
 
+* :ref:`smoothingtutorial`
+
+  * Illustrates smoothing seminorms as in NESTA.
+
 * Logistic regression tutorials
 
   * :ref:`logisticl2tutorial`

@@ -323,20 +323,20 @@ class smoothed_seminorm(smooth_function):
 
         .. math::
 
-            h_{K,\varepsilon}(D\beta) = \sup_{u \in K}u'D\beta - \frac{\epsilon}{2}
+            h_{K,\varepsilon}(D\beta+\alpha) = \sup_{u \in K}u'(D\beta+\alpha) - \frac{\epsilon}{2}
             \|u\|^2_2
 
         The objective value is given by
 
         .. math::
 
-           h_{K,\varepsilon}(D\beta) = \frac{1}{2\epsilon} \|D\beta\|^2_2- \frac{\epsilon}{2} \|D\beta/\epsilon - P_K(D\beta/\epsilon)\|^2_2
+           h_{K,\varepsilon}(D\beta) = \frac{1}{2\epsilon} \|D\beta+\alpha\|^2_2- \frac{\epsilon}{2} \|(D\beta+\alpha)/\epsilon - P_K((D\beta+\alpha)/\epsilon)\|^2_2
 
         and the gradient is given by
 
         .. math::
 
-           \nabla_{\beta} h_{K,\varepsilon}(D\beta) = D'P_K(D\beta/\epsilon)
+           \nabla_{\beta} h_{K,\varepsilon}(D\beta+\alpha) = D'P_K((D\beta+\alpha)/\epsilon)
 
         If a seminorm has several atoms, then :math:`D` is a
         `stacked' version and :math:`K` is a product
@@ -348,7 +348,8 @@ class smoothed_seminorm(smooth_function):
         if epsilon <= 0:
             raise ValueError('to smooth, epsilon must be positive')
         self.p = semi.primal_dim
-        
+        self.coefs = np.zeros(self.p)
+
     def smooth_eval(self, beta, mode='both'):
         """
         Evaluate a smooth function and/or its gradient
@@ -358,33 +359,41 @@ class smoothed_seminorm(smooth_function):
         if mode == 'func', return only the function value
         """
 
+        affine_term = 0
         if mode == 'both':
             objective, grad = 0, 0
             for atom in self.seminorm.atoms:
                 u = atom.multiply_by_D(beta)
+                # this can be done within the atom,
+                if atom.affine_term is not None:
+                    u += atom.affine_term
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
-                objective += ((u**2).sum() / (2. * self.epsilon) - self.epsilon / 2. *
-                        ((ueps - projected_ueps)**2).sum())
+                objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
                 grad += atom.multiply_by_DT(projected_ueps)
-                return objective, grad
+            return objective, grad
         elif mode == 'grad':
             grad = 0
             for atom in self.seminorm.atoms:
                 u = atom.multiply_by_D(beta)
+                # this can be done within the atom,
+                if atom.affine_term is not None:
+                    u += atom.affine_term
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
                 grad += atom.multiply_by_DT(projected_ueps)
-            return grad
+            return grad 
         elif mode == 'func':
             objective = 0
             for atom in self.seminorm.atoms:
                 u = atom.multiply_by_D(beta)
+                # this can be done within the atom,
+                if atom.affine_term is not None:
+                    u += atom.affine_term
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
-                objective += ((u**2).sum() / (2. * self.epsilon) - self.epsilon / 2. *
-                        ((ueps - projected_ueps)**2).sum())
-            return objective
+                objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
+            return objective 
         else:
             raise ValueError("mode incorrectly specified")
 
