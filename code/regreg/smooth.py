@@ -21,7 +21,6 @@ class smooth_function(object):
             elif atom.p != self.p:
                 raise ValueError("Smooth function dimensions don't agree")
             self.atoms.append(atom)
-
         self.coefs = np.zeros(self.p)
 
         self.M = len(atoms)
@@ -104,8 +103,10 @@ class affine_atom(smooth_function):
     def __init__(self, sm_atom, X=None, Y=None, l=1):
         self.X = X
         self._Y = Y
+        self.p = self.X.shape[1]
         self.sm_atom = sm_atom
-        smooth_function.__init__(self, self, l=l)
+        self.coefs = np.zeros(self.p)
+        self.l = l
 
     def smooth_eval(self, beta, mode='both'):
         eta = self._dot(beta)
@@ -164,7 +165,7 @@ class smooth_atom(smooth_function):
         raise NotImplementedError
     
     @classmethod
-    def affine(cls, X, Y, l=1):
+    def affine(cls, X, Y, l=1, initial=None):
         smoothf = cls(X.shape[1], l=l)
         return affine_atom(smoothf, X, Y)
 
@@ -182,7 +183,7 @@ class smooth_atom(smooth_function):
 def squaredloss(X, Y, l=1):
     # the affine method gets rid of the need for the squaredloss class
     # as previously written squared loss had a factor of 2
-    return l2normsq.affine(-X, Y, l=l/2.)
+    return l2normsq.affine(-X, Y, l=l/2., initial=np.zeros(X.shape[1]))
 
 class l2normsq(smooth_atom):
     """
@@ -359,14 +360,10 @@ class smoothed_seminorm(smooth_function):
         if mode == 'func', return only the function value
         """
 
-        affine_term = 0
         if mode == 'both':
             objective, grad = 0, 0
             for atom in self.seminorm.atoms:
-                u = atom.multiply_by_D(beta)
-                # this can be done within the atom,
-                if atom.affine_term is not None:
-                    u += atom.affine_term
+                u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
                 objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
@@ -375,10 +372,7 @@ class smoothed_seminorm(smooth_function):
         elif mode == 'grad':
             grad = 0
             for atom in self.seminorm.atoms:
-                u = atom.multiply_by_D(beta)
-                # this can be done within the atom,
-                if atom.affine_term is not None:
-                    u += atom.affine_term
+                u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
                 grad += atom.multiply_by_DT(projected_ueps)
@@ -386,10 +380,7 @@ class smoothed_seminorm(smooth_function):
         elif mode == 'func':
             objective = 0
             for atom in self.seminorm.atoms:
-                u = atom.multiply_by_D(beta)
-                # this can be done within the atom,
-                if atom.affine_term is not None:
-                    u += atom.affine_term
+                u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
                 objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)

@@ -26,8 +26,8 @@ class Block(object):
 
         dual_atom = atom.dual
         prox = dual_atom.primal_prox
-        nonsmooth = dual_atom.evaluate
-        if dual_atom.evaluate(initial) == np.inf:
+        nonsmooth = dual_atom.evaluate_constraint
+        if nonsmooth(initial) == np.inf:
             raise ValueError('initial point is not feasible')
         
         self.problem = seminorm.dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial)

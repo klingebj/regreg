@@ -36,19 +36,26 @@ class seminorm_atom(object):
         
     @property
     def dual_constraint(self):
-        return primal_dual_pairs[self.__class__](self.m, self.l)
+        return primal_dual_constraint_pairs[self.__class__](self.m, self.l)
+
+    @property
+    def dual_seminorm(self):
+        return primal_dual_seminorm_pairs[self.__class__](self.m, 1./self.l)
 
     @property
     def dual(self):
         return self.dual_constraint
 
-    def evaluate(self, x):
+    def primal_from_dual(self, u):
+        return self.multiply_by_DT(u)
+
+    def evaluate_seminorm(self, x):
         """
         Abstract method. Evaluate the norm of x.
         """
         raise NotImplementedError
 
-    def evaluate_dual(self, u):
+    def evaluate_dual_constraint(self, u):
         """
         Abstract method. Evaluate the constraint on the dual norm of x.
         """
@@ -63,7 +70,7 @@ class seminorm_atom(object):
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
            \|x-v\|^2_2 + \lambda h(Dv)
 
-        where *p*=x.shape[0] and :math:`h(v)` = self.evaluate(v).
+        where *p*=x.shape[0] and :math:`h(v)` = self.evaluate_seminorm(v).
         """
         raise NotImplementedError
 
@@ -87,6 +94,7 @@ class seminorm_atom(object):
     # currently, the affine_term
     # are handled in those modules but
     # probably should be handled in these two methods
+
     def multiply_by_DT(self, u):
         r"""
         Return :math:`D^Tu`
@@ -125,6 +133,15 @@ class seminorm_atom(object):
             # in place -- see the smoothed_seminorm
             return x.copy()
                                                               
+    def affine_map(self, x):
+        """
+        Return :math:`Dx+\alpha`.
+        """
+        Dx = self.multiply_by_D(x)
+        if self.affine_term is not None:
+            return Dx + self.affine_term
+        return Dx
+    
     def problem(self, smooth_func, smooth_multiplier=1., initial=None):
         """
         Return a problem instance 
@@ -146,13 +163,13 @@ class l1norm(seminorm_atom):
     The l1 norm
     """
 
-    def evaluate(self, x):
+    def evaluate_seminorm(self, x):
         """
         The L1 norm of Dx.
         """
-        return self.l * np.fabs(self.multiply_by_D(x)).sum()
+        return self.l * np.fabs(self.affine_map(x)).sum()
 
-    def evaluate_dual(self, u):
+    def evaluate_dual_constraint(self, u):
         inbox = np.product(np.less_equal(np.fabs(u), self.l))
         if inbox:
             return 0
@@ -195,6 +212,62 @@ class l1norm(seminorm_atom):
         """
         return np.clip(u, -self.l, self.l)
 
+class maxnorm(seminorm_atom):
+
+    """
+    The :math:`\ell_{\infty}` norm
+    """
+
+    def evaluate_seminorm(self, x):
+        """
+        The l-infinity norm of Dx.
+        """
+        return self.l * np.fabs(self.affine_map(x)).max()
+
+    def evaluate_dual_constraint(self, u):
+        inbox = np.fabs(u).sum() <= self.l
+        if inbox:
+            return 0
+        else:
+            return np.inf
+
+    def primal_prox(self, x,  L=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 + \lambda \|Dv\|_{\infty}
+
+        where *p*=x.shape[0], :math:`\lambda` = self.l. 
+        If :math:`D=I` this is the residual
+        after projecting onto :math:`\lambda/L` times the :math:`\ell_1` ball
+
+        .. math::
+
+            v^{\lambda}(x) = x - P_{\lambda/L B_{\ell_1}}(x)
+        """
+
+        if self.D is None:
+            return x - self.dual_prox(x)
+        else:
+            raise NotImplementedError
+
+    def dual_prox(self, u, L=1):
+        r"""
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{1} \leq \lambda
+
+        where *m*=u.shape[0], :math:`\lambda` = self.l. 
+        This is solved with a binary search.
+        """
+        raise NotImplementedError('can be solved via the l1norm atom, choosing lambda such that the l1norm is equal to self.l/L')
+
 class l2norm(seminorm_atom):
 
     """
@@ -202,13 +275,13 @@ class l2norm(seminorm_atom):
     """
     tol = 1e-10
     
-    def evaluate(self, x):
+    def evaluate_seminorm(self, x):
         """
         The L2 norm of Dx.
         """
-        return self.l * np.linalg.norm(self.multiply_by_D(x))
+        return self.l * np.linalg.norm(self.affine_map(x))
 
-    def evaluate_dual(self, u):
+    def evaluate_dual_constraint(self, u):
         inball = (np.linalg.norm(u) <= self.l * (1 + self.tol))
         if inball:
             return 0
@@ -272,17 +345,17 @@ class nonnegative(seminorm_atom):
     """
     tol = 1e-05
     
-    def evaluate(self, x):
+    def evaluate_seminorm(self, x):
         """
         The non-negative constraint of Dx.
         """
         tol_lim = np.fabs(x).max() * self.tol
-        incone = np.all(np.greater_equal(self.multiply_by_D(x), -tol_lim))
+        incone = np.all(np.greater_equal(self.affine_map(x), -tol_lim))
         if incone:
             return 0
         return np.inf
 
-    def evaluate_dual(self, u):
+    def evaluate_dual_constraint(self, u):
         """
         The non-positive constraint of u.
         """
@@ -320,7 +393,7 @@ class nonnegative(seminorm_atom):
 
     def dual_prox(self, u,  L=1):
         r"""
-        Return a minimizer
+        Return unique minimizer
 
         .. math::
 
@@ -335,22 +408,91 @@ class nonnegative(seminorm_atom):
         """
         return np.minimum(u, 0)
 
+class nonpositive(nonnegative):
+
+    """
+    The non-positive cone constraint (which is the support
+    function of the non-negative cone constraint).
+    """
+    tol = 1e-05
+    
+    def evaluate_seminorm(self, x):
+        """
+        The non-positive constraint of Dx.
+        """
+        tol_lim = np.fabs(x).max() * self.tol
+        incone = np.all(np.less_equal(self.affine_map(x), tol_lim))
+        if incone:
+            return 0
+        return np.inf
+
+    def evaluate_dual_constraint(self, u):
+        """
+        The non-negative constraint of u.
+        """
+        tol_lim = np.fabs(u).max() * self.tol
+        indual = np.all(np.greater_equal(u, -tol_lim))
+        if indual:
+            return 0
+        else:
+            return np.inf
+
+    def primal_prox(self, x,  L=1):
+        r"""
+        Return unique minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 \ \text{s.t.} \  (Dv)_i \leq 0.
+
+        where *p*=x.shape[0], :math:`\lambda` = self.l. 
+        If :math:`D=I` this is just a element-wise
+        np.maximum(x, 0)
+
+        .. math::
+
+            v^{\lambda}(x)_i = \min(x_i, 0)
+
+        """
+
+        if self.D is None:
+            return np.minimum(x, 0)
+        else:
+            raise NotImplementedError
+
+    def dual_prox(self, u,  L=1):
+        r"""
+        Return unique minimizer
+
+        .. math::
+
+            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  v_i \geq 0
+
+        where *m*=u.shape[0], :math:`\lambda` = self.l. 
+
+        .. math::
+
+            v^{\lambda}(u)_i = \max(u_i, 0)
+        """
+        return np.maximum(u, 0)
+
 class positive_part(seminorm_atom):
 
     """
     The positive_part seminorm (which is the support
     function of [0,l]^p).
     """
-    tol = 1e-10
     
-    def evaluate(self, x):
+    def evaluate_seminorm(self, x):
         """
         The non-negative constraint of Dx.
         """
-        Dx = self.multiply_by_D(x)
+        Dx = self.affine_map(x)
         return self.l * np.maximum(Dx, 0).sum()
 
-    def evaluate_dual(self, u):
+    def evaluate_dual_constraint(self, u):
         inbox = np.product(np.less_equal(u, self.l) * np.greater_equal(u, 0))
         if inbox:
             return 0
@@ -379,11 +521,13 @@ class positive_part(seminorm_atom):
 
         """
 
+        x = np.asarray(x)
         if self.D is None:
-            pos = x > 0
             v = x.copy()
-            v[pos] -= np.maximum(v[pos] - self.l, 0)
-            return v
+            pos = v > 0
+            v = np.at_least1d(v)
+            v[pos] = np.maximum(v[pos] - self.l, 0)
+            return v.reshape(x.shape)
         else:
             raise NotImplementedError
 
@@ -407,14 +551,98 @@ class positive_part(seminorm_atom):
             \end{cases} 
 
         """
-        neg = u < 0
+        u = np.asarray(u)
         v = u.copy()
-        if np.asarray(v).shape != ():
-            v[neg] = 0
-            v[~neg] = np.minimum(self.l, u[~neg])
+        v = np.atleast_1d(v)
+        neg = v < 0
+        v[neg] = 0
+        v[~neg] = np.minimum(self.l, u[~neg])
+        return v.reshape(u.shape)
+
+class constrained_positive_part(seminorm_atom):
+
+    """
+    The constrained positive part seminorm (which is the support
+    function of [-np.inf,l]^p). The value
+    is np.inf if any coordinates are negative.
+    """
+    tol = 1e-10
+    
+    def evaluate_seminorm(self, x):
+        """
+        The non-negative constraint of Dx.
+        """
+        Dx = self.affine_map(x)
+        anyneg = np.any(Dx < -self.tol)
+        if not anyneg:
+            return self.l * np.maximum(Dx, 0).sum()
+        return np.inf
+    
+    def evaluate_dual_constraint(self, u):
+        inside = np.product(np.less_equal(u, self.l))
+        if inside:
+            return 0
         else:
-            v = np.minimum(self.l, u) * (u > 0)
-        return v
+            return np.inf
+
+    def primal_prox(self, x,  L=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2  + \sum_i \lambda \max(Dv_i, 0)
+
+        where *p*=x.shape[0], :math:`\lambda` = self.l. 
+        If :math:`D=I` this is just soft-thresholding
+        positive values and leaving negative values untouched.
+
+        .. math::
+
+            v^{\lambda}(x)_i = \begin{cases}
+            \max(x_i - \frac{\lambda}{L}, 0) & x_i \geq 0 \\
+            x_i & x_i \leq 0.  
+            \end{cases} 
+
+        """
+        x = np.asarray(x)
+        if self.D is None:
+            v = x.copy()
+            v = np.at_least1d(v)
+            pos = v > 0
+            v[pos] = np.maximum(v[pos] - self.l, 0)
+            v[~pos] = 0.
+            return v.reshape(x.shape)
+        else:
+            raise NotImplementedError
+
+    def dual_prox(self, u,  L=1):
+        r"""
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  0 \leq v_i \leq \lambda
+
+        where *m*=u.shape[0], :math:`\lambda` = self.l. 
+        This is just truncation
+
+        .. math::
+
+            v^{\lambda}(u)_i = \begin{cases}
+            \min(u_i, \lambda) & u_i \geq 0 \\
+            0 & u_i \leq 0.  
+            \end{cases} 
+
+        """
+        u = np.asarray(u)
+        v = u.copy()
+        v = np.atleast_1d(v)
+        pos = v > 0
+        v[pos] = np.minimum(self.l, u[pos])
+        return v.reshape(u.shape)
 
 class affine_atom(seminorm_atom):
 
@@ -454,15 +682,15 @@ class affine_atom(seminorm_atom):
         self.atom.l = l
     l = property(_getl, _setl)
 
-    def evaluate(self, x):
+    def evaluate_seminorm(self, x):
         """
         Return self.atom_I(np.dot(self.atom.D, x)+self.affine_term)
 
         """
-        return self.pure_atom.evaluate(self.multiply_by_D(x) + self.affine_term)
+        return self.pure_atom.evaluate_seminorm(self.affine_map(x))
 
-    def evaluate_dual(self, u):
-        return self.atom.evaluate_dual(u)
+    def evaluate_dual_constraint(self, u):
+        return self.atom.evaluate_dual_constraint(u)
 
     def primal_prox(self, x,  L=1):
         r"""
@@ -482,8 +710,11 @@ class affine_atom(seminorm_atom):
 
     @property
     def dual_constraint(self):
-        return primal_dual_pairs[self.atom.__class__](self.m, self.l)
+        return primal_dual_constraint_pairs[self.atom.__class__](self.m, self.l)
 
+    @property
+    def dual_seminorm(self):
+        return primal_dual_seminorm_pairs[self.atom.__class__](self.m, self.l)
 
     def dual_prox(self, u, L=1):
         r"""
@@ -499,7 +730,6 @@ class affine_atom(seminorm_atom):
         """
         return self.atom.dual_prox(u, L)
 
-        
 class constraint_atom(object):
 
     def __init__(self, p, l, dual_seminorm):
@@ -512,17 +742,17 @@ class constraint_atom(object):
         self.dual_seminorm = dual_seminorm(self.p, self.l)
         self.dual = self.dual_seminorm
         
-    def evaluate(self, x):
+    def evaluate_constraint(self, x):
         """
         Abstract method. Evaluate the constraint on the norm of x.
         """
-        return self.dual_seminorm.evaluate_dual(x)
+        return self.dual_seminorm.evaluate_dual_constraint(x)
 
-    def evaluate_dual(self, u):
+    def evaluate_dual_seminorm(self, u):
         """
         Abstract method. Evaluate the dual norm of x.
         """
-        return self.dual_seminorm.evaluate(u)
+        return self.dual_seminorm.evaluate_seminorm(u)
 
     def primal_prox(self, x, L):
         r"""
@@ -571,10 +801,15 @@ def negative_constraint(p, l=1):
 def negative_part_constraint(constraint_atom):
     return constraint_atom(p, l, positive_part)
 
-primal_dual_pairs = {l1norm:box_constraint,
-                     l2norm:l2_constraint,
-                     negative_constraint:nonnegative,
-                     negative_part_constraint:positive_part}
+primal_dual_constraint_pairs = {l1norm:box_constraint,
+                               l2norm:l2_constraint,
+                               negative_constraint:nonnegative,
+                               negative_part_constraint:positive_part}
 
-
-
+primal_dual_seminorm_pairs = {}
+for n1, n2 in [(l1norm,maxnorm),
+               (l2norm,l2norm),
+               (nonnegative,nonpositive),
+               (positive_part, constrained_positive_part)]:
+    primal_dual_seminorm_pairs[n1] = n2
+    primal_dual_seminorm_pairs[n2] = n1

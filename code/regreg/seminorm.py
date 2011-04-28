@@ -31,16 +31,16 @@ class seminorm(object):
                     yield atom
         return seminorm(*atoms())
 
-    def evaluate(self, x):
+    def evaluate_seminorm(self, x):
         out = 0.
         for atom in self.atoms:
-            out += atom.evaluate(x)
+            out += atom.evaluate_seminorm(x)
         return out
     
-    def evaluate_dual(self, u):
+    def evaluate_dual_constraint(self, u):
         out = 0.
         for atom, segment in zip(self.atoms, self.segments):
-            out += atom.evaluate_dual(u[segment])
+            out += atom.evaluate_dual_constraint(u[segment])
         return out
     
     def dual_prox(self, u, L_D=1.):
@@ -115,7 +115,7 @@ class seminorm(object):
         """
         x = y * 1.
         for atom, segment in zip(self.atoms, self.segments):
-            x -= atom.multiply_by_DT(u[segment])
+            x -= atom.primal_from_dual(u[segment])
         return x
 
     def dual_problem(self, y, L_P=1, initial=None):
@@ -127,7 +127,7 @@ class seminorm(object):
         if initial is None:
             z = np.random.standard_normal(self.total_dual)
             initial = self.dual_prox(z, 1.)
-        nonsmooth = self.evaluate_dual
+        nonsmooth = self.evaluate_dual_constraint
         prox = self.dual_prox
         return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1.)
 
@@ -137,36 +137,34 @@ class seminorm(object):
         The smooth component and/or gradient of the dual objective        
         """
         
-        # primal is the residual from the fit
-        primal = self.primal_from_dual(self._dual_prox_center, v)
+        # residual is the residual from the fit
+        residual = self.primal_from_dual(self._dual_prox_center, v)
         affine_term = 0
         if mode == 'func':
             for atom, segment in zip(self.atoms, self.segments):
                 if atom.affine_term is not None:
                     # this can be done within the atom
                     affine_term += np.dot(atom.affine_term, v[segment])
-            return (primal**2).sum() / 2. + affine_term
+            return (residual**2).sum() / 2. + affine_term
         elif mode == 'both' or mode == 'grad':
             g = np.zeros(self.total_dual)
             for atom, segment in zip(self.atoms, self.segments):
-                g[segment] = -atom.multiply_by_D(primal)
+                g[segment] = -atom.affine_map(residual)
                 if atom.affine_term is not None:
-                    # this can be done within the atom
-                    g[segment] += atom.affine_term
                     affine_term += np.dot(atom.affine_term, v[segment])
             if mode == 'grad':
                 return g
             if mode == 'both':
-                return (primal**2).sum() / 2. + affine_term, g
+                return (residual**2).sum() / 2. + affine_term, g
         else:
             raise ValueError("Mode not specified correctly")
 
     def problem(self, smooth_eval, smooth_multiplier=1., initial=None):
         prox = self.primal_prox
-        nonsmooth = self.evaluate
+        nonsmooth = self.evaluate_seminorm
         if initial is None:
             initial = np.random.standard_normal(self.primal_dim)
-        if self.evaluate(initial) + smooth_eval(initial,mode='func') == np.inf:
+        if self.evaluate_seminorm(initial) + smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
         
         return dummy_problem(smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
