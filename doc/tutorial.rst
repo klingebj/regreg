@@ -18,11 +18,15 @@ RegReg tutorials
 
   * Illustrates smoothing seminorms as in NESTA.
 
+* :ref:`constrainedtutorial`
+
+  * Illustrates solving seminorm constrained problems.
+
 * Logistic regression tutorials
 
   * :ref:`logisticl2tutorial`
  
-    * Example with differentiable objective and differentiable penalty
+  * Example with differentiable objective and differentiable penalty
 
   * Sparse logistic regression tutorial (TODO)
 
