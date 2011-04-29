@@ -1,4 +1,4 @@
-.. _fusedapproxtutorial:
+.. _constrainedtutorial:
 
 Constrained tutorial
 ~~~~~~~~~~~~~~~~~~~~
@@ -123,7 +123,7 @@ Let's try fitting it with the generic conjugate class
 
 .. ipython::
 
-   from seminorm.conjugate import conjugate
+   from regreg.conjugate import conjugate
 
    loss = l2normsq.shift(-Y)
    generic = conjugate(loss)
@@ -175,5 +175,13 @@ Let's try fitting it with the generic conjugate class
    pylab.scatter(np.arange(Y.shape[0]), Y)
    pylab.plot(solution, c='r', linewidth=5)	
    pylab.plot(constrained_solution, c='black', linewidth=3)	
+
+   loss = l2normsq.shift(-Y)
+   generic = conjugate(loss)
+   sparse_fused_gen = constraint(generic, fused_constraint, sparsity_constraint)
+   constrained_solver_gen = FISTA(sparse_fused_gen.dual_problem())
+   gen_vals = constrained_solver_gen.fit(max_its=1000, tol=1e-06)
+   constrained_solution_gen = sparse_fused.primal_from_dual(constrained_solver.problem.coefs)
+   pylab.plot(constrained_solution, c='gray', linewidth=1)		
 
 
