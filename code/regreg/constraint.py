@@ -4,6 +4,9 @@ from algorithms import FISTA, ISTA
 from problem import dummy_problem
 from atoms import primal_dual_seminorm_pairs
 
+#XXX this could be instantiated with just smooth_eval instead of something having 
+# smooth_eval method...
+
 class constraint(object):
     """
     A constraint container class for storing/combining constraint_atom classes
@@ -127,6 +130,3 @@ class constraint(object):
         if nonsmooth(initial) + smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
         return dummy_problem(smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
-
-
-
