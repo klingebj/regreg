@@ -115,9 +115,23 @@ Now, back to solving our problem.
    sparsity_constraint = l1norm(500, delta2)
    
    sparse_fused = constraint(conjugate, fused_constraint, sparsity_constraint)
-   constrained_solver = FISTA(loss_constraint.dual_problem())
-   constrained_solver.fit(max_its=1000, tol=1e-10)
-   constrained_solution = loss_constraint.primal_from_dual(constrained_solver.problem.coefs)
+   constrained_solver = FISTA(sparse_fused.dual_problem())
+   vals = constrained_solver.fit(max_its=1000, tol=1e-06)
+   constrained_solution = sparse_fused.primal_from_dual(constrained_solver.problem.coefs)
+
+Let's try fitting it with the generic conjugate class
+
+.. ipython::
+
+   from seminorm.conjugate import conjugate
+
+   loss = l2normsq.shift(-Y)
+   generic = conjugate(loss)
+   sparse_fused_gen = constraint(generic, fused_constraint, sparsity_constraint)
+   constrained_solver_gen = FISTA(sparse_fused_gen.dual_problem())
+   gen_vals = constrained_solver_gen.fit(max_its=1000, tol=1e-06)
+   constrained_solution_gen = sparse_fused.primal_from_dual(constrained_solver.problem.coefs)
+   print np.linalg.norm(constrained_solution_gen - constrained_solution) / np.linalg.norm(constrained_solution)
 
 .. plot::
 
@@ -154,12 +168,12 @@ Now, back to solving our problem.
    sparsity_constraint = l1norm(500, delta2)
    
    sparse_fused = constraint(conjugate, fused_constraint, sparsity_constraint)
-   constrained_solver = FISTA(loss_constraint.dual_problem())
+   constrained_solver = FISTA(sparse_fused.dual_problem())
    constrained_solver.fit(max_its=1000, tol=1e-10)
-   constrained_solution = loss_constraint.primal_from_dual(constrained_solver.problem.coefs)
+   constrained_solution = sparse_fused.primal_from_dual(constrained_solver.problem.coefs)
 
    pylab.scatter(np.arange(Y.shape[0]), Y)
    pylab.plot(solution, c='r', linewidth=5)	
-   pylab.plot(constrained_solution, c='r', linewidth=3)	
+   pylab.plot(constrained_solution, c='black', linewidth=3)	
 
 
