@@ -90,11 +90,11 @@ class smooth_function(object):
         """
         # XXX the class now has self.l -- no need form smooth_multiplier
         if initial is None:
-            return seminorm.problem(self.smooth_eval, 
+            return seminorm.primal_problem(self.smooth_eval, 
                                     smooth_multiplier=smooth_multiplier,
                                     initial=self.coefs)
         else:
-            return seminorm.problem(self.smooth_eval, 
+            return seminorm.primal_problem(self.smooth_eval, 
                                     smooth_multiplier=smooth_multiplier,
                                     initial=initial)
 

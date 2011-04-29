@@ -2,6 +2,8 @@ import numpy as np
 import seminorm, smooth, algorithms
 import pylab
 
+#XXX TODO use the constraint module here
+
 class Block(object):
 
     r"""

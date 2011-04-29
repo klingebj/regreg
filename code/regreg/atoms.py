@@ -11,7 +11,7 @@ class seminorm_atom(object):
     #XXX spec as 1d array could mean weights?
     #XXX matrix multiply should be sparse if possible
 
-    def __init__(self, spec, l=1.):
+    def __init__(self, spec, l=1., b=None):
         # this affine term appears in the gradient of the dual
         # problem of the atom
         # for affine seminorms, this can be an array of
@@ -88,13 +88,6 @@ class seminorm_atom(object):
         """
         raise NotImplementedError
 
-    # JT: these two methods are used in 
-    # computing the gradient
-    # and proximal problems
-    # currently, the affine_term
-    # are handled in those modules but
-    # probably should be handled in these two methods
-
     def multiply_by_DT(self, u):
         r"""
         Return :math:`D^Tu`
@@ -142,12 +135,22 @@ class seminorm_atom(object):
             return Dx + self.affine_term
         return Dx
     
-    def problem(self, smooth_func, smooth_multiplier=1., initial=None):
+    def primal_problem(self, smooth_func, smooth_multiplier=1., initial=None):
         """
         Return a problem instance 
         """
         prox = self.primal_prox
         nonsmooth = self.evaluate_seminorm
+        if initial is None:
+            initial = np.random.standard_normal(self.p)
+        return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
+
+    def dual_problem(self, smooth_func, smooth_multiplier=1., initial=None):
+        """
+        Return a problem instance 
+        """
+        prox = self.dual_prox
+        nonsmooth = self.evaluate_dual_constraint
         if initial is None:
             initial = np.random.standard_normal(self.p)
         return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
@@ -289,8 +292,10 @@ class maxnorm(seminorm_atom):
 
         ll = upper / 2.
         val = _st_l1(ll)
-        max_iters = 30; itercount = 0
-        while np.fabs(val-l) >= upper * self.tol and itercount <= max_iters:
+        max_iters = 30000; itercount = 0
+        while np.fabs(val-l) >= upper * self.tol:
+            if itercount > max_iters:
+                break
             itercount += 1
             val = _st_l1(ll)
             if val > l:

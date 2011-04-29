@@ -57,7 +57,7 @@ class seminorm(object):
         self.atoms[i].l * self.atoms[i].evaluate and 
         :math:`\lambda_i`=self.atoms[i].l.
 
-        This is used in the inner loop with :math:`u=z-g/L` when finding
+        This is used in the ISTA/FISTA solver loop with :math:`u=z-g/L` when finding
         self.primal_prox, i.e., the signal approximator problem.
         """
         v = np.empty(u.shape)
@@ -159,15 +159,16 @@ class seminorm(object):
         else:
             raise ValueError("Mode not specified correctly")
 
-    def problem(self, smooth_eval, smooth_multiplier=1., initial=None):
+    def primal_problem(self, smooth_eval, smooth_multiplier=1., initial=None):
         prox = self.primal_prox
         nonsmooth = self.evaluate_seminorm
         if initial is None:
             initial = np.random.standard_normal(self.primal_dim)
-        if self.evaluate_seminorm(initial) + smooth_eval(initial,mode='func') == np.inf:
+        if nonsmooth(initial) + smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
         
         return dummy_problem(smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
+
 
 
 
