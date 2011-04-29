@@ -147,10 +147,10 @@ class seminorm_atom(object):
         Return a problem instance 
         """
         prox = self.primal_prox
-        nonsmooth = self.evaluate
+        nonsmooth = self.evaluate_seminorm
         if initial is None:
             initial = np.random.standard_normal(self.p)
-        return dummy_problem(smooth_func.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
+        return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
 
     @classmethod
     def affine(cls, spec, alpha, l=1):
@@ -218,6 +218,7 @@ class maxnorm(seminorm_atom):
     The :math:`\ell_{\infty}` norm
     """
 
+    tol = 1.0e-06
     def evaluate_seminorm(self, x):
         """
         The l-infinity norm of Dx.
@@ -250,7 +251,10 @@ class maxnorm(seminorm_atom):
         """
 
         if self.D is None:
-            return x - self.dual_prox(x)
+            d = self.dual_prox(x,L)
+            u = x - d
+            # print np.fabs(d).sum(), self.l / L, (u*d).sum(), self.l/L * np.fabs(u).max()
+            return u
         else:
             raise NotImplementedError
 
@@ -266,7 +270,36 @@ class maxnorm(seminorm_atom):
         where *m*=u.shape[0], :math:`\lambda` = self.l. 
         This is solved with a binary search.
         """
-        raise NotImplementedError('can be solved via the l1norm atom, choosing lambda such that the l1norm is equal to self.l/L')
+        
+        #XXX TO DO, make this efficient
+        fabsu = np.fabs(u)
+        l = self.l / L
+        upper = fabsu.sum()
+        lower = 0.
+
+        if upper <= l:
+            return u
+
+        # else, do a bisection search
+        def _st_l1(ll):
+            """
+            the ell1 norm of a soft-thresholded vector
+            """
+            return np.maximum(fabsu-ll,0).sum()
+
+        ll = upper / 2.
+        val = _st_l1(ll)
+        max_iters = 30; itercount = 0
+        while np.fabs(val-l) >= upper * self.tol and itercount <= max_iters:
+            itercount += 1
+            val = _st_l1(ll)
+            if val > l:
+                lower = ll
+            else:
+                upper = ll
+            ll = (upper + lower) / 2.
+        return np.maximum(fabsu - ll, 0) * np.sign(u)
+
 
 class l2norm(seminorm_atom):
 

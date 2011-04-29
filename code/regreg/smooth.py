@@ -103,7 +103,10 @@ class affine_atom(smooth_function):
     def __init__(self, sm_atom, X=None, Y=None, l=1):
         self.X = X
         self._Y = Y
-        self.p = self.X.shape[1]
+        if X is not None:
+            self.p = self.X.shape[1]
+        else:
+            self.p = self._Y.shape[0]
         self.sm_atom = sm_atom
         self.coefs = np.zeros(self.p)
         self.l = l
