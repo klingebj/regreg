@@ -3,6 +3,7 @@ class dummy_problem(object):
     """
     A generic way to specify a problem
     """
+
     def __init__(self, smooth_eval, nonsmooth, prox, initial, smooth_multiplier=1):
         # Do we need to store this?
         #self.initial = initial.copy()

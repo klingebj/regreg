@@ -48,6 +48,7 @@ class constraint(object):
         for atom, segment in zip(self.atoms, self.segments):
             lterm += atom.multiply_by_DT(u[segment])
         return lterm
+
     def smooth_eval(self, u, mode='both'):
         linear_term = self.linear_term(u)
         if mode == 'both':

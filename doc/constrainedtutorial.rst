@@ -125,15 +125,16 @@ Let's try fitting it with the generic conjugate class
 
    from regreg.conjugate import conjugate
 
-   loss = l2normsq.shift(-Y)
+   loss = l2normsq.shift(-Y, l=0.5)
    generic = conjugate(loss)
    sparse_fused_gen = constraint(generic, fused_constraint, sparsity_constraint)
    constrained_solver_gen = FISTA(sparse_fused_gen.dual_problem())
    gen_vals = constrained_solver_gen.fit(max_its=1000, tol=1e-06)
-   constrained_solution_gen = sparse_fused.primal_from_dual(constrained_solver.problem.coefs)
+   constrained_solution_gen = sparse_fused.primal_from_dual(constrained_solver_gen.problem.coefs)
    print np.linalg.norm(constrained_solution_gen - constrained_solution) / np.linalg.norm(constrained_solution)
 
 .. plot::
+
 
 
    import numpy as np
@@ -144,6 +145,7 @@ Let's try fitting it with the generic conjugate class
    from regreg.atoms import l1norm
    from regreg.seminorm import seminorm 
    from regreg.constraint import constraint
+   from regreg.conjugate import conjugate
    from regreg.smooth import l2normsq
 
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
@@ -156,32 +158,36 @@ Let's try fitting it with the generic conjugate class
    penalty = seminorm(sparsity, fused)
    problem = loss.add_seminorm(penalty)
    solver = FISTA(problem)
-   solver.fit(max_its=100, tol=1e-10)
+   solver.fit(max_its=1000, tol=1e-06)
    solution = solver.problem.coefs
 
-   conjugate = l2normsq.shift(Y, l=0.5)
+   conjugate_loss = l2normsq.shift(Y, l=0.5)
 
    delta1 = np.fabs(D * solution).sum()
    delta2 = np.fabs(solution).sum()
 
    fused_constraint = l1norm(D, delta1)
    sparsity_constraint = l1norm(500, delta2)
-   
-   sparse_fused = constraint(conjugate, fused_constraint, sparsity_constraint)
+
+   sparse_fused = constraint(conjugate_loss, fused_constraint, sparsity_constraint)
    constrained_solver = FISTA(sparse_fused.dual_problem())
-   constrained_solver.fit(max_its=1000, tol=1e-10)
+   constrained_solver.fit(max_its=1000, tol=1e-06)
    constrained_solution = sparse_fused.primal_from_dual(constrained_solver.problem.coefs)
 
    pylab.scatter(np.arange(Y.shape[0]), Y)
    pylab.plot(solution, c='r', linewidth=5)	
    pylab.plot(constrained_solution, c='black', linewidth=3)	
 
-   loss = l2normsq.shift(-Y)
-   generic = conjugate(loss)
+   # blank line, blah
+   from regreg.conjugate import conjugate
+   loss = l2normsq.shift(-Y, l=0.5)
+   # loss.L = 1.1
+   generic = conjugate(loss, epsilon=0.)
    sparse_fused_gen = constraint(generic, fused_constraint, sparsity_constraint)
-   constrained_solver_gen = FISTA(sparse_fused_gen.dual_problem())
+   p = sparse_fused_gen.dual_problem()
+   # p.L = 10. / generic.epsilon
+   constrained_solver_gen = FISTA(p)
    gen_vals = constrained_solver_gen.fit(max_its=1000, tol=1e-06)
-   constrained_solution_gen = sparse_fused.primal_from_dual(constrained_solver.problem.coefs)
-   pylab.plot(constrained_solution, c='gray', linewidth=1)		
 
-
+   constrained_solution_gen = sparse_fused.primal_from_dual(constrained_solver_gen.problem.coefs)
+   pylab.plot(constrained_solution_gen, c='gray', linewidth=1)		

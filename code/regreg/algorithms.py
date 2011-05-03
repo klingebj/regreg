@@ -215,7 +215,7 @@ class FISTA(algorithm):
 
                     trial_f = self.problem.smooth_eval(beta,mode='func')
 
-                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-15:
+                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-r,grad) + 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     else:
                         trial_grad = self.problem.smooth_eval(beta,mode='grad')
@@ -238,7 +238,7 @@ class FISTA(algorithm):
             trial_obj = trial_f + self.problem.obj_rough(beta)
 
             obj_change = np.fabs(trial_obj - current_obj)
-            obj_rel_change = obj_change/current_obj 
+            obj_rel_change = obj_change/np.fabs(current_obj)
 
             if self.debug:
                 print itercount, current_obj, self.inv_step, obj_rel_change, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]), tol
