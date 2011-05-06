@@ -6,8 +6,8 @@ class conjugate(object):
 
     def __init__(self, smooth_f, epsilon=0.01):
         self._smooth_function = smooth_f
-        self._linear = linear(np.zeros(smooth_f.p))
-        self._quadratic = l2normsq(smooth_f.p, l=epsilon/2.)
+        self._linear = linear(np.zeros(smooth_f.primal_shape))
+        self._quadratic = l2normsq(smooth_f.primal_shape, l=epsilon/2.)
         self._smooth_function_linear = smooth_function(smooth_f, self._linear, self._quadratic)
         self._solver = FISTA(self._smooth_function_linear)
         #XXX we need a better way to pass around the Lipschitz constant

@@ -22,7 +22,7 @@ class seminorm(object):
             self.dual_shapes += [atom.dual_shape]
         self.dual_dtype = np.dtype([('dual_%d' % i, np.float, shape) 
                                     for i, shape in enumerate(self.dual_shapes)])
-        self.dual_segments = self.dual_dtype.names # ['dual_%d' % i for i in range(len(atoms))]
+        self.dual_segments = self.dual_dtype.names 
 
     def __add__(self,y):
         #Combine two seminorms

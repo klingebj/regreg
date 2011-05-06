@@ -26,7 +26,7 @@ class Block(object):
         else:
             self.loss = smooth.smooth_function(smooth.signal_approximator(Y))
 
-        dual_atom = atom.dual
+        dual_atom = atom.dual_constraint
         prox = dual_atom.primal_prox
         nonsmooth = dual_atom.evaluate_constraint
         if nonsmooth(initial) == np.inf:

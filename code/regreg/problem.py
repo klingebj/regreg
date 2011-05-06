@@ -32,8 +32,10 @@ class dummy_problem(object):
         prox_control: If not None, then a dictionary of parameters for the prox procedure
         """
         z = x - g / L
+        
         if prox_control is None:
-            return self._prox(z, L)
+            v = self._prox(z, L)
+            return v
         else:
             return self._prox(z, L, **prox_control)
 

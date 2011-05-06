@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import sparse
 from problem import dummy_problem
+from affine import affine_transform, identity
 
 class seminorm_atom(object):
 
@@ -11,29 +12,23 @@ class seminorm_atom(object):
     #XXX spec as 1d array could mean weights?
     #XXX matrix multiply should be sparse if possible
 
-    def __init__(self, primal_dim, l=1.):
-        self.primal_shape = (primal_dim,)
-        self.dual_shape = (primal_dim,)
+    def __init__(self, primal_shape, l=1.):
+        if type(primal_shape) == type(1):
+            self.primal_shape = (primal_shape,)
+        else:
+            self.primal_shape = primal_shape
+        self.dual_shape = self.primal_shape
         self.l = l
+        self.affine_transform = identity(self.primal_shape)
         self.atoms = [self]
-        self.affine_offset = None
 
     @property
     def dual_constraint(self):
-        return primal_dual_constraint_pairs[self.__class__](self.l)
+        return primal_dual_constraint_pairs[self.__class__](self.dual_shape, self.l)
 
     @property
     def dual_seminorm(self):
-        return primal_dual_seminorm_pairs[self.__class__](1./self.l)
-
-    #XXX where is this used -- not necessary?
-    @property
-    def dual(self):
-        return self.dual_constraint
-
-# XXX this is not used anywhere
-#     def primal_from_dual(self, u):
-#         return self.adjoint_map(u)
+        return primal_dual_seminorm_pairs[self.__class__](self.dual_shape, 1./self.l)
 
     def evaluate_seminorm(self, x):
         """
@@ -78,45 +73,34 @@ class seminorm_atom(object):
         """
         Return :math:`\alpha'u`. 
         """
-        if self.affine_offset is not None:
-            return np.dot(u, self.affine_offset)
-        else:
-            return 0
+        return self.affine_transform.affine_objective(u)
 
     def adjoint_map(self, u, copy=True):
         r"""
         Return :math:`u`
 
         This routine is currently a matrix multiplication in the subclass
-        affine_atom, but could
+        affine_transform, but could
         also call FFTs if D is a DFT matrix, in a subclass.
         """
-        return self.linear_map(u, copy=copy)
+        return self.affine_transform.adjoint_map(u, copy=copy)
 
     def linear_map(self, x, copy=True):
         r"""
         Return :math:`x`
 
-        This routine is subclassed in affine_atom
+        This routine is subclassed in affine_transform
         as a matrix multiplications, but could
         also call FFTs if D is a DFT matrix, in a subclass.
         """
-        if copy:
-            return x.copy()
-        else:
-            return x
+        return self.affine_transform.linear_map(x, copy)
                                                               
     def affine_map(self, x, copy=True):
         """
         Return x + self.affine_offset. If copy: then x is copied if
         affine_offset is None.
         """
-        if copy and self.affine_offset == None:
-            return x.copy()
-        else:
-            v = x
-            if self.affine_offset is not None:
-                return x + self.affine_offset
+        return self.affine_transform.affine_map(x, copy)
 
     def primal_problem(self, smooth_func, smooth_multiplier=1., initial=None):
         """
@@ -139,19 +123,34 @@ class seminorm_atom(object):
         return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
 
     @classmethod
-    def affine(cls, linear_operator, affine_offset, l=1):
-        atom = cls(l)
-        return affine_atom(atom, linear_operator, affine_offset)
+    def affine(cls, linear_operator, affine_offset, l=1, diag=False,
+               args=(), keywords={}):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        return affine_atom(cls, linear_operator, affine_offset, diag=diag,
+                           l=l, args=args, keywords=keywords)
     
     @classmethod
-    def linear(cls, linear_operator, l=1):
-        atom = cls(l)
-        return affine_atom(atom, linear_operator, None)
+    def linear(cls, linear_operator, l=1, diag=False,
+               args=(), keywords={}):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        return affine_atom(cls, linear_operator, None, diag=diag,
+                           l=l, args=args, keywords=keywords)
     
     @classmethod
-    def shift(cls, affine_offset, l=1):
-        atom = cls(l)
-        return affine_atom(atom, None, affine_offset)
+    def shift(cls, affine_offset, l=1, diag=False,
+              args=(), keywords={}):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        return affine_atom(cls, None, affine_offset, diag=diag,
+                           l=l, args=args, keywords=keywords)
     
 
 class l1norm(seminorm_atom):
@@ -246,7 +245,6 @@ class maxnorm(seminorm_atom):
 
         d = self.dual_prox(x,L)
         u = x - d
-        # print np.fabs(d).sum(), self.l / L, (u*d).sum(), self.l/L * np.fabs(u).max()
         return u
 
     def dual_prox(self, u, L=1):
@@ -674,35 +672,23 @@ class affine_atom(seminorm_atom):
     
     """
 
-    def __init__(self, atom, linear_operator, affine_offset, diag=False):
-        self.atom = atom
-        if not isinstance(atom, seminorm_atom):
-            print 'should be a seminorm atom'
-        self.affine_offset = affine_offset
-
-        self.linear_operator = linear_operator
-        if linear_operator is None:
-            self.noneD = True
-            self.primal_shape = affine_offset.shape
-            self.dual_shape = affine_offset.shape
-        else:
-            self.noneD = False
-            self.sparseD = sparse.isspmatrix(self.linear_operator)
-            if linear_operator.ndim == 1 and not diag:
-                self.linear_operator = self.linear_operator.reshape((1,-1))
-                self.diagD = False
-                self.primal_shape = (self.linear_operator.shape[1],)
-                self.dual_shape = (1,)
-            elif linear_operator.ndim == 1 and diag:
-                self.diagD = True
-                self.primal_shape = (linear_operator.shape[0],)
-                self.dual_shape = (linear_operator.shape[0],)
-            else:
-                self.primal_shape = (linear_operator.shape[1],)
-                self.dual_shape = (linear_operator.shape[0],)
-                self.diagD = False
-
+    def __init__(self, atom_class, linear_operator, affine_offset, diag=False, l=1, args=(), keywords={}):
+        self.affine_transform = affine_transform(linear_operator, affine_offset, diag)
+        self.primal_shape = self.affine_transform.primal_shape
+        self.dual_shape = self.affine_transform.dual_shape
+        keywords = keywords.copy(); keywords['l'] = l
+        self.atom = atom_class(self.dual_shape, *args, **keywords)
         self.atoms = [self]
+
+
+    @property
+    def dual_constraint(self):
+        return primal_dual_constraint_pairs[self.atom.__class__](self.primal_shape, self.l)
+
+    @property
+    def dual_seminorm(self):
+        return primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, 1./self.l)
+
 
     def _getl(self):
         return self.atom.l
@@ -713,7 +699,7 @@ class affine_atom(seminorm_atom):
 
     def evaluate_seminorm(self, x):
         """
-        Return self.atom_I(np.dot(self.atom.linear_operator, x)+self.affine_offset)
+        Return self.atom.evaluate_seminorm(self.affine_map(x))
 
         """
         return self.atom.evaluate_seminorm(self.affine_map(x))
@@ -735,8 +721,8 @@ class affine_atom(seminorm_atom):
         This is just self.atom.primal_prox(x - self.affine_offset, L) + self.affine_offset
         """
         if self.noneD:
-            if self.affine_offset is not None:
-                return self.atom.primal_prox(x - self.affine_offset, L) + self.affine_offset
+            if self.affine_transform.affine_offset is not None:
+                return self.atom.primal_prox(x - self.affine_transform.affine_offset, L) + self.affine_transform.affine_offset
             else:
                 return self.atom.primal_prox(x, L)
         else:
@@ -755,70 +741,6 @@ class affine_atom(seminorm_atom):
         This is just truncation: np.clip(u, -self.l/L, self.l/L).
         """
         return self.atom.dual_prox(u, L)
-
-
-    def linear_map(self, x, copy=True):
-        r"""
-        Return :math:`Dx`
-
-        This routine is subclassed in affine_atom
-        as a matrix multiplications, but could
-        also call FFTs if D is a DFT matrix, in a subclass.
-        """
-
-        if not self.noneD:
-            if self.sparseD or self.diagD:
-                return self.linear_operator * x
-            else:
-                return np.dot(self.linear_operator, x)
-        else:
-            # this sometimes has to be a copy
-            # because the array can later be modified
-            # in place -- see the smoothed_seminorm
-            if copy:
-                return x.copy()
-            return x
-
-    def affine_map(self, x, copy=True):
-        r"""
-        Return :math:`Dx+\alpha`
-
-        This routine is subclassed in affine_atom
-        as a matrix multiplications, but could
-        also call FFTs if D is a DFT matrix, in a subclass.
-        """
-
-        v = self.linear_map(x, copy)
-        if self.affine_offset is not None:
-            return self.affine_offset + v
-        else:
-            # if copy is True, v will already be a copy, so no need to check 
-            # again
-            return v
-
-    def adjoint_map(self, u, copy=True):
-        r"""
-        Return :math:`D^Tu`
-
-        This routine is currently a matrix multiplication, but could
-        also call FFTs if D is a DFT matrix, in a subclass.
-        """
-        if not self.noneD:
-            if self.sparseD or self.diagD:
-                return u * self.linear_operator
-            else:
-                return np.dot(u, self.linear_operator)
-        else:
-            # this might have to be a copy
-            # but we only multiply by D.T when
-            # computing gradient -- 
-            # this currently doesn't happen in seminorm or
-            # smoothed_seminorm
-            if copy:
-                return u.copy()
-            else:
-                return u
-                                                              
 
 class constraint_atom(object):
 

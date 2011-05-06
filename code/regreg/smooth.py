@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import sparse
+from affine import affine_transform
 import warnings
 
 class smooth_function(object):
@@ -24,7 +25,7 @@ class smooth_function(object):
             self.atoms.append(atom)
         self.coefs = np.zeros(self.primal_shape)
 
-        self.M = len(atoms)
+
 
     #TODO: add addition overload
 
@@ -38,7 +39,7 @@ class smooth_function(object):
         """
 
         if mode == 'func':
-            if self.M > 1:
+            if len(self.atoms) > 1:
                 v = 0.
                 for atom in self.atoms:
                     v += atom.smooth_eval(beta, mode=mode)
@@ -46,7 +47,7 @@ class smooth_function(object):
             else:
                 return self.scale(self.atoms[0].smooth_eval(beta, mode=mode))
         elif mode == 'grad':
-            if self.M > 1:
+            if len(self.atoms) > 1:
                 g = np.zeros(self.primal_shape)
                 for atom in self.atoms:
                     g += atom.smooth_eval(beta, mode=mode)
@@ -54,7 +55,7 @@ class smooth_function(object):
             else:
                 return self.scale(self.atoms[0].smooth_eval(beta, mode=mode))
         elif mode == 'both':
-            if self.M > 1:
+            if len(self.atoms) > 1:
                 v = 0.
                 g = np.zeros(self.primal_shape)
                 for atom in self.atoms:
@@ -68,11 +69,13 @@ class smooth_function(object):
         else:
             raise ValueError("Mode specified incorrectly")
 
-    def scale(self, arg):
-        if self.l is not None:
-            return self.l * arg
-        return arg
-
+    def scale(self, obj, copy=False):
+        if self.l != 1:
+            return obj * 1
+        if copy:
+            return obj.copy()
+        return obj
+    
     def proximal(self, x, g, L):
         """
         Take a gradient step
@@ -101,59 +104,34 @@ class smooth_function(object):
 
 class affine_atom(smooth_function):
 
-    def __init__(self, sm_atom, linear_operator=None, offset=None, l=1):
-        self.linear_operator = linear_operator
-        self._offset = offset
-        if linear_operator is not None:
-            self.primal_shape = (self.linear_operator.shape[1],)
-        else:
-            self.dual_shape = (self._offset.shape[0],)
-        self.sm_atom = sm_atom
+    def __init__(self, smooth_class, linear_operator=None, offset=None, diag=False, l=1, args=(), keywords={}):
+        self.affine_transform = affine_transform(linear_operator, offset, diag)
+        self.primal_shape = self.affine_transform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
-        self.l = l
+        keywords = keywords.copy(); keywords['l'] = l
+        self.sm_atom = smooth_class(self.primal_shape, *args, **keywords)
+        self.atoms = [self]
+
+    def _getl(self):
+        return self.sm_atom.l
+
+    def _setl(self, l):
+        self.sm_atom.l = l
+    l = property(_getl, _setl)
 
     def smooth_eval(self, beta, mode='both'):
-        eta = self._dot(beta)
-        if self.offset is not None:
-            eta += self.offset
+        eta = self.affine_transform.affine_map(beta)
         if mode == 'both':
             v, g = self.sm_atom.smooth_eval(eta, mode='both')
-            g = self._dotT(g)
-            return self.scale(v), self.scale(g)
+            g = self.affine_transform.adjoint_map(g)
+            return v, g
         elif mode == 'grad':
             g = self.sm_atom.smooth_eval(eta, mode='grad')
-            g = self._dotT(g)
-            return self.scale(g)
+            g = self.affine_transform.adjoint_map(g)
+            return g 
         elif mode == 'func':
             v = self.sm_atom.smooth_eval(eta, mode='func')
-            return self.scale(v)
-
-    def _dot(self, beta, copy=True):
-        if self.linear_operator is None:
-            # a copy may be necessary because the return value is modified in smooth_eval
-            if copy:
-                return beta.copy()
-            return beta
-        elif not sparse.isspmatrix(self.linear_operator):
-            return np.dot(self.linear_operator,beta)
-        else:
-            return self.linear_operator * beta
-
-    def _dotT(self, r):
-        if self.linear_operator is None:
-            # a copy is necessary because the return value is modified in smooth_eval
-            return r
-        if not sparse.isspmatrix(self.linear_operator):
-            return np.dot(self.linear_operator.T, r)
-        else:
-            return self.linear_operator.T * r
-
-    def set_offset(self, offset):
-        self._offset = offset
-    def get_offset(self):
-        return self._offset
-    offset = property(get_offset, set_offset)
-
+            return v 
 
 class smooth_atom(smooth_function):
 
@@ -171,19 +149,34 @@ class smooth_atom(smooth_function):
         raise NotImplementedError
     
     @classmethod
-    def affine(cls, linear_operator, offset, l=1):
-        smoothf = cls(linear_operator.shape[1], l=l)
-        return affine_atom(smoothf, linear_operator, offset)
+    def affine(cls, linear_operator, offset, l=1, diag=False,
+               args=(), keywords={}):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        return affine_atom(cls, linear_operator, offset, diag=diag, l=l,
+                           args=args, keywords=keywords)
 
     @classmethod
-    def linear(cls, linear_operator, l=1):
-        smoothf = cls(linear_operator.shape[1], l=l)
-        return affine_atom(smoothf, linear_operator, None)
+    def linear(cls, linear_operator, l=1, diag=False,
+               args=(), keywords={}):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        return affine_atom(cls, linear_operator, None, diag=diag, l=l,
+                           args=args, keywords=keywords)
 
     @classmethod
-    def shift(cls, offset, l=1):
-        smoothf = cls(offset.shape[0], l=l)
-        return affine_atom(smoothf, None, offset)
+    def shift(cls, offset, l=1, diag=False,
+               args=(), keywords={}):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        return affine_atom(cls, None, offset, diag=diag, l=l,
+                           args=args, keywords=keywords)
 
 
 def squaredloss(linear_operator, offset, l=1):
@@ -198,8 +191,11 @@ class l2normsq(smooth_atom):
 
     #TODO: generalize input to allow for a matrix D, making a generalized l2 norm with syntax like l2norm seminorm_atom
 
-    def __init__(self, primal_dim, l=None):
-        self.primal_shape = (primal_dim,)
+    def __init__(self, primal_shape, l=None):
+        if type(primal_shape) == type(1):
+            self.primal_shape = (primal_shape,)
+        else:
+            self.primal_shape = primal_shape
         self.l = l
 
     def smooth_eval(self, beta, mode='both'):
@@ -224,7 +220,7 @@ class linear(smooth_atom):
 
     def __init__(self, vector, l=1):
         self.vector = l * vector
-        self.primal_shape = (vector.shape[0],)
+        self.primal_shape = vector.shape
         self.l = 1
         self.coefs = np.zeros(self.primal_shape)
 
@@ -247,46 +243,9 @@ class linear(smooth_atom):
             raise ValueError("mode incorrectly specified")
     
 
-class signal_approximator(smooth_atom):
+def signal_approximator(offset, l=1):
+    return l2normsq.shift(-offset, l)
 
-    """
-    A class for combining squared error loss with a general seminorm
-    """
-
-    def __init__(self, offset, l=None):
-        """
-        Generate initial tuple of arguments for update.
-        """
-        self.offset = offset
-        self.dual_shape = self.primal_shape = (self.offset.shape[0],)
-        self.l = l
-
-
-    def smooth_eval(self, beta, mode='both'):
-        """
-        Evaluate a smooth function and/or its gradient
-
-        if mode == 'both', return both function value and gradient
-        if mode == 'grad', return only the gradient
-        if mode == 'func', return only the function value
-        """
-
-        if mode == 'both':
-            return self.scale(((self.offset - beta)**2).sum() / 2.), self.scale(beta - self.offset)
-        elif mode == 'grad':
-            return self.scale(beta - self.offset)
-        elif mode == 'func':
-            return self.scale(((self.offset - beta)**2).sum() / 2.)
-        else:
-            raise ValueError("mode incorrectly specified")
-
-    def set_offset(self, offset):
-        self._offset = offset
-    def get_offset(self):
-        return self._offset
-    offset = property(get_offset, set_offset)
-
-    
 class logistic_loglikelihood(affine_atom):
 
     """
