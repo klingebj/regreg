@@ -26,7 +26,7 @@ and the RegReg classes necessary for this problem,
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
    from regreg.seminorm import seminorm
-   from regreg.smooth import huber_loss, smooth_function
+   from regreg.smooth import huber_loss, smooth_function, smoothed_seminorm
 
 The l1norm object represents the penalty, the huber_loss class represents the loss function and smooth_function is a container class for combining smooth functions. FISTA is a first-order algorithm and seminorm is a class for combining different seminorm penalties. 
 
@@ -43,8 +43,10 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = huber_loss(X,Y, delta=1.)
-   penalty = l1norm(1000,l=5.)
+   penalty = l1norm(1000,5.)
+   loss = smoothed_seminorm(l1norm.affine(X, -Y), epsilon=1.)
+
+TODO -- replace this with the smoothed seminorm
 
 The penalty contains the regularization parameter that can be easily accessed and changed,
 

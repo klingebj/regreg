@@ -60,10 +60,10 @@ form of the problem
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
    loss = l2normsq.shift(-Y, l=0.5)
 
-   sparsity = l1norm(len(Y), l=1.4)
+   sparsity = l1norm(len(Y), 1.4)
    # TODO should make a module to compute typical Ds
    D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
-   fused = l1norm(D, l=25.5)
+   fused = l1norm.linear(D, 25.5)
    penalty = seminorm(sparsity, fused)
    problem = loss.add_seminorm(penalty)
    solver = FISTA(problem)
@@ -111,7 +111,7 @@ Now, back to solving our problem.
    delta1 = np.fabs(D * solution).sum()
    delta2 = np.fabs(solution).sum()
 
-   fused_constraint = l1norm(D, delta1)
+   fused_constraint = l1norm.linear(D, delta1)
    sparsity_constraint = l1norm(500, delta2)
    
    sparse_fused = constraint(conjugate, fused_constraint, sparsity_constraint)
@@ -151,10 +151,10 @@ Let's try fitting it with the generic conjugate class
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
    loss = l2normsq.shift(-Y, l=0.5)
 
-   sparsity = l1norm(len(Y), l=1.4)
+   sparsity = l1norm(len(Y), 1.4)
    # TODO should make a module to compute typical Ds
    D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
-   fused = l1norm(D, l=25.5)
+   fused = l1norm.linear(D, 25.5)
    penalty = seminorm(sparsity, fused)
    problem = loss.add_seminorm(penalty)
    solver = FISTA(problem)
@@ -166,7 +166,7 @@ Let's try fitting it with the generic conjugate class
    delta1 = np.fabs(D * solution).sum()
    delta2 = np.fabs(solution).sum()
 
-   fused_constraint = l1norm(D, delta1)
+   fused_constraint = l1norm.linear(D, delta1)
    sparsity_constraint = l1norm(500, delta2)
 
    sparse_fused = constraint(conjugate_loss, fused_constraint, sparsity_constraint)

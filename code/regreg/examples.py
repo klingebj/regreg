@@ -15,7 +15,7 @@ def lasso_example(n=100):
     Y = np.random.standard_normal((5000,))
     # regloss = smooth_function(squaredloss(X,Y))
     regloss = squaredloss(X,Y)
-    sparsity = l1norm(n, l=l1)
+    sparsity = l1norm(n, l1)
     p=regloss.add_seminorm(seminorm(sparsity),initial=np.zeros(n))
     
     solver=FISTA(p)
@@ -30,10 +30,10 @@ def fused_approximator_example(l=25):
 
     x=np.random.standard_normal(500); x[100:150] += 7; x[250:300] += 14
 
-    sparsity = l1norm(500, l=1.3)
+    sparsity = l1norm(500, 1.3)
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
     D = sparse.csr_matrix(D)
-    fused = l1norm(D, l=l)
+    fused = l1norm.linear(D, l)
 
     pen = seminorm(sparsity,fused)
     soln, vals = pen.primal_prox(x, 1, with_history=True, debug=True,tol=1e-10)
@@ -61,11 +61,11 @@ def fused_lasso_example(n=100):
     l1 = 1.
 
 
-    sparsity1 = l1norm(n, l=l1)
+    sparsity1 = l1norm(n, l1)
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D = sparse.csr_matrix(D)
 
-    fused = seminorm(l1norm(D, l=l1))
+    fused = seminorm(l1norm.linear(D, l1))
 
     X = np.random.standard_normal((2*n,n))
     Y = np.random.standard_normal((2*n,))
@@ -82,7 +82,7 @@ def fused_lasso_example(n=100):
 def isotonic_example(n=100, plot=True):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
-    isotonic = seminorm(nonnegative(sparse.csr_matrix(D)))
+    isotonic = seminorm(nonnegative.linear(sparse.csr_matrix(D)))
     Y = np.random.standard_normal(n)
     Y[:-30] += np.arange(n-30) * 0.2
     loss = smooth_function(signal_approximator(Y))
@@ -91,7 +91,7 @@ def isotonic_example(n=100, plot=True):
     solver=FISTA(p)
 
     solver.debug = True
-    vals = solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False, prox_debug=True)
+    vals = solver.fit(prox_max_its=25000, tol=1e-05, backtrack=False, prox_debug=True, monotonicity_restart=False)
     soln = solver.problem.coefs
     if plot:
         X = np.arange(n)
@@ -104,7 +104,7 @@ def isotonic_example(n=100, plot=True):
 def nearly_isotonic_example(n=100, plot=True):
 
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
-    nisotonic = seminorm(positive_part(-sparse.csr_matrix(D), l=3))
+    nisotonic = seminorm(positive_part.linear(-sparse.csr_matrix(D), l=3))
     Y = np.random.standard_normal(n)
     Y[:-30] += np.arange(n-30) * 0.2
     loss = smooth_function(signal_approximator(Y))
@@ -139,7 +139,7 @@ def nearly_concave_example(n=100, plot=True):
     D1 = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     D2 = np.dot(D1[1:,1:], D1)
     D2 = sparse.csr_matrix(D2)
-    nisotonic = seminorm(positive_part(-D2, l=5))
+    nisotonic = seminorm(positive_part.linear(-D2, l=5))
 
     Y = np.random.standard_normal(n)
     X = np.linspace(0,1,n)
@@ -183,7 +183,7 @@ def concave_example(n=100, plot=True):
     D2 = np.dot(D1[1:,1:], D1)
     D2 = sparse.csr_matrix(D2)
 
-    concave = seminorm(nonnegative(-D2))
+    concave = seminorm(nonnegative.linear(-D2))
     Y = np.random.standard_normal(n)
     X = np.linspace(0,1,n)
     Y -= (X-0.5)**2 * 10.
@@ -208,7 +208,7 @@ def group_lasso_example():
     def selector(p, slice):
         return sparse.csr_matrix(np.identity(p)[slice])
     
-    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
+    penalties = [l2norm.linear(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
     penalties[0].l = 250.
     penalties[1].l = 225.
     penalties[2].l = 150.
@@ -253,8 +253,8 @@ def linear_trend_example(n=500, l1=10.):
     mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 2
     Y += mu
 
-    sparsity = l1norm(500, l=0.1)
-    fused = l1norm(D2, l=l1)
+    sparsity = l1norm(n, 0.1)
+    fused = l1norm.linear(D2, l1)
     pen = seminorm(sparsity,fused)
     soln, vals = pen.primal_prox(Y, 1, with_history=True, debug=True,tol=1e-10)
 
@@ -277,8 +277,8 @@ def nesta_linear_trend_example(n=500, l1=10., epsilon=0.8):
     mu[int(0.3*n):int(0.5*n)] += (X[int(0.3*n):int(0.5*n)] - X[int(0.3*n)]) * (-6) + 2
     Y += mu
 
-    sparsity = l1norm(500, l=0.1)
-    fused = l1norm(D2, l=l1)
+    sparsity = l1norm(n, 0.1)
+    fused = l1norm.linear(D2, l1)
 
     smoothed_fused = smoothed_seminorm(fused, epsilon=epsilon)
     smoothed_fused.p = n
@@ -317,7 +317,7 @@ def logistic_ridge_regression_example(n=100, l2 = 1.):
     X = np.random.normal(0,1,n*n*5).reshape((5*n,n))
     Y = np.random.randint(0,2,5*n)
 
-    loss = smooth_function(logistic_loglikelihood(X,Y),l2normsq(n,l=l2))
+    loss = smooth_function(logistic_loglikelihood(X,Y),l2normsq(n,l2))
 
     solver = FISTA(loss)
     solver.debug = True
@@ -333,7 +333,7 @@ def logistic_genridge_regression_example(n=100, l2 = 1.):
     Y = np.random.randint(0,2,5*n)
     D = np.random.normal(0,1,n*50).reshape((50,n))
 
-    loss = smooth_function(logistic_loglikelihood(X,Y),l2normsq(D,l=l2))
+    loss = smooth_function(logistic_loglikelihood(X,Y),l2normsq.affine(D,l2))
 
     solver = FISTA(loss)
     solver.debug = True

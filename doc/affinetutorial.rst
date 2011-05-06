@@ -47,7 +47,7 @@ Now we can create the problem object, beginning with the loss function
    alpha = np.linspace(0,10,500)
    Y += alpha
 
-   shrink_to_alpha = l1norm.affine(len(Y), alpha, l=3.)
+   shrink_to_alpha = l1norm.shift(alpha, 3.)
 
 which creates an affine_atom object with :math:`\lambda_2=3`. That is, it creates the penalty
 
@@ -63,7 +63,7 @@ Next, we create the fused lasso matrix and the associated l1norm object,
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
    D = sparse.csr_matrix(D)
-   fused = l1norm(D, l=25.5)
+   fused = l1norm.linear(D, 25.5)
 
 Here we first created D, converted it a sparse matrix, and then created an l1norm object with the sparse version of D and :math:`\lambda_1 = 25.5`. We can now combine the two l1norm objects using the seminorm container class
 
@@ -125,12 +125,12 @@ We can then plot solution to see the result of the regression,
    alpha = np.linspace(0,10,500)
    Y += alpha
 
-   shrink_to_alpha = l1norm.affine(len(Y), alpha, l=3.)
+   shrink_to_alpha = l1norm.shift(alpha, 3.)
 
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
    D = sparse.csr_matrix(D)
-   fused = l1norm(D, l=25.5)
+   fused = l1norm.linear(D, 25.5)
 
    penalty = seminorm(shrink_to_alpha, fused)
 

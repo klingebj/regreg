@@ -9,19 +9,20 @@ class seminorm(object):
     """
     def __init__(self, *atoms):
         self.atoms = []
-        self.primal_dim = -1
-        self.segments = []
-        idx = 0
+        self.primal_shape = -1
+        self.dual_segments = []
+        self.dual_shapes = []
         for atom in atoms:
-            if self.primal_dim < 0:
-                self.primal_dim = atom.p
+            if self.primal_shape == -1:
+                self.primal_shape = atom.primal_shape
             else:
-                if atom.p != self.primal_dim:
+                if atom.primal_shape != self.primal_shape:
                     raise ValueError("primal dimensions don't agree")
             self.atoms.append(atom)
-            self.segments.append(slice(idx, idx+atom.m))
-            idx += atom.m
-        self.total_dual = idx
+            self.dual_shapes += [atom.dual_shape]
+        self.dual_dtype = np.dtype([('dual_%d' % i, np.float, shape) 
+                                    for i, shape in enumerate(self.dual_shapes)])
+        self.dual_segments = self.dual_dtype.names # ['dual_%d' % i for i in range(len(atoms))]
 
     def __add__(self,y):
         #Combine two seminorms
@@ -39,7 +40,9 @@ class seminorm(object):
     
     def evaluate_dual_constraint(self, u):
         out = 0.
-        for atom, segment in zip(self.atoms, self.segments):
+        # XXX dtype manipulations -- would be nice not to have to do this
+        u = u.view(self.dual_dtype).reshape(())
+        for atom, segment in zip(self.atoms, self.dual_segments):
             out += atom.evaluate_dual_constraint(u[segment])
         return out
     
@@ -60,10 +63,13 @@ class seminorm(object):
         This is used in the ISTA/FISTA solver loop with :math:`u=z-g/L` when finding
         self.primal_prox, i.e., the signal approximator problem.
         """
-        v = np.empty(u.shape)
-        for atom, segment in zip(self.atoms, self.segments):
+        # XXX dtype manipulations -- would be nice not to have to do this
+
+        v = np.empty((), self.dual_dtype)
+        u = u.view(self.dual_dtype).reshape(())
+        for atom, segment in zip(self.atoms, self.dual_segments):
             v[segment] = atom.dual_prox(u[segment], L_D)
-        return v
+        return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
     def primal_prox(self, y, L_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
@@ -88,17 +94,17 @@ class seminorm(object):
         """
         Approximate the Lipschitz constant for the dual problem using power iterations
         """
-        v = np.random.standard_normal(self.primal_dim)
-        z = np.zeros(self.total_dual)
+        v = np.random.standard_normal(self.primal_shape)
+        z = np.zeros((), self.dual_dtype)
         old_norm = 0.
         norm = 1.
         itercount = 0
         while np.fabs(norm-old_norm)/norm > tol and itercount < max_its:
-            z *= 0.
-            for atom, segment in zip(self.atoms, self.segments):
+            z = np.zeros(z.shape, z.dtype)
+            for atom, segment in zip(self.atoms, self.dual_segments):
                 z[segment] += atom.linear_map(v)
             v *= 0.
-            for atom, segment in zip(self.atoms, self.segments):
+            for atom, segment in zip(self.atoms, self.dual_segments):
                 v += atom.adjoint_map(z[segment])
             old_norm = norm
             norm = np.linalg.norm(v)
@@ -107,15 +113,15 @@ class seminorm(object):
                 print "L", norm
             itercount += 1
         return norm
-        #return np.sqrt(norm)
 
     def primal_from_dual(self, y, u):
         """
         Calculate the primal coefficients from the dual coefficients
         """
         x = y * 1.
-        for atom, segment in zip(self.atoms, self.segments):
-            x -= atom.primal_from_dual(u[segment])
+        u = u.view(self.dual_dtype).reshape(())
+        for atom, segment in zip(self.atoms, self.dual_segments):
+            x -= atom.adjoint_map(u[segment])
         return x
 
     def dual_problem(self, y, L_P=1, initial=None):
@@ -125,7 +131,12 @@ class seminorm(object):
         """
         self._dual_prox_center = y
         if initial is None:
-            z = np.random.standard_normal(self.total_dual)
+            z = np.zeros((), self.dual_dtype)
+            for segment in self.dual_segments:
+                z[segment] += np.random.standard_normal(z[segment].shape)
+
+            # XXX dtype manipulations -- would be nice not to have to do this
+            z = z.reshape((1,)).view(np.float)
             initial = self.dual_prox(z, 1.)
         nonsmooth = self.evaluate_dual_constraint
         prox = self.dual_prox
@@ -137,25 +148,27 @@ class seminorm(object):
         The smooth component and/or gradient of the dual objective        
         """
         
+        # XXX dtype manipulations -- would be nice not to have to do this
+        v = v.view(self.dual_dtype).reshape(())
+
         # residual is the residual from the fit
         residual = self.primal_from_dual(self._dual_prox_center, v)
-        affine_term = 0
+        affine_objective = 0
         if mode == 'func':
-            for atom, segment in zip(self.atoms, self.segments):
-                if atom.affine_term is not None:
-                    # this can be done within the atom
-                    affine_term += np.dot(atom.affine_term, v[segment])
-            return (residual**2).sum() / 2. + affine_term
+            for atom, segment in zip(self.atoms, self.dual_segments):
+                affine_objective += atom.affine_objective(v[segment])
+            return (residual**2).sum() / 2. + affine_objective
         elif mode == 'both' or mode == 'grad':
-            g = np.zeros(self.total_dual)
-            for atom, segment in zip(self.atoms, self.segments):
+            g = np.zeros((), self.dual_dtype)
+            for atom, segment in zip(self.atoms, self.dual_segments):
                 g[segment] = -atom.affine_map(residual)
-                if atom.affine_term is not None:
-                    affine_term += np.dot(atom.affine_term, v[segment])
+                affine_objective += atom.affine_objective(v[segment])
             if mode == 'grad':
-                return g
+                # XXX dtype manipulations -- would be nice not to have to do this
+                return g.reshape((1,)).view(np.float)
             if mode == 'both':
-                return (residual**2).sum() / 2. + affine_term, g
+                # XXX dtype manipulations -- would be nice not to have to do this
+                return (residual**2).sum() / 2. + affine_objective, g.reshape((1,)).view(np.float)
         else:
             raise ValueError("Mode not specified correctly")
 
@@ -163,7 +176,7 @@ class seminorm(object):
         prox = self.primal_prox
         nonsmooth = self.evaluate_seminorm
         if initial is None:
-            initial = np.random.standard_normal(self.primal_dim)
+            initial = np.random.standard_normal(self.primal_shape)
         if nonsmooth(initial) + smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
         

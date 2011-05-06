@@ -40,13 +40,13 @@ Now we can create the problem object, beginning with the loss function
 .. ipython::
 
    loss = signal_approximator(Y)
-   sparsity = l1norm(len(Y), l=1.8)
+   sparsity = l1norm(len(Y), 1.8)
 
    # fused
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
    D = sparse.csr_matrix(D)
-   fused = l1norm(D, l=25.5)
+   fused = l1norm.linear(D, 25.5)
 
    # the penalty object
    penalty = seminorm(sparsity, fused)
@@ -109,13 +109,13 @@ We can then plot solution to see the result of the regression,
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
    loss = signal_approximator(Y)
-   sparsity = l1norm(len(Y), l=1.8)
+   sparsity = l1norm(len(Y), 1.8)
 
    # fused
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
    D = sparse.csr_matrix(D)
-   fused = l1norm(D, l=25.5)
+   fused = l1norm.linear(D, 25.5)
 
    # the penalty object
    penalty = seminorm(sparsity, fused)
