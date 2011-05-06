@@ -70,7 +70,7 @@ def blockwise(semi, Y, initial=None, max_its=50, tol=1.0e-06,
     adjusted_resid = Y.copy()
     primal_soln = current_resid
     for block in blocks:
-        current_resid -= block.atom.multiply_by_DT(block.coefs)
+        current_resid -= block.atom.adjoint_map(block.coefs)
 
     for itercount in range(max_its):
         for block in blocks:
@@ -80,9 +80,9 @@ def blockwise(semi, Y, initial=None, max_its=50, tol=1.0e-06,
             # current resid that should be reset by a scatter
             # before each block updates its coefficients
 
-            block.Y = current_resid + block.atom.multiply_by_DT(block.coefs)
+            block.Y = current_resid + block.atom.adjoint_map(block.coefs)
             block.fit(max_its=800,tol=1e-10)
-            current_resid[:] = block.Y - block.atom.multiply_by_DT(block.coefs)
+            current_resid[:] = block.Y - block.atom.adjoint_map(block.coefs)
             if np.linalg.norm(primal_soln - current_resid) / np.max([1.,np.linalg.norm(current_resid)]) < tol and itercount >= min_its:
                 return current_resid
             primal_soln = current_resid

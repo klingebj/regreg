@@ -9,7 +9,7 @@ from atoms import primal_dual_seminorm_pairs
 
 class constraint(object):
     """
-    A constraint container class for storing/combining constraint_atom classes
+    A constraint container class for storing/combining constraints
     specified in terms of the conjugate of a smooth convex function
     and some atoms. 
 
@@ -46,7 +46,7 @@ class constraint(object):
     def linear_term(self, u):
         lterm = 0
         for atom, segment in zip(self.atoms, self.segments):
-            lterm += atom.multiply_by_DT(u[segment])
+            lterm += atom.adjoint_map(u[segment])
         return lterm
 
     def smooth_eval(self, u, mode='both'):

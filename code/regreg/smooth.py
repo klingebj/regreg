@@ -370,7 +370,7 @@ class smoothed_seminorm(smooth_function):
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
                 objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
-                grad += atom.multiply_by_DT(projected_ueps)
+                grad += atom.adjoint_map(projected_ueps)
             return objective, grad
         elif mode == 'grad':
             grad = 0
@@ -378,7 +378,7 @@ class smoothed_seminorm(smooth_function):
                 u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
-                grad += atom.multiply_by_DT(projected_ueps)
+                grad += atom.adjoint_map(projected_ueps)
             return grad 
         elif mode == 'func':
             objective = 0

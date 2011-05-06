@@ -96,10 +96,10 @@ class seminorm(object):
         while np.fabs(norm-old_norm)/norm > tol and itercount < max_its:
             z *= 0.
             for atom, segment in zip(self.atoms, self.segments):
-                z[segment] += atom.multiply_by_D(v)
+                z[segment] += atom.linear_map(v)
             v *= 0.
             for atom, segment in zip(self.atoms, self.segments):
-                v += atom.multiply_by_DT(z[segment])
+                v += atom.adjoint_map(z[segment])
             old_norm = norm
             norm = np.linalg.norm(v)
             v /= norm
