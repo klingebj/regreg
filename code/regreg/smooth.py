@@ -189,9 +189,10 @@ class l2normsq(smooth_atom):
     The square of the l2 norm
     """
 
-    #TODO: generalize input to allow for a matrix D, making a generalized l2 norm with syntax like l2norm seminorm_atom
-
-    def __init__(self, primal_shape, l=None):
+    def __init__(self, primal_shape, l=None, Q=None, Qdiag=False):
+        self.Q = Q
+        if self.Q is not None:
+            self.Q_transform = affine_transform(Q, 0, Qdiag)
         if type(primal_shape) == type(1):
             self.primal_shape = (primal_shape,)
         else:
@@ -207,14 +208,24 @@ class l2normsq(smooth_atom):
         if mode == 'func', return only the function value
         """
 
-        if mode == 'both':
-            return self.scale(np.linalg.norm(beta)**2), self.scale(2 * beta)
-        elif mode == 'grad':
-            return self.scale(2 * beta)
-        elif mode == 'func':
-            return self.scale(np.linalg.norm(beta)**2)
+        if self.Q is None:
+            if mode == 'both':
+                return self.scale(np.linalg.norm(beta)**2), self.scale(2 * beta)
+            elif mode == 'grad':
+                return self.scale(2 * beta)
+            elif mode == 'func':
+                return self.scale(np.linalg.norm(beta)**2)
+            else:
+                raise ValueError("mode incorrectly specified")
         else:
-            raise ValueError("mode incorrectly specified")
+            if mode == 'both':
+                return self.scale(np.sum(beta * self.Q_transform.linear_map(beta))), self.scale(2 * self.Q_transform.linear_map(beta))
+            elif mode == 'grad':
+                return self.scale(2 * self.Q_transform.linear_map(beta))
+            elif mode == 'func':
+                return self.scale(np.sum(beta * self.Q_transform.linear_map(beta)))
+            else:
+                raise ValueError("mode incorrectly specified")
             
 class linear(smooth_atom):
 
