@@ -71,7 +71,7 @@ class smooth_function(object):
 
     def scale(self, obj, copy=False):
         if self.l != 1:
-            return obj * 1
+            return obj * self.l
         if copy:
             return obj.copy()
         return obj
