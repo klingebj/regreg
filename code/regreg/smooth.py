@@ -246,15 +246,16 @@ class linear(smooth_atom):
 def signal_approximator(offset, l=1):
     return l2normsq.shift(-offset, l)
 
-class logistic_loglikelihood(affine_atom):
+class logistic_loglikelihood(smooth_atom):
 
     """
     A class for combining the logistic log-likelihood with a general seminorm
     """
 
-    # TODO -- make this deviance and use the affine_atom composition
-    def __init__(self, linear_operator, offset, l=1):
-        affine_atom.__init__(self, None, linear_operator, offset, l=l)
+    def __init__(self, linear_operator, binary_response, offset=None, l=1):
+        self.affine_transform = affine_transform(linear_operator, offset)
+        self.binary_response = binary_response
+        self.l = l
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -265,16 +266,16 @@ class logistic_loglikelihood(affine_atom):
         if mode == 'func', return only the function value
         """
         
-        yhat = self._dot(beta)
+        yhat = self.affine_transform.linear_map(beta)
         exp_yhat = np.exp(yhat)
         if mode == 'both':
             ratio = exp_yhat/(1.+exp_yhat)
-            return -2 * self.scale((np.dot(self.offset,yhat) - np.sum(np.log(1+exp_yhat)))), -2 * self.scale(self._dotT(self.offset-ratio))
+            return -2 * self.scale((np.dot(self.binary_response,yhat) - np.sum(np.log(1+exp_yhat)))), -2 * self.scale(self.affine_transform.adjoint_map(self.binary_response-ratio))
         elif mode == 'grad':
             ratio = exp_yhat/(1.+exp_yhat)
-            return - 2 * self.scale(self._dotT(self.offset-ratio))
+            return - 2 * self.scale(self.affine_transform(self.binary_response-ratio))
         elif mode == 'func':
-            return -2 * self.scale(np.dot(self.offset,yhat) - np.sum(np.log(1+exp_yhat)))
+            return -2 * self.scale(np.dot(self.binary_response,yhat) - np.sum(np.log(1+exp_yhat)))
         else:
             raise ValueError("mode incorrectly specified")
 
