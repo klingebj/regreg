@@ -3,6 +3,10 @@
 RegReg tutorials
 ~~~~~~~~~~~~~~~~
 
+* TEMPORARY :ref:`container_tutorial`
+
+  * Illustrates solving a problem using the container class.
+
 * :ref:`fusedapproxtutorial`
 
   * Illustrates using two seminorms

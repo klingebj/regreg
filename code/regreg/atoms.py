@@ -12,13 +12,14 @@ class seminorm_atom(object):
     #XXX spec as 1d array could mean weights?
     #XXX matrix multiply should be sparse if possible
 
-    def __init__(self, primal_shape, l=1.):
+    def __init__(self, primal_shape, l=1., constraint=False):
         if type(primal_shape) == type(1):
             self.primal_shape = (primal_shape,)
         else:
             self.primal_shape = primal_shape
         self.dual_shape = self.primal_shape
         self.l = l
+        self.constraint = constraint
         self.affine_transform = identity(self.primal_shape)
         self.atoms = [self]
 
@@ -171,6 +172,7 @@ class l1norm(seminorm_atom):
             return 0
         else:
             return np.inf
+
 
     def primal_prox(self, x,  L=1):
         r"""
@@ -678,8 +680,9 @@ class affine_atom(seminorm_atom):
         self.dual_shape = self.affine_transform.dual_shape
         keywords = keywords.copy(); keywords['l'] = l
         self.atom = atom_class(self.dual_shape, *args, **keywords)
+        self.constraint=False
         self.atoms = [self]
-
+        
 
     @property
     def dual_constraint(self):
