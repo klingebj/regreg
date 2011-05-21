@@ -83,9 +83,9 @@ class container(object):
 
         v = np.empty((), self.dual_dtype)
         u = u.view(self.dual_dtype).reshape(())
-        for atom, d_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
+        for atom, dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
             if atom.constraint:
-                v[segment] = d_atom.primal_prox(u[segment], L_D)
+                v[segment] = dual_atom.primal_prox(u[segment], L_D)
             else:
                 v[segment] = atom.dual_prox(u[segment], L_D)
         return v.reshape((1,)).view(np.float)
@@ -196,6 +196,71 @@ class container(object):
 
 
 
+
+    def conjugate_linear_term(self, u):
+        lterm = 0
+        # XXX dtype manipulations -- would be nice not to have to do this
+        u = u.view(self.dual_dtype).reshape(())
+        for atom, segment in zip(self.atoms, self.dual_segments):
+            lterm += atom.adjoint_map(u[segment])
+        return lterm
+
+    def conjugate_primal_from_dual(self, u):
+        """
+        Calculate the primal coefficients from the dual coefficients
+        """
+        linear_term = self.conjugate_linear_term(-u)
+        return self.conjugate.smooth_eval(linear_term, mode='grad')
+
+
+    def conjugate_smooth_eval(self, u, mode='both'):
+        linear_term = self.conjugate_linear_term(u)
+        # XXX dtype manipulations -- would be nice not to have to do this
+        u = u.view(self.dual_dtype).reshape(())
+        if mode == 'both':
+            v, g = self.conjugate.smooth_eval(-linear_term, mode='both')
+            grad = np.empty((), self.dual_dtype)
+            for atom, segment in zip(self.atoms, self.dual_segments):
+                grad[segment] = -atom.affine_map(g)
+                v -= atom.affine_objective(u[segment])
+            # XXX dtype manipulations -- would be nice not to have to do this
+            return v, grad.reshape((1,)).view(np.float) 
+        elif mode == 'grad':
+            g = self.conjugate.smooth_eval(-linear_term, mode='grad')
+            grad = np.empty((), self.dual_dtype)
+            for atom, segment in zip(self.atoms, self.dual_segments):
+                grad[segment] = -atom.affine_map(g)
+            # XXX dtype manipulations -- would be nice not to have to do this
+            return grad.reshape((1,)).view(np.float) 
+        elif mode == 'func':
+            v = self.conjugate.smooth_eval(-linear_term, mode='func')
+            for atom, segment in zip(self.atoms, self.dual_segments):
+                v -= atom.affine_objective(u[segment])
+            return v
+        else:
+            raise ValueError("mode incorrectly specified")
+
+
+    def conjugate_problem(self, conjugate=None, initial=None, smooth_multiplier=1.):
+
+        if conjugate is not None:
+            self.conjugate = conjugate
+        if not hasattr(self, 'conjugate'):
+            raise ValueError("Conjugate function not provided")
+        prox = self.dual_prox
+        nonsmooth = self.evaluate_dual_atoms
+
+        if initial is None:
+            z = np.zeros((), self.dual_dtype)
+            for segment in self.dual_segments:
+                z[segment] += np.random.standard_normal(z[segment].shape)
+
+            # XXX dtype manipulations -- would be nice not to have to do this
+            z = z.reshape((1,)).view(np.float)
+            initial = self.dual_prox(z, 1.)
+
+        return dummy_problem(self.conjugate_smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
+        
 
     def problem(self, smooth_multiplier=1., initial=None):
 

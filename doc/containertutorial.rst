@@ -90,7 +90,19 @@ By default, the container class will try to solve this problem with the two-loop
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
    constrained_solution = constrained_solver.problem.coefs
 
-As a sanity check, let's solve this with the generic constraint class
+
+We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^*`
+
+.. ipython::
+
+   loss = l2normsq.shift(-Y, l=0.5)
+   true_conjugate = l2normsq.shift(Y, l=0.5)
+   problem = container(loss, fused_constraint, sparsity_constraint)
+   solver = FISTA(problem.conjugate_problem(true_conjugate))
+   solver.fit(max_its=200, tol=1e-08)
+   conjugate_coefs = problem.conjugate_primal_from_dual(solver.problem.coefs)
+
+Let's also solve this with the generic constraint class
 
 .. ipython::
 
@@ -98,12 +110,15 @@ As a sanity check, let's solve this with the generic constraint class
 
    loss = l2normsq.shift(-Y, l=0.5)
    generic = conjugate(loss)
-   sparse_fused_gen = constraint(generic, fused_constraint, sparsity_constraint)
-   constrained_solver_gen = FISTA(sparse_fused_gen.dual_problem())
-   gen_vals = constrained_solver_gen.fit(max_its=1000, tol=1e-06)
-   constrained_solution_gen = sparse_fused_gen.primal_from_dual(constrained_solver_gen.problem.coefs)
-   print np.linalg.norm(constrained_solution_gen - constrained_solution) / np.linalg.norm(constrained_solution)
-   print np.linalg.norm(solution - constrained_solution) / np.linalg.norm(constrained_solution)
+   problem = container(loss, fused_constraint, sparsity_constraint)
+   solver = FISTA(problem.conjugate_problem(generic))
+   solver.fit(max_its=200, tol=1e-08)
+   conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.problem.coefs)
+
+
+   print np.linalg.norm(solution - constrained_solution) / np.linalg.norm(solution)
+   print np.linalg.norm(solution - conjugate_coefs_gen) / np.linalg.norm(solution)
+   print np.linalg.norm(conjugate_coefs - conjugate_coefs_gen) / np.linalg.norm(conjugate_coefs)
 
 
 .. plot::
@@ -147,18 +162,28 @@ As a sanity check, let's solve this with the generic constraint class
    constrained_solution = constrained_solver.problem.coefs
 
 
+
+   loss = l2normsq.shift(-Y, l=0.5)
+   true_conjugate = l2normsq.shift(Y, l=0.5)
+   problem = container(loss, fused_constraint, sparsity_constraint)
+   solver = FISTA(problem.conjugate_problem(true_conjugate))
+   solver.fit(max_its=200, tol=1e-08)
+   conjugate_coefs = problem.conjugate_primal_from_dual(solver.problem.coefs)
+
    from regreg.conjugate import conjugate
 
    loss = l2normsq.shift(-Y, l=0.5)
    generic = conjugate(loss)
-   sparse_fused_gen = constraint(generic, fused_constraint, sparsity_constraint)
-   constrained_solver_gen = FISTA(sparse_fused_gen.dual_problem())
-   gen_vals = constrained_solver_gen.fit(max_its=1000, tol=1e-06)
-   constrained_solution_gen = sparse_fused_gen.primal_from_dual(constrained_solver_gen.problem.coefs)
-   print np.linalg.norm(constrained_solution_gen - constrained_solution) / np.linalg.norm(constrained_solution)
+   problem = container(loss, fused_constraint, sparsity_constraint)
+   solver = FISTA(problem.conjugate_problem(generic))
+   solver.fit(max_its=200, tol=1e-08)
+   conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.problem.coefs)
+
 
 
    pylab.scatter(np.arange(Y.shape[0]), Y)
-   pylab.plot(solution, c='r', linewidth=5)	
-   pylab.plot(constrained_solution, c='black', linewidth=3)	
-   pylab.plot(constrained_solution_gen, c='gray', linewidth=1)		
+
+   pylab.plot(solution, c='y', linewidth=7)	
+   pylab.plot(constrained_solution, c='r', linewidth=5)
+   pylab.plot(conjugate_coefs, c='black', linewidth=3)	
+   pylab.plot(conjugate_coefs_gen, c='gray', linewidth=1)		
