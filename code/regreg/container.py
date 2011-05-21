@@ -2,6 +2,7 @@ import numpy as np
 from scipy import sparse
 from algorithms import FISTA, ISTA
 from problem import dummy_problem
+from conjugate import conjugate
 
 class container(object):
     """
@@ -241,12 +242,16 @@ class container(object):
             raise ValueError("mode incorrectly specified")
 
 
-    def conjugate_problem(self, conjugate=None, initial=None, smooth_multiplier=1.):
+    def conjugate_problem(self, conj=None, initial=None, smooth_multiplier=1.):
+        """
+        Create a problem object for solving the conjugate problem
+        """
 
-        if conjugate is not None:
-            self.conjugate = conjugate
+        if conj is not None:
+            self.conjugate = conj
         if not hasattr(self, 'conjugate'):
-            raise ValueError("Conjugate function not provided")
+            self.conjugate = conjugate(self.loss)
+
         prox = self.dual_prox
         nonsmooth = self.evaluate_dual_atoms
 
