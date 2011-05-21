@@ -102,16 +102,13 @@ We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^
    solver.fit(max_its=200, tol=1e-08)
    conjugate_coefs = problem.conjugate_primal_from_dual(solver.problem.coefs)
 
-Let's also solve this with the generic constraint class
+Let's also solve this with the generic constraint class, which is called by default when conjugate_problem is called without an argument
 
 .. ipython::
 
-   from regreg.conjugate import conjugate
-
    loss = l2normsq.shift(-Y, l=0.5)
-   generic = conjugate(loss)
    problem = container(loss, fused_constraint, sparsity_constraint)
-   solver = FISTA(problem.conjugate_problem(generic))
+   solver = FISTA(problem.conjugate_problem())
    solver.fit(max_its=200, tol=1e-08)
    conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.problem.coefs)
 
@@ -173,9 +170,8 @@ Let's also solve this with the generic constraint class
    from regreg.conjugate import conjugate
 
    loss = l2normsq.shift(-Y, l=0.5)
-   generic = conjugate(loss)
    problem = container(loss, fused_constraint, sparsity_constraint)
-   solver = FISTA(problem.conjugate_problem(generic))
+   solver = FISTA(problem.conjugate_problem())
    solver.fit(max_its=200, tol=1e-08)
    conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.problem.coefs)
 

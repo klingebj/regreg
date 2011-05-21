@@ -35,6 +35,7 @@ class container(object):
 
     def __add__(self,y):
         #Combine two seminorms
+        raise NotImplementedError
         def atoms():
             for obj in [self, y]:
                 for atom in obj.atoms:
@@ -195,9 +196,6 @@ class container(object):
             raise ValueError("Mode not specified correctly")
 
 
-
-
-
     def conjugate_linear_term(self, u):
         lterm = 0
         # XXX dtype manipulations -- would be nice not to have to do this
@@ -250,6 +248,7 @@ class container(object):
         if conj is not None:
             self.conjugate = conj
         if not hasattr(self, 'conjugate'):
+            #If the conjugate of the loss function is not provided use the generic solver
             self.conjugate = conjugate(self.loss)
 
         prox = self.dual_prox
@@ -268,6 +267,9 @@ class container(object):
         
 
     def problem(self, smooth_multiplier=1., initial=None):
+        """
+        Create a problem object for solving the general problem with the two-loop algorithm
+        """
 
         prox = self.primal_prox
         nonsmooth = self.evaluate_primal_atoms
@@ -276,7 +278,6 @@ class container(object):
             initial = initial/np.linalg.norm(initial)
         if nonsmooth(initial) + self.loss.smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
-
         
         return dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
 
