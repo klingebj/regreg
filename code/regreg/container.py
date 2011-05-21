@@ -45,26 +45,18 @@ class container(object):
         # XXX dtype manipulations -- would be nice not to have to do this
         u = u.view(self.dual_dtype).reshape(())
 
-        for atom, segment in zip(self.dual_atoms, self.dual_segments):
-            if atom.constraint:
-                # atom.evaluate_seminorm already has a factor of atom.l in it
-                # This should probably be added as evaluate_primal_constraint in atoms.py
-                if atom.evaluate_seminorm(u[segment]) > (1+1e-10)*(atom.l**2):
-                    return np.inf
-                
+        for atom, dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
+            if dual_atom.constraint:
+                out += atom.evaluate_dual_constraint(u[segment])
             else:
-                out += atom.evaluate_seminorm(u[segment])
+                out += dual_atom.evaluate_seminorm(u[segment])
         return out
-
 
     def evaluate_primal_atoms(self, x):
         out = 0.
-        for atom in self.atoms:
+        for atom, dual_atom in zip(self.atoms, self.dual_atoms):
             if atom.constraint:
-                # atom.evaluate_seminorm already has a factor of atom.l in it
-                # This should probably be added as evaluate_primal_constraint in atoms.py
-                if atom.evaluate_seminorm(x) > (1+1e-10)*(atom.l**2):
-                    return np.inf
+                out += dual_atom.evaluate_dual_constraint(atom.affine_map(x))
             else:
                 out += atom.evaluate_seminorm(x)
         return out
