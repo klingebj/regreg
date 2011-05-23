@@ -182,7 +182,9 @@ class smooth_atom(smooth_function):
 def squaredloss(linear_operator, offset, l=1):
     # the affine method gets rid of the need for the squaredloss class
     # as previously written squared loss had a factor of 2
-    return l2normsq.affine(-linear_operator, offset, l=l/2., initial=np.zeros(linear_operator.shape[1]))
+
+    #return l2normsq.affine(-linear_operator, offset, l=l/2., initial=np.zeros(linear_operator.shape[1]))
+    return l2normsq.affine(-linear_operator, offset, l=l/2.)
 
 class l2normsq(smooth_atom):
     """
