@@ -63,5 +63,26 @@ This strategy is described in [semipaper]_. RegReg provides several general stra
   * TODO: add smoothing tutorial
 
 
+* ADMM
+
+  * Two different versions of the problem. Here are the Lagrangians of the 
+  two versions. The first is based on the substitution :math:`\beta_j=\beta`,
+  i.e. each atom having its own copy of :math:`\beta`.
+
+.. math::
+
+   L_{\rho}(\beta, \beta_j, u_j) = {\cal L}(\beta) + \sum_j h_{K_j}(D_j\beta_j + \alpha_j) + u_j^T(\beta_j-\beta) +\frac{\rho}{2} \|\beta_j-\beta\|^2_2 
+
+   The second involves two substitutions: :math:`\beta_j=\beta`, 
+   :math:`D_j\beta_j=\nu_j`. Hence, there are more Lagrange
+   multipliers
+
+.. math::
+
+   L_{\rho}(\beta, \beta_j, u_j, w_j) = {\cal L}(\beta) + \sum_j h_{K_j}(\nu_j + \alpha_j) + u_j^T(\beta_j-\beta) + w_j^T(D_j\beta_j-\nu_j) + \frac{\rho}{2} \|\beta_j-\beta\|^2_2 
+
+
+
+
 .. [semipaper] Mazumder, R., Taylor, T., Tibshirani, R.J. "*Simple, flexible and scalable algorithms for penalized regression.*" **In preparation**
 .. [FISTA] Beck, A., Teboulle, M. "*A Fast Iterative Shrinkage-Thresholding Algorithm for Linear Inverse Problems*" (http://iew3.technion.ac.il/~becka/papers/71654.pdf) TODO: Add formal citation
