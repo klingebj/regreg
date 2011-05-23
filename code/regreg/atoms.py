@@ -9,9 +9,6 @@ class seminorm_atom(object):
     A seminorm atom class
     """
 
-    #XXX spec as 1d array could mean weights?
-    #XXX matrix multiply should be sparse if possible
-
     def __init__(self, primal_shape, l=1.):
         if type(primal_shape) == type(1):
             self.primal_shape = (primal_shape,)
@@ -651,6 +648,53 @@ class constrained_positive_part(seminorm_atom):
         v[pos] = np.minimum(self.l, u[pos])
         return v.reshape(u.shape)
 
+class linear_atom(seminorm_atom):
+
+    """
+    An atom representing a linear constraint.
+    It is specified via a matrix that is assumed
+    to be an set of row vectors spanning the space.
+    """
+
+    def __init__(self, primal_shape, basis, l=1.):
+        self.basis = basis
+
+    def primal_prox(self, x,  L=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2  \; \text{ s.t.} \; x \in \text{row}(L)
+
+        where *p*=x.shape[0], :math:`\lambda` = self.l 
+        and :math:`L` = self.basis.
+
+        This is just projection onto :math:`\text{row}(L)`.
+
+        """
+        coefs = np.dot(self.basis, x)
+        return np.dot(coefs, self.basis)
+
+    def dual_prox(self, u,  L=1):
+        r"""
+
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2  \; \text{ s.t.} \; x \in \text{row}(L)^{\perp}
+
+        where *p*=x.shape[0], :math:`\lambda` = self.l 
+        and :math:`L` = self.basis.
+
+        This is just projection onto :math:`\text{row}(L)^{\perp}`.
+
+        """
+        return u - self.primal_prox(u)
+
 class affine_atom(seminorm_atom):
 
     """
@@ -795,6 +839,10 @@ class constraint_atom(object):
         """
         Z = np.random.standard_normal(self.primal_shape)
         return self.dual_seminorm.dual_prox(Z, 1)
+
+
+
+# XXX are these used anywhere
 
 def box_constraint(l=1):
     return constraint_atom(l, l1norm)
