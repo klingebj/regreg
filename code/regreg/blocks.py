@@ -1,5 +1,6 @@
 import numpy as np
-import seminorm, smooth, algorithms
+import container, smooth, algorithms
+from problem import dummy_problem
 import pylab
 
 #XXX TODO use the constraint module here
@@ -22,9 +23,9 @@ class Block(object):
         if initial is None:
             initial = np.zeros(atom.m) 
         if not atom.noneD:
-            self.loss = smooth.smooth_function(smooth.squaredloss(atom.D.T, Y))
+            self.loss = smooth.squaredloss(atom.D.T, Y)
         else:
-            self.loss = smooth.smooth_function(smooth.signal_approximator(Y))
+            self.loss = smooth.signal_approximator(Y)
 
         dual_atom = atom.dual_constraint
         prox = dual_atom.primal_prox
@@ -32,7 +33,7 @@ class Block(object):
         if nonsmooth(initial) == np.inf:
             raise ValueError('initial point is not feasible')
         
-        self.problem = seminorm.dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial)
+        self.problem = dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial)
 
     def fit(self, *solver_args, **solver_kw):
         if not hasattr(self, '_solver'):
@@ -95,7 +96,7 @@ def test1():
 
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
-    from regreg.seminorm import seminorm, dummy_problem
+    from regreg.container import container
     from regreg.smooth import signal_approximator, smooth_function
 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
@@ -106,14 +107,11 @@ def test1():
     D = sparse.csr_matrix(D)
     fused = l1norm(D, l=19.5)
 
-    pen = seminorm(sparsity,fused)
-    loss = smooth_function(signal_approximator(Y))
-    p = loss.add_seminorm(pen)
-
+    p = container(loss, sparsity, fused)
     
     soln1 = blockwise(pen, Y)
 
-    solver = FISTA(p)
+    solver = FISTA(p.problem())
     solver.fit(max_its=800,tol=1e-10)
     soln2 = solver.problem.coefs
 
@@ -133,14 +131,14 @@ def test2():
 
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
-    from regreg.seminorm import seminorm, dummy_problem
+    from regreg.container import container
     from regreg.smooth import signal_approximator, smooth_function
 
     n1, n2 = l1norm(1), l1norm(1)
-    s=seminorm(n1,n2)
     Y = np.array([30.])
-    l=smooth_function(signal_approximator(Y))
-    blockwise(s, Y,l.add_seminorm(s))
+    l= signal_approximator(Y)
+    p = container(l, n1, n2)
+    blockwise(s, Y, p.problem())
 
 
 if __name__ == "__main__":
