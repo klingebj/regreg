@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import sparse
-from algorithms import FISTA, ISTA
+from algorithms import FISTA
 from problem import dummy_problem
 from atoms import primal_dual_seminorm_pairs
 

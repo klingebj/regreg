@@ -3,7 +3,7 @@ import pylab; pylab.ion()
 from scipy import sparse
 import time
 
-from algorithms import FISTA, ISTA
+from algorithms import FISTA
 from atoms import l1norm, l2norm, nonnegative, positive_part
 from seminorm import seminorm
 from smooth import squaredloss, signal_approximator, logistic_loglikelihood, smooth_function, l2normsq, smoothed_seminorm
