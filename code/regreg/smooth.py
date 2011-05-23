@@ -255,6 +255,7 @@ class logistic_loglikelihood(smooth_atom):
     def __init__(self, linear_operator, binary_response, offset=None, l=1):
         self.affine_transform = affine_transform(linear_operator, offset)
         self.binary_response = binary_response
+        self.primal_shape = self.affine_transform.primal_shape
         self.l = l
 
     def smooth_eval(self, beta, mode='both'):
@@ -273,7 +274,7 @@ class logistic_loglikelihood(smooth_atom):
             return -2 * self.scale((np.dot(self.binary_response,yhat) - np.sum(np.log(1+exp_yhat)))), -2 * self.scale(self.affine_transform.adjoint_map(self.binary_response-ratio))
         elif mode == 'grad':
             ratio = exp_yhat/(1.+exp_yhat)
-            return - 2 * self.scale(self.affine_transform(self.binary_response-ratio))
+            return - 2 * self.scale(self.affine_transform.adjoint_map(self.binary_response-ratio))
         elif mode == 'func':
             return -2 * self.scale(np.dot(self.binary_response,yhat) - np.sum(np.log(1+exp_yhat)))
         else:
