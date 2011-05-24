@@ -25,11 +25,11 @@ class seminorm_atom(object):
 
     @property
     def dual_constraint(self):
-        return primal_dual_constraint_pairs[self.__class__](self.dual_shape, self.l)
+        return primal_dual_constraint_pairs[self.__class__](self.primal_shape, self.l)
 
     @property
     def dual_seminorm(self):
-        return primal_dual_seminorm_pairs[self.__class__](self.dual_shape, 1./self.l)
+        return primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 1./self.l)
 
     def evaluate_seminorm(self, x):
         """
@@ -686,12 +686,11 @@ class affine_atom(seminorm_atom):
 
     @property
     def dual_constraint(self):
-        return primal_dual_constraint_pairs[self.atom.__class__](self.primal_shape, self.l)
+        return primal_dual_constraint_pairs[self.atom.__class__](self.dual_shape, self.l)
 
     @property
     def dual_seminorm(self):
-        return primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, 1./self.l)
-
+        return primal_dual_seminorm_pairs[self.atom.__class__](self.dual_shape, 1./self.l)
 
     def _getl(self):
         return self.atom.l
@@ -721,11 +720,11 @@ class affine_atom(seminorm_atom):
 
         where *p*=x.shape[0], :math:`\lambda` = self.l. 
 
-        This is just self.atom.primal_prox(x - self.affine_offset, L) + self.affine_offset
+        This is just self.atom.primal_prox(x + self.affine_offset, L) + self.affine_offset
         """
-        if self.noneD:
+        if self.affine_transform.linear_operator is None:
             if self.affine_transform.affine_offset is not None:
-                return self.atom.primal_prox(x - self.affine_transform.affine_offset, L) + self.affine_transform.affine_offset
+                return self.atom.primal_prox(x + self.affine_transform.affine_offset, L) - self.affine_transform.affine_offset
             else:
                 return self.atom.primal_prox(x, L)
         else:

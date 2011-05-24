@@ -133,6 +133,7 @@ class affine_atom(smooth_function):
             v = self.sm_atom.smooth_eval(eta, mode='func')
             return v 
 
+
 class smooth_atom(smooth_function):
 
     """

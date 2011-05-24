@@ -156,13 +156,13 @@ class seminorm(object):
         affine_objective = 0
         if mode == 'func':
             for atom, segment in zip(self.atoms, self.dual_segments):
-                affine_objective += atom.affine_objective(v[segment])
+                affine_objective -= atom.affine_objective(v[segment])
             return (residual**2).sum() / 2. + affine_objective
         elif mode == 'both' or mode == 'grad':
             g = np.zeros((), self.dual_dtype)
             for atom, segment in zip(self.atoms, self.dual_segments):
                 g[segment] = -atom.affine_map(residual)
-                affine_objective += atom.affine_objective(v[segment])
+                affine_objective -= atom.affine_objective(v[segment])
             if mode == 'grad':
                 # XXX dtype manipulations -- would be nice not to have to do this
                 return g.reshape((1,)).view(np.float)
