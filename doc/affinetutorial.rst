@@ -81,7 +81,7 @@ Finally, we can create the final problem object, and solve it.
    penalty.atoms[0].l
    solver = FISTA(problem)
    # This problem seems to get stuck restarting
-   _ip.magic("time solver.fit(max_its=200, tol=1e-10)
+   _ip.magic("time solver.fit(max_its=200, tol=1e-10)")
    solution = solver.problem.coefs
 
 Since this problem is a signal approximator, we can also solve
