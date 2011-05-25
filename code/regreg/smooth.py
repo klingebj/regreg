@@ -133,6 +133,7 @@ class affine_atom(smooth_function):
             v = self.sm_atom.smooth_eval(eta, mode='func')
             return v 
 
+
 class smooth_atom(smooth_function):
 
     """
@@ -182,7 +183,9 @@ class smooth_atom(smooth_function):
 def squaredloss(linear_operator, offset, l=1):
     # the affine method gets rid of the need for the squaredloss class
     # as previously written squared loss had a factor of 2
-    return l2normsq.affine(-linear_operator, offset, l=l/2., initial=np.zeros(linear_operator.shape[1]))
+
+    #return l2normsq.affine(-linear_operator, offset, l=l/2., initial=np.zeros(linear_operator.shape[1]))
+    return l2normsq.affine(-linear_operator, offset, l=l/2.)
 
 class l2normsq(smooth_atom):
     """
@@ -266,6 +269,7 @@ class logistic_loglikelihood(smooth_atom):
     def __init__(self, linear_operator, binary_response, offset=None, l=1):
         self.affine_transform = affine_transform(linear_operator, offset)
         self.binary_response = binary_response
+        self.primal_shape = self.affine_transform.primal_shape
         self.l = l
 
     def smooth_eval(self, beta, mode='both'):
@@ -284,7 +288,7 @@ class logistic_loglikelihood(smooth_atom):
             return -2 * self.scale((np.dot(self.binary_response,yhat) - np.sum(np.log(1+exp_yhat)))), -2 * self.scale(self.affine_transform.adjoint_map(self.binary_response-ratio))
         elif mode == 'grad':
             ratio = exp_yhat/(1.+exp_yhat)
-            return - 2 * self.scale(self.affine_transform(self.binary_response-ratio))
+            return - 2 * self.scale(self.affine_transform.adjoint_map(self.binary_response-ratio))
         elif mode == 'func':
             return -2 * self.scale(np.dot(self.binary_response,yhat) - np.sum(np.log(1+exp_yhat)))
         else:

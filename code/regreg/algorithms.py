@@ -85,7 +85,7 @@ class ISTA(algorithm):
 
                     trial_f = self.problem.smooth_eval(beta,mode='func')
 
-                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-15:
+                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-self.problem.coefs,grad) + 0.5*self.inv_step*np.linalg.norm(beta-self.problem.coefs)**2
                     else:
                         trial_grad = self.problem.smooth_eval(beta,mode='grad')
@@ -190,6 +190,7 @@ class FISTA(algorithm):
         current_obj = current_f + self.problem.obj_rough(r)
         
         itercount = 0
+        badstep = 0
         while itercount < max_its:
 
             #Restart every 'restart' iterations
@@ -261,8 +262,16 @@ class FISTA(algorithm):
             if current_obj < trial_obj and obj_rel_change > 1e-12 and current_obj > 1e-12 and monotonicity_restart:
                 #Adaptive restarting: restart if monotonicity violated
                 if self.debug:
-                    print "\tRestarting"
+                    print "\tRestarting", current_obj, trial_obj
+                current_f = self.problem.smooth_eval(self.problem.coefs,mode='func')
+                current_obj = current_f + self.problem.obj_rough(self.problem.coefs)
 
+                if not set_prox_control and t_old == 1.:
+                    #Gradient step didn't decrease objective: tolerance problems or incorrect prox op: time to give up?
+                    badstep += 1
+                    if badstep > 3:
+                        break
+                itercount += 1
                 t_old = 1.
                 r = self.problem.coefs
 

@@ -4,8 +4,8 @@ from scipy import sparse
 
 from regreg.algorithms import FISTA
 from regreg.atoms import positive_part
-from regreg.seminorm import seminorm
-from regreg.smooth import signal_approximator, smooth_function
+from regreg.container import container
+from regreg.smooth import l2normsq
 
 
 n = 100
@@ -13,22 +13,22 @@ Y = np.random.standard_normal(n)
 Y[:-30] += np.arange(n-30) * 0.2
 
 D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
-nisotonic = seminorm(positive_part(-sparse.csr_matrix(D), l=3))
+nisotonic = positive_part.linear(-sparse.csr_matrix(D), l=3)
 
-loss = smooth_function(signal_approximator(Y))
-p = loss.add_seminorm(nisotonic, initial=np.ones(Y.shape)*Y.mean())
-p.L = nisotonic.power_LD()
-solver=FISTA(p)
 
-vals = solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+loss = l2normsq.shift(-Y,l=0.5)
+p = container(loss, nisotonic)
+solver=FISTA(p.problem())
+
+vals = solver.fit(max_its=25000, tol=1e-05)
 soln = solver.problem.coefs.copy()
 
 nisotonic.atoms[0].l = 100.
-solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+solver.fit(max_its=25000, tol=1e-05)
 soln2 = solver.problem.coefs.copy()
 
 nisotonic.atoms[0].l = 1000.
-solver.fit(max_its=25000, tol=1e-05, backtrack=False)
+solver.fit(max_its=25000, tol=1e-05)
 soln3 = solver.problem.coefs.copy()
 
 X = np.arange(n)

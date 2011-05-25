@@ -2,13 +2,16 @@ import numpy as np
 from scipy import sparse
 from algorithms import FISTA, ISTA
 from problem import dummy_problem
+from conjugate import conjugate
 
-class seminorm(object):
+class container(object):
     """
-    A seminorm container class for storing/combining seminorm_atom classes
+    A container class for storing/combining seminorm_atom classes
     """
-    def __init__(self, *atoms):
+    def __init__(self, loss, *atoms):
+        self.loss = loss
         self.atoms = []
+        self.dual_atoms = []
         self.primal_shape = -1
         self.dual_segments = []
         self.dual_shapes = []
@@ -19,6 +22,12 @@ class seminorm(object):
                 if atom.primal_shape != self.primal_shape:
                     raise ValueError("primal dimensions don't agree")
             self.atoms.append(atom)
+            
+            dual_atom = atom.dual_seminorm
+            dual_atom.l = atom.l
+            dual_atom.constraint = np.bitwise_not(atom.constraint)
+            self.dual_atoms.append(dual_atom)
+            
             self.dual_shapes += [atom.dual_shape]
         self.dual_dtype = np.dtype([('dual_%d' % i, np.float, shape) 
                                     for i, shape in enumerate(self.dual_shapes)])
@@ -26,25 +35,34 @@ class seminorm(object):
 
     def __add__(self,y):
         #Combine two seminorms
+        raise NotImplementedError
         def atoms():
             for obj in [self, y]:
                 for atom in obj.atoms:
                     yield atom
-        return seminorm(*atoms())
+        return container(*atoms())
 
-    def evaluate_seminorm(self, x):
-        out = 0.
-        for atom in self.atoms:
-            out += atom.evaluate_seminorm(x)
-        return out
-    
-    def evaluate_dual_constraint(self, u):
+    def evaluate_dual_atoms(self, u):
         out = 0.
         # XXX dtype manipulations -- would be nice not to have to do this
         u = u.view(self.dual_dtype).reshape(())
-        for atom, segment in zip(self.atoms, self.dual_segments):
-            out += atom.evaluate_dual_constraint(u[segment])
+
+        for atom, dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
+            if dual_atom.constraint:
+                out += atom.evaluate_dual_constraint(u[segment])
+            else:
+                out += dual_atom.evaluate_seminorm(u[segment])
         return out
+
+    def evaluate_primal_atoms(self, x):
+        out = 0.
+        for atom, dual_atom in zip(self.atoms, self.dual_atoms):
+            if atom.constraint:
+                out += dual_atom.evaluate_dual_constraint(atom.affine_map(x))
+            else:
+                out += atom.evaluate_seminorm(x)
+        return out
+
     
     def dual_prox(self, u, L_D=1.):
         """
@@ -67,8 +85,11 @@ class seminorm(object):
 
         v = np.empty((), self.dual_dtype)
         u = u.view(self.dual_dtype).reshape(())
-        for atom, segment in zip(self.atoms, self.dual_segments):
-            v[segment] = atom.dual_prox(u[segment], L_D)
+        for atom, dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
+            if atom.constraint:
+                v[segment] = dual_atom.primal_prox(u[segment], L_D)
+            else:
+                v[segment] = atom.dual_prox(u[segment], L_D)
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
@@ -80,8 +101,8 @@ class seminorm(object):
         if not hasattr(self, 'dualopt'):
             self.dualp = self.dual_problem(yL, L_P=L_P)
             #Approximate Lipschitz constant
-            self.dualp.L = 1.1*self.power_LD(debug=debug)
-            self.dualopt = seminorm.default_solver(self.dualp)
+            self.dualp.L = 1.05*self.power_LD(debug=debug)
+            self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = debug
         self._dual_prox_center = yL
         history = self.dualopt.fit(max_its=max_its, min_its=5, tol=tol, backtrack=False)
@@ -90,7 +111,7 @@ class seminorm(object):
         else:
             return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P)
 
-    def power_LD(self,max_its=50,tol=1e-5, debug=False):
+    def power_LD(self,max_its=500,tol=1e-8, debug=False):
         """
         Approximate the Lipschitz constant for the dual problem using power iterations
         """
@@ -138,9 +159,11 @@ class seminorm(object):
             # XXX dtype manipulations -- would be nice not to have to do this
             z = z.reshape((1,)).view(np.float)
             initial = self.dual_prox(z, 1.)
-        nonsmooth = self.evaluate_dual_constraint
+        nonsmooth = self.evaluate_dual_atoms
         prox = self.dual_prox
         return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1.)
+
+
 
     def _dual_smooth_eval(self,v,mode='both'):
 
@@ -156,13 +179,13 @@ class seminorm(object):
         affine_objective = 0
         if mode == 'func':
             for atom, segment in zip(self.atoms, self.dual_segments):
-                affine_objective -= atom.affine_objective(v[segment])
+                affine_objective += atom.affine_objective(v[segment])
             return (residual**2).sum() / 2. + affine_objective
         elif mode == 'both' or mode == 'grad':
             g = np.zeros((), self.dual_dtype)
             for atom, segment in zip(self.atoms, self.dual_segments):
                 g[segment] = -atom.affine_map(residual)
-                affine_objective -= atom.affine_objective(v[segment])
+                affine_objective += atom.affine_objective(v[segment])
             if mode == 'grad':
                 # XXX dtype manipulations -- would be nice not to have to do this
                 return g.reshape((1,)).view(np.float)
@@ -172,16 +195,91 @@ class seminorm(object):
         else:
             raise ValueError("Mode not specified correctly")
 
-    def primal_problem(self, smooth_eval, smooth_multiplier=1., initial=None):
+
+    def conjugate_linear_term(self, u):
+        lterm = 0
+        # XXX dtype manipulations -- would be nice not to have to do this
+        u = u.view(self.dual_dtype).reshape(())
+        for atom, segment in zip(self.atoms, self.dual_segments):
+            lterm += atom.adjoint_map(u[segment])
+        return lterm
+
+    def conjugate_primal_from_dual(self, u):
+        """
+        Calculate the primal coefficients from the dual coefficients
+        """
+        linear_term = self.conjugate_linear_term(-u)
+        return self.conjugate.smooth_eval(linear_term, mode='grad')
+
+
+    def conjugate_smooth_eval(self, u, mode='both'):
+        linear_term = self.conjugate_linear_term(u)
+        # XXX dtype manipulations -- would be nice not to have to do this
+        u = u.view(self.dual_dtype).reshape(())
+        if mode == 'both':
+            v, g = self.conjugate.smooth_eval(-linear_term, mode='both')
+            grad = np.empty((), self.dual_dtype)
+            for atom, segment in zip(self.atoms, self.dual_segments):
+                grad[segment] = -atom.affine_map(g)
+                v -= atom.affine_objective(u[segment])
+            # XXX dtype manipulations -- would be nice not to have to do this
+            return v, grad.reshape((1,)).view(np.float) 
+        elif mode == 'grad':
+            g = self.conjugate.smooth_eval(-linear_term, mode='grad')
+            grad = np.empty((), self.dual_dtype)
+            for atom, segment in zip(self.atoms, self.dual_segments):
+                grad[segment] = -atom.affine_map(g)
+            # XXX dtype manipulations -- would be nice not to have to do this
+            return grad.reshape((1,)).view(np.float) 
+        elif mode == 'func':
+            v = self.conjugate.smooth_eval(-linear_term, mode='func')
+            for atom, segment in zip(self.atoms, self.dual_segments):
+                v -= atom.affine_objective(u[segment])
+            return v
+        else:
+            raise ValueError("mode incorrectly specified")
+
+
+    def conjugate_problem(self, conj=None, initial=None, smooth_multiplier=1.):
+        """
+        Create a problem object for solving the conjugate problem
+        """
+
+        if conj is not None:
+            self.conjugate = conj
+        if not hasattr(self, 'conjugate'):
+            #If the conjugate of the loss function is not provided use the generic solver
+            self.conjugate = conjugate(self.loss)
+
+        prox = self.dual_prox
+        nonsmooth = self.evaluate_dual_atoms
+
+        if initial is None:
+            z = np.zeros((), self.dual_dtype)
+            for segment in self.dual_segments:
+                z[segment] += np.random.standard_normal(z[segment].shape)
+
+            # XXX dtype manipulations -- would be nice not to have to do this
+            z = z.reshape((1,)).view(np.float)
+            initial = self.dual_prox(z, 1.)
+
+        return dummy_problem(self.conjugate_smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
+        
+
+    def problem(self, smooth_multiplier=1., initial=None):
+        """
+        Create a problem object for solving the general problem with the two-loop algorithm
+        """
+
         prox = self.primal_prox
-        nonsmooth = self.evaluate_seminorm
+        nonsmooth = self.evaluate_primal_atoms
         if initial is None:
             initial = np.random.standard_normal(self.primal_shape)
-        if nonsmooth(initial) + smooth_eval(initial,mode='func') == np.inf:
+            initial = initial/np.linalg.norm(initial)
+        if nonsmooth(initial) + self.loss.smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
         
-        return dummy_problem(smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
-
+        return dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
 
 
 

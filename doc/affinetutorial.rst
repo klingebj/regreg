@@ -30,7 +30,8 @@ to change the second seminorm to have this affine offset.
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
    from regreg.seminorm import seminorm
-   from regreg.smooth import signal_approximator, smooth_function
+   from regreg.smooth import l2normsq
+   from regreg.blocks import blockwise
 
 
 Let's generate the same example signal,
@@ -43,9 +44,9 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = smooth_function(signal_approximator(Y))
    alpha = np.linspace(0,10,500)
    Y += alpha
+   loss = l2normsq.shift(-Y.copy(), l=0.5)
 
    shrink_to_alpha = l1norm.shift(alpha, 3.)
 
@@ -80,7 +81,7 @@ Finally, we can create the final problem object, and solve it.
    penalty.atoms[0].l
    solver = FISTA(problem)
    # This problem seems to get stuck restarting
-   _ip.magic("time solver.fit(max_its=200, tol=1e-10, monotonicity_restart=False)")
+   _ip.magic("time solver.fit(max_its=200, tol=1e-10)")
    solution = solver.problem.coefs
 
 Since this problem is a signal approximator, we can also solve
@@ -90,25 +91,15 @@ for this problem
 .. ipython::
 
    from regreg.blocks import blockwise
-   _ip.magic("time block_soln = blockwise(penalty, Y, max_its=500, tol=1.0e-10, min_its=100)")
+   _ip.magic("time block_soln = blockwise([shrink_to_alpha, fused], Y, max_its=500, tol=1.0e-10)")
    np.linalg.norm(block_soln - solution) / np.linalg.norm(solution)
    problem.obj(block_soln), problem.obj(solution)
 
-We can also try smoothing the penalty then follow up the fit
-with a blockwise fit. 
-
-.. ipython::
-
-   from regreg.smooth import smoothed_seminorm
-   smoothed=smooth_function(smoothed_seminorm(penalty, epsilon=0.01), loss)
-   smoothed_solver=FISTA(smoothed)
-   _ip.magic("time smoothed_solver.fit(max_its=200, tol=1e-10)")
-   smoothed_soln = smoothed_solver.problem.coefs
-   _ip.magic("time smoothed_then_block = blockwise(penalty, Y, initial=smoothed_soln, max_its=500, tol=1.0e-07)")
 
 We can then plot solution to see the result of the regression,
 
 .. plot::
+
 
    import numpy as np
    import pylab	
@@ -116,16 +107,15 @@ We can then plot solution to see the result of the regression,
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
    from regreg.seminorm import seminorm
-   from regreg.smooth import signal_approximator, smooth_function, smoothed_seminorm
-   from regreg.problem import dummy_problem
+   from regreg.smooth import l2normsq
    from regreg.blocks import blockwise
 
-   Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-   loss = smooth_function(signal_approximator(Y))
+   Y = np.random.standard_normal(500) ; Y[100:150] += 7; Y[250:300] += 14
    alpha = np.linspace(0,10,500)
    Y += alpha
+   loss = l2normsq.shift(-Y.copy(), l=0.5)
 
-   shrink_to_alpha = l1norm.shift(alpha, 3.)
+   shrink_to_alpha = l1norm.shift(-alpha, 3)
 
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
@@ -136,20 +126,18 @@ We can then plot solution to see the result of the regression,
 
    problem = loss.add_seminorm(penalty)
    solver = FISTA(problem)
-   solver.fit(max_its=200, tol=1.0e-07, monotonicity_restart=False)
+   solver.debug = True
+   solver.fit(max_its=200, tol=1.0e-10)
+
    solution = solver.problem.coefs
-   pylab.plot(solution, c='g', linewidth=4, label=r'$\hat{Y}$')	
+   pylab.clf()
+   pylab.plot(solution, c='g', linewidth=6, label=r'$\hat{Y}$')	
    pylab.plot(alpha, c='black', linewidth=3, label=r'$\alpha$')	
-   pylab.scatter(np.arange(Y.shape[0]), Y, color='red', label=r'$Y$')
-   soln2 = blockwise(penalty, Y, max_its=500, tol=1.0e-10, min_its=100)
-   pylab.plot(soln2, c='purple', linewidth=3, label='blockwise')	
+   pylab.scatter(np.arange(Y.shape[0]), Y, facecolor='red', label=r'$Y$')
+   soln2 = blockwise([shrink_to_alpha, fused], Y, max_its=500, tol=1.0e-10, min_its=20)
+   pylab.plot(soln2, c='yellow', linewidth=2, label='blockwise')	
    pylab.legend()
 
-   smoothed=smooth_function(smoothed_seminorm(penalty, epsilon=0.01), loss)
-   smoothed_solver=FISTA(smoothed)
-   smoothed_solver.fit(max_its=200, tol=1e-10)
-   smoothed_soln = smoothed_solver.problem.coefs
-   smoothed_then_block = blockwise(penalty, Y, initial=smoothed_soln, max_its=500, tol=1.0e-07)
-   pylab.plot(smoothed_then_block, c='gray', linewidth=3, label='smoothed + block')	
+
    pylab.gca().set_xlim([0,650])
    pylab.legend()

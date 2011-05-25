@@ -98,11 +98,14 @@ class affine_transform(object):
         else:
             return 0
 
+        
+
 class identity(object):
 
     def __init__(self, primal_shape):
         self.primal_shape = self.dual_shape = primal_shape
         self.affine_offset = None
+        self.linear_operator = None
 
     def affine_map(self, x, copy=True):
         return self.linear_map(x, copy)

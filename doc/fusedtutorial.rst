@@ -31,10 +31,10 @@ and the RegReg classes necessary for this problem,
 
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
-   from regreg.seminorm import seminorm
+   from regreg.container import container
    from regreg.smooth import signal_approximator, smooth_function
 
-The l1norm class is used to represent the :math:`\ell_1` norm, the signal_approximator class represents the loss function and smooth_function is a container class for combining smooth functions. FISTA is a first-order algorithm and seminorm is a class for combining different seminorm penalties. 
+The l1norm class is used to represent the :math:`\ell_1` norm, the signal_approximator class represents the loss function and smooth_function is a container class for combining smooth functions. FISTA is a first-order algorithm and container is a class for combining different seminorm penalties. 
 
 Next, let's generate an example signal,
 
@@ -80,36 +80,24 @@ Next, we create the fused lasso matrix and the associated l1norm object,
    D = sparse.csr_matrix(D)
    fused = l1norm.linear(D, 25.5)
 
-Here we first created D, converted it a sparse matrix, and then created an l1norm object with the sparse version of D and :math:`\lambda_1 = 25.5`. We can now combine the two l1norm objects using the seminorm container class
+Here we first created D, converted it a sparse matrix, and then created an l1norm object with the sparse version of D and :math:`\lambda_1 = 25.5`. We can now combine the two l1norm objects and the loss function using the  container class
 
 .. ipython::
 
-   penalty = seminorm(sparsity, fused)
+   problem = container(loss, sparsity, fused)
 
-Addition for the seminorm class is overloaded so we could have also used
-
-.. ipython::
-
-   penalty = seminorm(sparsity) + seminorm(fused)
-
-Finally, we can create the final problem object,
-
-.. ipython::
-
-   problem = loss.add_seminorm(penalty)
-
-which has both the loss function and the seminorm represented in it. In particular, we could still easily access the penalty parameter
+We could still easily access the penalty parameter
 
 .. ipython::
    
-   penalty.atoms
-   penalty.atoms[0].l
+   problem.atoms
+   problem.atoms[0].l
 
 Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem)
+   solver = FISTA(problem.problem())
    solver.fit(max_its=100, tol=1e-10)
    solution = solver.problem.coefs
 
@@ -124,7 +112,7 @@ We can then plot solution to see the result of the regression,
    from scipy import sparse
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
-   from regreg.seminorm import seminorm
+   from regreg.container import container
    from regreg.smooth import signal_approximator, smooth_function
 
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
@@ -136,12 +124,11 @@ We can then plot solution to see the result of the regression,
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D = sparse.csr_matrix(D)
    fused = l1norm.linear(D, l=25.5)
-   penalty = seminorm(sparsity, fused)
-   problem = loss.add_seminorm(penalty)
-   solver = FISTA(problem)
+   problem = container(loss, sparsity, fused)
+   solver = FISTA(problem.problem())
    solver.fit(max_its=100, tol=1e-10)
    solution = solver.problem.coefs
-   pylab.plot(solution, c='g')	
+   pylab.plot(solution, c='g', linewidth=3)	
    pylab.scatter(np.arange(Y.shape[0]), Y)
 
 
