@@ -140,9 +140,10 @@ def test1():
     #Create D
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
     D = sparse.csr_matrix(D)
-    fused = l1norm.linear(D, l=19.5)
 
+    fused = l1norm.linear(D, l=19.5)
     loss = l2normsq.shift(-Y, l=0.5)
+
     p = container(loss, sparsity, fused)
     
     soln1 = blockwise([sparsity, fused], Y)
@@ -168,7 +169,7 @@ def test2():
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
     from regreg.container import container
-    from regreg.smooth import signal_approximator
+    from regreg.smooth import l2normsq
 
     n1, n2 = l1norm(1), l1norm(1)
     Y = np.array([30.])
