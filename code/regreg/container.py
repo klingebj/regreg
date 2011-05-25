@@ -4,6 +4,7 @@ from algorithms import FISTA
 from problem import dummy_problem
 from conjugate import conjugate
 
+
 class container(object):
     """
     A container class for storing/combining seminorm_atom classes
@@ -23,9 +24,7 @@ class container(object):
                     raise ValueError("primal dimensions don't agree")
             self.atoms.append(atom)
             
-            dual_atom = atom.dual_seminorm
-            dual_atom.l = atom.l
-            dual_atom.constraint = np.bitwise_not(atom.constraint)
+            dual_atom = atom.dual_atom
             self.dual_atoms.append(dual_atom)
             
             self.dual_shapes += [atom.dual_shape]
@@ -280,6 +279,4 @@ class container(object):
             raise ValueError('initial point is not feasible')
         
         return dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
-
-
 

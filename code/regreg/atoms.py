@@ -22,9 +22,11 @@ class seminorm_atom(object):
         self.atoms = [self]
 
     @property
-    def dual_constraint(self):
-        return primal_dual_constraint_pairs[self.__class__](self.primal_shape, self.l)
-
+    def dual_atom(self):
+        atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, self.l)
+        atom.constraint = not self.constraint
+        return atom
+    
     @property
     def dual_seminorm(self):
         return primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 1./self.l)
@@ -179,10 +181,10 @@ class l1norm(seminorm_atom):
         .. math::
 
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 + \lambda \|Dv\|_1
+            \|x-v\|^2_2 + \lambda \|v\|_1
 
-        where *p*=x.shape[0], :math:`\lambda` = self.l. 
-        If :math:`D=I` this is just soft thresholding
+        where *p*=x.shape[0], :math:`\lambda` = self.l.
+        This is just soft thresholding with an affine shift
 
         .. math::
 
@@ -200,10 +202,10 @@ class l1norm(seminorm_atom):
             v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{\infty} \leq \lambda
 
-        where *m*=u.shape[0], :math:`\lambda` = self.l. 
-        This is just truncation: np.clip(u, -self.l/L, self.l/L).
+        where *m*=u.shape[0], :math:`\lambda` = self.l.
+        This is just truncation: np.clip(u, -self.l/L, self.l/L)
         """
-        return np.clip(u, -self.l, self.l)
+        return np.clip(u, -self.l, self.l) 
 
 class maxnorm(seminorm_atom):
 
@@ -232,11 +234,12 @@ class maxnorm(seminorm_atom):
         .. math::
 
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 + \lambda \|Dv\|_{\infty}
+            \|x-v\|^2_2 + \lambda \|v\|_{\infty}
 
-        where *p*=x.shape[0], :math:`\lambda` = self.l. 
-        If :math:`D=I` this is the residual
-        after projecting onto :math:`\lambda/L` times the :math:`\ell_1` ball
+        where *p*=x.shape[0], :math:`\lambda` = self.l.
+        This is the residual
+        after projecting :math:`x` onto
+        :math:`\lambda/L` times the :math:`\ell_1` ball
 
         .. math::
 
@@ -723,7 +726,7 @@ class affine_atom(seminorm_atom):
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
-    def __init__(self, atom_obj, linear_operator, affine_offset, diag=False, l=1, args=(), keywords={}):
+    def __init__(self, atom_obj, linear_operator, affine_offset, diag=False, l=1, args=(), keywords={}, constraint = False):
         self.affine_transform = affine_transform(linear_operator, affine_offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.dual_shape = self.affine_transform.dual_shape
@@ -733,13 +736,15 @@ class affine_atom(seminorm_atom):
             self.atom = atom_class(self.dual_shape, *args, **keywords)
         else:
             self.atom = atom_obj
-        self.constraint = False
+        self.constraint = constraint
         self.atoms = [self]
         
 
     @property
-    def dual_constraint(self):
-        return primal_dual_constraint_pairs[self.atom.__class__](self.dual_shape, self.l)
+    def dual_atom(self):
+        atom = primal_dual_seminorm_pairs[self.atom.__class__](self.dual_shape, self.l)
+        atom.constraint = not self.constraint
+        return atom
 
     @property
     def dual_seminorm(self):
@@ -781,7 +786,7 @@ class affine_atom(seminorm_atom):
             else:
                 return self.atom.primal_prox(x, L)
         else:
-            raise NotImplementedError('when linear_operator is not None, primal_prox is not implemented')
+            raise NotImplementedError('when linear_operator is not None, primal_prox is not implemented, can be done with FISTA')
 
     def dual_prox(self, u, L=1):
         r"""
@@ -796,81 +801,6 @@ class affine_atom(seminorm_atom):
         This is just truncation: np.clip(u, -self.l/L, self.l/L).
         """
         return self.atom.dual_prox(u, L)
-
-class constraint_atom(object):
-
-    def __init__(self, l, dual_seminorm):
-        self.l = l
-        self.dual_seminorm = dual_seminorm(self.l)
-        self.dual = self.dual_seminorm
-        
-    def evaluate_constraint(self, x):
-        """
-        Abstract method. Evaluate the constraint on the norm of x.
-        """
-        return self.dual_seminorm.evaluate_dual_constraint(x)
-
-    def evaluate_dual_seminorm(self, u):
-        """
-        Abstract method. Evaluate the dual norm of x.
-        """
-        return self.dual_seminorm.evaluate_seminorm(u)
-
-    def primal_prox(self, x, L):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 \ \text{s.t.} \|v\| \leq \lambda
-
-        where *p*=x.shape[0] and :math:`\lambda` = self.l
-        and the norm is the dual of self.evaluate.
-        """
-        return self.dual_seminorm.dual_prox(x, L)
-
-    def dual_prox(self, u, L):
-        r"""
-        Return a minimizer
-
-        .. math::
-
-           v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-           \|u-D'v\|^2_2  + \lambda \|v\|^*
-
-        where *p*=u.shape[0], :math:`\lambda` = self.l and :math:`h^*` is the 
-        conjugate of self.evaluate, i.e. a seminorm.
-        """
-        return self.dual_seminorm.primal_prox(u, L)
-
-    def random_initial(self):
-        """
-        Return a random feasible point for use as an initial condition.
-        """
-        Z = np.random.standard_normal(self.primal_shape)
-        return self.dual_seminorm.dual_prox(Z, 1)
-
-
-
-# XXX are these used anywhere
-
-def box_constraint(l=1):
-    return constraint_atom(l, l1norm)
-
-def l2_constraint(p, l=1):
-    return constraint_atom(l, l2norm)
-
-def negative_constraint(p, l=1):
-    return constraint_atom(l, nonnegative)
-
-def negative_part_constraint(constraint_atom):
-    return constraint_atom(l, positive_part)
-
-primal_dual_constraint_pairs = {l1norm:box_constraint,
-                               l2norm:l2_constraint,
-                               negative_constraint:nonnegative,
-                               negative_part_constraint:positive_part}
 
 primal_dual_seminorm_pairs = {}
 for n1, n2 in [(l1norm,maxnorm),

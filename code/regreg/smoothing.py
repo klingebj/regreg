@@ -1,0 +1,197 @@
+import numpy as np
+from container import container
+
+class smoothed_seminorm(smooth_function):
+
+    def __init__(self, atoms, epsilon=0.1, prox_center=None):
+        """
+        Given a seminorm :math:`h_K(D\beta)`, this
+        class creates a smoothed version
+
+        .. math::
+
+            h_{K,\varepsilon}(D\beta+\alpha) = \sup_{u \in K}u'(D\beta+\alpha) - \frac{\epsilon}{2}
+            \|u-u_0\|^2_2
+
+        The point :math:`u_0` is a prox center around which we wish
+        to smooth the seminorm. It is a set of dual variables.
+        The objective value is given by
+
+        .. math::
+
+           h_{K,\varepsilon}(D\beta+\alpha) = u_0'(D\beta+\alpha) + \frac{1}{2\epsilon} \|D\beta+\alpha\|^2_2- \frac{\epsilon}{2} \|u_0+(D\beta+\alpha)/\epsilon - P_K(u_0+(D\beta+\alpha)/\epsilon)\|^2_2
+
+        and the gradient is given by the maximizer
+
+        .. math::
+
+           \nabla_{\beta} h_{K,\varepsilon}(D\beta+\alpha) = D'P_K(u_0+(D\beta+\alpha)/\epsilon)
+
+        If a seminorm has several atoms, then :math:`D` is a
+        `stacked' version and :math:`K` is a product
+        of corresponding convex sets.
+
+        """
+        self.epsilon = epsilon
+        if not np.all([(atom.constraint == False) for atom in atoms]):
+            raise ValueError('all atoms should be in Lagrange form, i.e. constraint=False')
+        if self.epsilon <= 0:
+            raise ValueError('to smooth, epsilon must be positive')
+        self.primal_shape = atoms[0].primal_shape
+        try:
+            for atom in atoms:
+                assert(atom.primal_shape == self.primal_shape)
+        except:
+            raise ValueError("Atoms have different primal shapes")
+        self.coefs = np.zeros(self.primal_shape)
+        zero_sm = zero(self.primal_shape)
+        self.container = container(zero, *atoms)
+
+        if prox_center is not None:
+            # XXX dtype manipulations -- would be nice not to have to do this
+            self.prox_center = prox_center.view(self.container.dual_dtype).reshape(())
+
+    def smooth_eval(self, beta, mode='both'):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        if mode == 'both':
+            objective, grad = 0, 0
+            for i, atom in enumerate(self.container.atoms):
+                u = atom.affine_map(beta)
+                ueps = u / self.epsilon
+                if self.prox_center is not None:
+                    prox = self.prox_center['dual_%d' % i]
+                    projected_ueps = atom.dual_prox(ueps+prox)
+                    objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(prox+ueps-projected_ueps)**2) + (prox*ueps).sum()
+                else:
+                    projected_ueps = atom.dual_prox(ueps)
+                    objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
+                grad += atom.adjoint_map(projected_ueps)
+            return objective, grad
+        elif mode == 'grad':
+            grad = 0
+            for i, atom in enumerate(self.container.atoms):
+                u = atom.affine_map(beta)
+                ueps = u / self.epsilon
+                if self.prox_center is not None:
+                    prox = self.prox_center['dual_%d' % i]
+                    projected_ueps = atom.dual_prox(ueps+prox)
+                else:
+                    projected_ueps = atom.dual_prox(ueps)
+                grad += atom.adjoint_map(projected_ueps)
+            return grad 
+        elif mode == 'func':
+            objective = 0
+            for i, atom in enumerate(self.container.atoms):
+                u = atom.affine_map(beta)
+                ueps = u / self.epsilon
+                if self.prox_center is not None:
+                    prox = self.prox_center['dual_%d' % i]
+                    projected_ueps = atom.dual_prox(ueps+prox)
+                    objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(prox+ueps-projected_ueps)**2) + (prox*ueps).sum()
+                else:
+                    projected_ueps = atom.dual_prox(ueps)
+                    objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
+            return objective 
+        else:
+            raise ValueError("mode incorrectly specified")
+
+
+class smoothed_constraint(smooth_function):
+
+    def __init__(self, atom, epsilon=0.1, prox_center=None):
+        """
+        Given a constraint :math:`\delta_K(\beta+\alpha)=h_K^*(\beta)`,
+        that is, a possibly atom whose linear_operator is None, and
+        whose offset is :math:`\alpha` this
+        class creates a smoothed version
+
+        .. math::
+
+            \delta_{K,\varepsilon}(\beta+\alpha) = \sup_{u}u'(\beta+\alpha) - \frac{\epsilon}{2} \|u-u_0\|^2_2 - h_K(u)
+
+        The objective value is given by
+
+        .. math::
+
+           \delta_{K,\varepsilon}(\beta) = \beta'u_0 + \frac{1}{2\epsilon} \|\beta\|^2_2- \frac{\epsilon}{2} \left(\|P_K(u_0+(\beta+\alpha)/\epsilon)\|^2_2 + h_K\left(u_0+(\beta+\alpha)/\epsilon - P_K(u_0+(\beta+\alpha)/\epsilon)\right)
+
+        and the gradient is given by the maximizer above
+
+        .. math::
+
+           \nabla_{\beta} \delta_{K,\varepsilon}(\beta+\alpha) = u_0+(\beta+\alpha)/\epsilon - P_K(u_0+(\beta+\alpha)/\epsilon)
+
+        If a seminorm has several atoms, then :math:`D` is a
+        `stacked' version and :math:`K` is a product
+        of corresponding convex sets.
+
+        """
+        self.epsilon = epsilon
+        if not atom.constraint == True:
+            raise ValueError('atom should be in constraint form, i.e. constraint=True')
+        if self.epsilon <= 0:
+            raise ValueError('to smooth, epsilon must be positive')
+        self.primal_shape = atom.primal_shape
+        self.coefs = np.zeros(self.primal_shape)
+        zero_sm = zero(self.primal_shape)
+        self.container = container(zero, atom)
+
+        if prox_center is not None:
+            # XXX dtype manipulations -- would be nice not to have to do this
+            self.prox_center = prox_center.view(self.container.dual_dtype).reshape(())
+
+    def smooth_eval(self, beta, mode='both'):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        if mode == 'both':
+            objective, grad = 0, 0
+
+            u = atom.affine_map(beta)
+            ueps = u / self.epsilon
+            if self.prox_center is not None:
+                prox = self.prox_center['dual_0']
+                projected_ueps = atom.dual_prox(ueps+prox)
+                grad = prox+ueps-atom.adjoint_map(projected_ueps)
+            else:
+                projected_ueps = atom.dual_prox(ueps)
+                grad = ueps-atom.adjoint_map(projected_ueps)
+            objective = self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
+            return objective, grad
+        elif mode == 'grad':
+            grad = 0
+            u = atom.affine_map(beta)
+            ueps = u / self.epsilon
+            if self.prox_center is not None:
+                prox = self.prox_center['dual_0']
+                projected_ueps = atom.dual_prox(ueps+prox)
+                grad = ueps+prox-atom.adjoint_map(projected_ueps)
+            else:
+                projected_ueps = atom.dual_prox(ueps)
+                grad = ueps-atom.adjoint_map(projected_ueps)
+            return grad 
+        elif mode == 'func':
+            objective = 0
+            u = atom.affine_map(beta)
+            ueps = u / self.epsilon
+            if self.prox_center is not None:
+                prox = self.prox_center['dual_0']
+                projected_ueps = atom.dual_prox(ueps+prox)
+            else:
+                projected_ueps = atom.dual_prox(ueps)
+            objective = self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(projected_ueps)**2) + (prox*ueps).sum()
+            return objective 
+        else:
+            raise ValueError("mode incorrectly specified")
