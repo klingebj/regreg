@@ -1,5 +1,5 @@
 """
-A package to solve separable convex optimization problems, based on 
+RegReg: A package to solve regularized regression problems
 """
 
 import os, sys

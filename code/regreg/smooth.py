@@ -297,7 +297,7 @@ class logistic_loglikelihood(smooth_atom):
 
 class smoothed_seminorm(smooth_function):
 
-    def __init__(self, semi, epsilon=0.01):
+    def __init__(self, *atoms, **keywords):
 
 
         """
@@ -326,11 +326,19 @@ class smoothed_seminorm(smooth_function):
         of corresponding convex sets.
 
         """
-        self.seminorm = semi
-        self.epsilon = epsilon
-        if epsilon <= 0:
+        self.atoms = atoms
+        if 'epsilon' in keywords:
+            self.epsilon = keywords['epsilon']
+        else:
+            self.epsilon = 0.1
+        if self.epsilon <= 0:
             raise ValueError('to smooth, epsilon must be positive')
-        self.primal_shape = semi.primal_shape
+        self.primal_shape = atoms[0].primal_shape
+        try:
+            for atom in atoms:
+                assert(atom.primal_shape == self.primal_shape)
+        except:
+            raise ValueError("Atoms have different primal shapes")
         self.coefs = np.zeros(self.primal_shape)
 
     def smooth_eval(self, beta, mode='both'):
@@ -344,7 +352,7 @@ class smoothed_seminorm(smooth_function):
 
         if mode == 'both':
             objective, grad = 0, 0
-            for atom in self.seminorm.atoms:
+            for atom in self.atoms:
                 u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
@@ -353,7 +361,7 @@ class smoothed_seminorm(smooth_function):
             return objective, grad
         elif mode == 'grad':
             grad = 0
-            for atom in self.seminorm.atoms:
+            for atom in self.atoms:
                 u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)
@@ -361,7 +369,7 @@ class smoothed_seminorm(smooth_function):
             return grad 
         elif mode == 'func':
             objective = 0
-            for atom in self.seminorm.atoms:
+            for atom in self.atoms:
                 u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 projected_ueps = atom.dual_prox(ueps)

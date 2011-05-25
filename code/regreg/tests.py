@@ -2,7 +2,7 @@ import numpy as np
 from scipy import sparse
 import time
 
-from algorithms import FISTA, ISTA
+from algorithms import FISTA
 from old_framework.lasso import lasso
         
 import pylab
