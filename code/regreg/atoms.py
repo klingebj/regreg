@@ -719,13 +719,21 @@ class affine_atom(seminorm_atom):
     
     """
 
-    def __init__(self, atom_class, linear_operator, affine_offset, diag=False, l=1, args=(), keywords={}):
+   # if smooth_obj is a class, an object is created
+    # smooth_obj(*args, **keywords)
+    # else, it is assumed to be an instance of smooth_function
+ 
+    def __init__(self, atom_obj, linear_operator, affine_offset, diag=False, l=1, args=(), keywords={}):
         self.affine_transform = affine_transform(linear_operator, affine_offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.dual_shape = self.affine_transform.dual_shape
         keywords = keywords.copy(); keywords['l'] = l
-        self.atom = atom_class(self.dual_shape, *args, **keywords)
-        self.constraint=False
+        if type(atom_obj) == type(type): # it is a class
+            atom_class = atom_obj
+            self.atom = atom_class(self.dual_shape, *args, **keywords)
+        else:
+            self.atom = atom_obj
+        self.constraint = False
         self.atoms = [self]
         
 

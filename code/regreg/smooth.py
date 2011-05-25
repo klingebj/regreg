@@ -104,12 +104,20 @@ class smooth_function(object):
 
 class affine_atom(smooth_function):
 
-    def __init__(self, smooth_class, linear_operator=None, offset=None, diag=False, l=1, args=(), keywords={}):
+    # if smooth_obj is a class, an object is created
+    # smooth_obj(*args, **keywords)
+    # else, it is assumed to be an instance of smooth_function
+ 
+    def __init__(self, smooth_obj, linear_operator=None, offset=None, diag=False, l=1, args=(), keywords={}):
         self.affine_transform = affine_transform(linear_operator, offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
         keywords = keywords.copy(); keywords['l'] = l
-        self.sm_atom = smooth_class(self.primal_shape, *args, **keywords)
+        if type(smooth_obj) == type(type): # a class object
+            smooth_class = smooth_obj
+            self.sm_atom = smooth_class(self.primal_shape, *args, **keywords)
+        else:
+            self.sm_atom = smooth_obj
         self.atoms = [self]
 
     def _getl(self):
