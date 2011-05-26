@@ -133,9 +133,6 @@ class ISTA(algorithm):
         return objective_hist[:itercount]
 
 
-
-
-
 class FISTA(algorithm):
 
     """
@@ -146,11 +143,13 @@ class FISTA(algorithm):
             max_its=10000,
             min_its=5,
             tol=1e-5,
+            FISTA=True,
             backtrack=True,
             alpha=1.1,
             start_inv_step=1.,
             restart=np.inf,
             coef_stop=False,
+            return_objective_hist = True,
             prox_tol = None,
             prox_max_its = None,
             prox_debug = None,
@@ -255,9 +254,14 @@ class FISTA(algorithm):
                         self.problem.coefs = beta
                         break
 
-            t_new = 0.5 * (1 + np.sqrt(1+4*(t_old**2)))
-            r = beta + ((t_old-1)/(t_new)) * (beta - self.problem.coefs)
-
+            if FISTA:
+                #Use Nesterov weights
+                t_new = 0.5 * (1 + np.sqrt(1+4*(t_old**2)))
+                r = beta + ((t_old-1)/(t_new)) * (beta - self.problem.coefs)
+            else:
+                #Just do ISTA
+                t_new = 1.
+                r = beta
 
             if current_obj < trial_obj and obj_rel_change > 1e-12 and current_obj > 1e-12 and monotonicity_restart:
                 #Adaptive restarting: restart if monotonicity violated
@@ -267,7 +271,7 @@ class FISTA(algorithm):
                 current_obj = current_f + self.problem.obj_rough(self.problem.coefs)
 
                 if not set_prox_control and t_old == 1.:
-                    #Gradient step didn't decrease objective: tolerance problems or incorrect prox op: time to give up?
+                    #Gradient step didn't decrease objective: tolerance problems or incorrect prox op... time to give up?
                     badstep += 1
                     if badstep > 3:
                         break
@@ -283,6 +287,7 @@ class FISTA(algorithm):
 
         if self.debug:
             print "FISTA used", itercount, "iterations"
-        return objective_hist[:itercount]
+        if return_objective_hist:
+            return objective_hist[:itercount]
 
 

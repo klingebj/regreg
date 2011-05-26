@@ -1,5 +1,6 @@
 import numpy as np
-import seminorm, smooth, algorithms
+import container, smooth, algorithms
+from problem import dummy_problem
 import pylab
 
 class Block(object):
@@ -12,6 +13,12 @@ class Block(object):
     .. math::
 
        \beta \mapsto D\beta + \alpha
+
+    and a support function. The canonical example, the :math:`\ell_1` norm,
+    is the support function of the :math:`\ell_{\infty}` ball.
+
+    If it's in Lagrange mode, the Block solves the following
+    dual problem.
 
     and a support function. The canonical example, the :math:`\ell_1` norm,
     is the support function of the :math:`\ell_{\infty}` ball.
@@ -65,7 +72,7 @@ class Block(object):
         if nonsmooth(initial) == np.inf:
             raise ValueError('initial point is not feasible')
         
-        self.problem = seminorm.dummy_problem(self.objective.smooth_eval, nonsmooth, prox, initial)
+        self.problem = dummy_problem(self.objective.smooth_eval, nonsmooth, prox, initial)
 
     def fit(self, *solver_args, **solver_kw):
         if not hasattr(self, '_solver'):
@@ -130,7 +137,7 @@ def test1():
 
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
-    from regreg.seminorm import seminorm, dummy_problem
+    from regreg.container import container
     from regreg.smooth import l2normsq
 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
@@ -139,15 +146,15 @@ def test1():
     #Create D
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
     D = sparse.csr_matrix(D)
-    fused = l1norm.linear(D, l=19.5)
 
-    pen = seminorm(sparsity,fused)
+    fused = l1norm.linear(D, l=19.5)
     loss = l2normsq.shift(-Y, l=0.5)
-    p = loss.add_seminorm(pen)
+
+    p = container(loss, sparsity, fused)
     
     soln1 = blockwise([sparsity, fused], Y)
 
-    solver = FISTA(p)
+    solver = FISTA(p.problem())
     solver.fit(max_its=800,tol=1e-10)
     soln2 = solver.problem.coefs
 
@@ -167,11 +174,10 @@ def test2():
 
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
-    from regreg.seminorm import seminorm, dummy_problem
-    from regreg.smooth import signal_approximator
+    from regreg.container import container
+    from regreg.smooth import l2normsq
 
     n1, n2 = l1norm(1), l1norm(1)
-    s=seminorm(n1,n2)
     Y = np.array([30.])
     loss = l2normsq.shift(-Y, l=0.5)
     blockwise([n1, n2], Y)

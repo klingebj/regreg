@@ -8,6 +8,7 @@ class smooth_function(object):
     A container class for smooth_atom classes
     """
 
+    # TODO? use a list for atoms instead of *atoms?
     def __init__(self, *atoms, **keywords):
         if not set(keywords.keys()).issubset(['l']):
             warnings.warn('only keyword argument should be multiplier, "l", got %s' % `keywords`)
@@ -104,12 +105,20 @@ class smooth_function(object):
 
 class affine_atom(smooth_function):
 
-    def __init__(self, smooth_class, linear_operator=None, offset=None, diag=False, l=1, args=(), keywords={}):
+    # if smooth_obj is a class, an object is created
+    # smooth_obj(*args, **keywords)
+    # else, it is assumed to be an instance of smooth_function
+ 
+    def __init__(self, smooth_obj, linear_operator=None, offset=None, diag=False, l=1, args=(), keywords={}):
         self.affine_transform = affine_transform(linear_operator, offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
         keywords = keywords.copy(); keywords['l'] = l
-        self.sm_atom = smooth_class(self.primal_shape, *args, **keywords)
+        if type(smooth_obj) == type(type): # a class object
+            smooth_class = smooth_obj
+            self.sm_atom = smooth_class(self.primal_shape, *args, **keywords)
+        else:
+            self.sm_atom = smooth_obj
         self.atoms = [self]
 
     def _getl(self):
@@ -294,44 +303,10 @@ class logistic_loglikelihood(smooth_atom):
         else:
             raise ValueError("mode incorrectly specified")
 
+class zero(smooth_function):
 
-class smoothed_seminorm(smooth_function):
-
-    def __init__(self, semi, epsilon=0.01):
-
-
-        """
-        Given a seminorm :math:`h_K(D\beta)`, this
-        class creates a smoothed version
-
-        .. math::
-
-            h_{K,\varepsilon}(D\beta+\alpha) = \sup_{u \in K}u'(D\beta+\alpha) - \frac{\epsilon}{2}
-            \|u\|^2_2
-
-        The objective value is given by
-
-        .. math::
-
-           h_{K,\varepsilon}(D\beta) = \frac{1}{2\epsilon} \|D\beta+\alpha\|^2_2- \frac{\epsilon}{2} \|(D\beta+\alpha)/\epsilon - P_K((D\beta+\alpha)/\epsilon)\|^2_2
-
-        and the gradient is given by
-
-        .. math::
-
-           \nabla_{\beta} h_{K,\varepsilon}(D\beta+\alpha) = D'P_K((D\beta+\alpha)/\epsilon)
-
-        If a seminorm has several atoms, then :math:`D` is a
-        `stacked' version and :math:`K` is a product
-        of corresponding convex sets.
-
-        """
-        self.seminorm = semi
-        self.epsilon = epsilon
-        if epsilon <= 0:
-            raise ValueError('to smooth, epsilon must be positive')
-        self.primal_shape = semi.primal_shape
-        self.coefs = np.zeros(self.primal_shape)
+    def __init__(self, primal_shape):
+        self.primal_shape = primal_shape
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -341,32 +316,14 @@ class smoothed_seminorm(smooth_function):
         if mode == 'grad', return only the gradient
         if mode == 'func', return only the function value
         """
-
+        
         if mode == 'both':
-            objective, grad = 0, 0
-            for atom in self.seminorm.atoms:
-                u = atom.affine_map(beta)
-                ueps = u / self.epsilon
-                projected_ueps = atom.dual_prox(ueps)
-                objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
-                grad += atom.adjoint_map(projected_ueps)
-            return objective, grad
+            return 0, 0*beta
         elif mode == 'grad':
-            grad = 0
-            for atom in self.seminorm.atoms:
-                u = atom.affine_map(beta)
-                ueps = u / self.epsilon
-                projected_ueps = atom.dual_prox(ueps)
-                grad += atom.adjoint_map(projected_ueps)
-            return grad 
+            return 0*beta
         elif mode == 'func':
-            objective = 0
-            for atom in self.seminorm.atoms:
-                u = atom.affine_map(beta)
-                ueps = u / self.epsilon
-                projected_ueps = atom.dual_prox(ueps)
-                objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
-            return objective 
+            return 0
         else:
             raise ValueError("mode incorrectly specified")
+
 

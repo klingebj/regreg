@@ -15,6 +15,7 @@ RegReg depends on the following Python tools
 
 You can clone the RegReg github repo using::
 
+
      git clone git://github.com/klingebj/regreg.git
 
 Then installation is a simple call to python::

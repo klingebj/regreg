@@ -1,8 +1,9 @@
 import numpy as np
 from scipy import sparse
-from algorithms import FISTA, ISTA
+from algorithms import FISTA
 from problem import dummy_problem
 from conjugate import conjugate
+
 
 class container(object):
     """
@@ -23,9 +24,7 @@ class container(object):
                     raise ValueError("primal dimensions don't agree")
             self.atoms.append(atom)
             
-            dual_atom = atom.dual_seminorm
-            dual_atom.l = atom.l
-            dual_atom.constraint = np.bitwise_not(atom.constraint)
+            dual_atom = atom.dual_atom
             self.dual_atoms.append(dual_atom)
             
             self.dual_shapes += [atom.dual_shape]
@@ -179,13 +178,13 @@ class container(object):
         affine_objective = 0
         if mode == 'func':
             for atom, segment in zip(self.atoms, self.dual_segments):
-                affine_objective += atom.affine_objective(v[segment])
+                affine_objective -= atom.affine_objective(v[segment])
             return (residual**2).sum() / 2. + affine_objective
         elif mode == 'both' or mode == 'grad':
             g = np.zeros((), self.dual_dtype)
             for atom, segment in zip(self.atoms, self.dual_segments):
                 g[segment] = -atom.affine_map(residual)
-                affine_objective += atom.affine_objective(v[segment])
+                affine_objective -= atom.affine_objective(v[segment])
             if mode == 'grad':
                 # XXX dtype manipulations -- would be nice not to have to do this
                 return g.reshape((1,)).view(np.float)
@@ -280,6 +279,4 @@ class container(object):
             raise ValueError('initial point is not feasible')
         
         return dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
-
-
 

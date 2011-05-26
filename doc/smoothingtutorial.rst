@@ -28,8 +28,8 @@ we will skip some comments.
 
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
-   from regreg.seminorm import seminorm
-   from regreg.smooth import signal_approximator, smooth_function
+   from regreg.container import container
+   from regreg.smooth import smooth_function, l2normsq
 
    # generate the data
 
@@ -39,7 +39,7 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = signal_approximator(Y)
+   loss = l2normsq.shift(-Y,l=1)
    sparsity = l1norm(len(Y), 1.8)
 
    # fused
@@ -48,16 +48,14 @@ Now we can create the problem object, beginning with the loss function
    D = sparse.csr_matrix(D)
    fused = l1norm.linear(D, 25.5)
 
-   # the penalty object
-   penalty = seminorm(sparsity, fused)
 
 The penalty can be smoothed to create a 
 smooth_function object which can be solved with FISTA.
 
 .. ipython::
 
-   from regreg.smooth import smoothed_seminorm
-   smoothed_penalty = smoothed_seminorm(penalty, epsilon=0.01)
+   from regreg.smoothing import smoothed_seminorm
+   smoothed_penalty = smoothed_seminorm([sparsity, fused], epsilon=0.01)
 
 The smoothing is defined as (Yosida regularization?)
 
@@ -101,14 +99,15 @@ We can then plot solution to see the result of the regression,
 
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
-   from regreg.seminorm import seminorm
-   from regreg.smooth import signal_approximator, smooth_function, smoothed_seminorm
+   from regreg.container import container
+   from regreg.smooth import smooth_function, l2normsq
+   from regreg.smoothing import smoothed_seminorm
 
    # generate the data
 
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
-   loss = signal_approximator(Y)
+   loss = l2normsq.shift(-Y, l=1)
    sparsity = l1norm(len(Y), 1.8)
 
    # fused
@@ -117,10 +116,8 @@ We can then plot solution to see the result of the regression,
    D = sparse.csr_matrix(D)
    fused = l1norm.linear(D, 25.5)
 
-   # the penalty object
-   penalty = seminorm(sparsity, fused)
 
-   smoothed_penalty = smoothed_seminorm(penalty, epsilon=0.01)
+   smoothed_penalty = smoothed_seminorm([sparsity, fused], epsilon=0.01)
    problem = smooth_function(loss, smoothed_penalty)
    solver = FISTA(problem)
    solns = [solver.problem.coefs.copy()]

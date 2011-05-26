@@ -22,6 +22,10 @@ RegReg tutorials
 
   * Illustrates solving seminorm constrained problems.
 
+* :ref:`mixedtutorial`
+
+  * Illustrates solving a problem with a seminorm in both the objective and constraint
+
 * Logistic regression tutorials
 
   * :ref:`logisticl2tutorial`
