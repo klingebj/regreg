@@ -20,10 +20,10 @@ and the RegReg classes necessary for this problem,
 
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
-   from regreg.seminorm import seminorm
+   from regreg.container import container
    from regreg.smooth import squaredloss, smooth_function, l2normsq
 
-The l2normsq class is used to represent the :math:`\ell_2` squared norm, the l1norm class is used to represent the :math:`\ell_1` norm and thesquaredloss class represents the loss function. The classes seminorm and smooth_function are containers for combining functions. FISTA is a first-order algorithm and seminorm is a class for combining different seminorm penalties. 
+The l2normsq class is used to represent the :math:`\ell_2` squared norm, the l1norm class is used to represent the :math:`\ell_1` norm and thesquaredloss class represents the loss function. The classes container and smooth_function are containers for combining functions. FISTA is a first-order algorithm and container is a class for combining different seminorm penalties with a loss function.
 
 [TODO: Add some real or more interesting data.]
 
@@ -56,7 +56,7 @@ Now we can create the final problem object by comining the smooth functions and 
 
 .. ipython::
 
-   problem = smooth_function(loss, grouping).add_seminorm(seminorm(sparsity))
+   problem = container(smooth_function(loss, grouping), sparsity)
 
 The penalty parameters can still be changed by accessing grouping and sparsity directly.
 
@@ -64,7 +64,7 @@ Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem)
+   solver = FISTA(problem.problem())
    obj_vals = solver.fit(max_its=100, tol=1e-5)
    solution = solver.problem.coefs
 
