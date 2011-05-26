@@ -46,11 +46,12 @@ class smoothed_seminorm(smooth_function):
             raise ValueError("Atoms have different primal shapes")
         self.coefs = np.zeros(self.primal_shape)
         zero_sm = zero(self.primal_shape)
-        self.container = container(zero, *atoms)
+        self.dual_dtype = container(zero, *atoms).dual_dtype
+        self.atoms = atoms
 
         if prox_center is not None:
             # XXX dtype manipulations -- would be nice not to have to do this
-            self.prox_center = prox_center.view(self.container.dual_dtype).reshape(())
+            self.prox_center = prox_center.view(self.dual_dtype).reshape(())
         else:
             self.prox_center = None
 
@@ -66,42 +67,43 @@ class smoothed_seminorm(smooth_function):
 
         if mode == 'both':
             objective, grad = 0, 0
-            for i, atom in enumerate(self.container.atoms):
+            for i, atoms in enumerate(self.atoms):
+                atom, dual_atom = atoms
                 u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 if self.prox_center is not None:
                     prox = self.prox_center['dual_%d' % i]
-                    projected_ueps = atom.dual_prox(ueps+prox)
-                    objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(prox+ueps-projected_ueps)**2) + (prox*ueps).sum()
+                    argmin, optimal_value = atom.dual_prox_optimum(prox+ueps, self.epsilon)                    
+                    objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*ueps).sum()
                 else:
-                    projected_ueps = atom.dual_prox(ueps)
-                    objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
-                grad += atom.adjoint_map(projected_ueps)
+                    argmin, optimal_value = atom.dual_prox_optimum(ueps, self.epsilon)                    
+                    objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value
+                grad += atom.adjoint_map(argmin)
             return objective, grad
         elif mode == 'grad':
             grad = 0
-            for i, atom in enumerate(self.container.atoms):
+            for i, atom in enumerate(self.atoms):
                 u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 if self.prox_center is not None:
                     prox = self.prox_center['dual_%d' % i]
-                    projected_ueps = atom.dual_prox(ueps+prox)
+                    argmin = atom.dual_prox(prox+ueps, self.epsilon)         
                 else:
-                    projected_ueps = atom.dual_prox(ueps)
-                grad += atom.adjoint_map(projected_ueps)
+                    argmin = atom.dual_prox(ueps, self.epsilon)             
+                grad += atom.adjoint_map(argmin)
             return grad 
         elif mode == 'func':
             objective = 0
-            for i, atom in enumerate(self.container.atoms):
+            for i, atom in enumerate(self.atoms):
                 u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 if self.prox_center is not None:
                     prox = self.prox_center['dual_%d' % i]
-                    projected_ueps = atom.dual_prox(ueps+prox)
-                    objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(prox+ueps-projected_ueps)**2) + (prox*ueps).sum()
+                    _, optimal_value = atom.dual_prox_optimum(prox+ueps, self.epsilon)                    
+                    objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*ueps).sum()
                 else:
-                    projected_ueps = atom.dual_prox(ueps)
-                    objective += self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
+                    _, optimal_value = atom.dual_prox_optimum(ueps, self.epsilon)                    
+                    objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value
             return objective 
         else:
             raise ValueError("mode incorrectly specified")
@@ -145,11 +147,13 @@ class smoothed_constraint(smooth_function):
         self.primal_shape = atom.primal_shape
         self.coefs = np.zeros(self.primal_shape)
         zero_sm = zero(self.primal_shape)
-        self.container = container(zero, atom)
+        self.dual_dtype = container(zero, atom).dual_dtype
+        self.atom = atom
+        self.dual_atom = atom.dual_atom
 
         if prox_center is not None:
             # XXX dtype manipulations -- would be nice not to have to do this
-            self.prox_center = prox_center.view(self.container.dual_dtype).reshape(())
+            self.prox_center = prox_center.view(self.dual_dtype).reshape(())
         else:
             self.prox_center = None
 
@@ -162,7 +166,7 @@ class smoothed_constraint(smooth_function):
         if mode == 'func', return only the function value
         """
 
-        atom = self.container.atoms[0]
+        atom, dual_atom = self.atom, self.dual_atom
         if self.prox_center is not None:
             prox = self.prox_center['dual_0']
         else:
@@ -171,37 +175,33 @@ class smoothed_constraint(smooth_function):
             u = atom.affine_map(beta)
             ueps = u / self.epsilon
             if prox is not None:
-                projected_ueps = atom.dual_prox(ueps+prox)
-                grad = prox+ueps-atom.adjoint_map(projected_ueps)
-                objective = self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(projected_ueps)**2) + (prox*ueps).sum()
+                argmin, optimal_value = dual_atom.primal_prox_optimum(prox+ueps, self.epsilon)                    
+                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*ueps).sum()
             else:
-                projected_ueps = atom.dual_prox(ueps)
-                grad = ueps-atom.adjoint_map(projected_ueps)
-                objective = self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(projected_ueps)**2)
+                argmin, optimal_value = dual_atom.primal_prox_optimum(ueps, self.epsilon)                    
+                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value
+            grad = atom.adjoint_map(argmin)
             return objective, grad
         elif mode == 'grad':
             grad = 0
             u = atom.affine_map(beta)
             ueps = u / self.epsilon
             if prox is not None:
-                prox = self.prox_center['dual_0']
-                projected_ueps = atom.dual_prox(ueps+prox)
-                grad = ueps+prox-atom.adjoint_map(projected_ueps)
+                argmin = dual_atom.primal_prox(ueps+prox, self.epsilon)     
             else:
-                projected_ueps = atom.dual_prox(ueps)
-                grad = ueps-atom.adjoint_map(projected_ueps)
+                argmin = dual_atom.primal_prox(ueps, self.epsilon)         
+            grad = atom.adjoint_map(argmin)
             return grad 
         elif mode == 'func':
             objective = 0
             u = atom.affine_map(beta)
             ueps = u / self.epsilon
             if prox is not None:
-                prox = self.prox_center['dual_0']
-                projected_ueps = atom.dual_prox(ueps+prox)
-                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - atom.primal_prox_optimum(ueps+prox, self.epsilon) + (prox*ueps).sum()
+                _, optimal_value = dual_atom.primal_prox_optimum(ueps+prox, self.epsilon)                    
+                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*ueps).sum()
             else:
-                projected_ueps = atom.dual_prox(ueps)
-                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - atom.primal_prox_optimum(ueps, self.epsilon)
+                _, optimal_value = dual_atom.primal_prox_optimum(ueps, self.epsilon)                    
+                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value
             return objective 
         else:
             raise ValueError("mode incorrectly specified")

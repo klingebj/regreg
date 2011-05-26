@@ -70,7 +70,7 @@ class seminorm_atom(object):
 
         """
         argmin = self.primal_prox(x, L)
-        return L * np.linalg.norm(x-argmin)**2 / 2. + self.evaluate_seminorm(argmin)
+        return argmin, L * np.linalg.norm(x-argmin)**2 / 2. + self.evaluate_seminorm(argmin)
     
     def dual_prox(self, u, L):
         r"""
@@ -100,7 +100,7 @@ class seminorm_atom(object):
 
         """
         argmin = self.dual_prox(x, L)
-        return L * np.linalg.norm(x-argmin)**2 / 2.
+        return argmin, L * np.linalg.norm(x-argmin)**2 / 2.
     
 
     def affine_objective(self, u):
