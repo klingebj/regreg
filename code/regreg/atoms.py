@@ -50,25 +50,58 @@ class seminorm_atom(object):
         .. math::
 
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(Dv)
+           \|x-v\|^2_2 + \lambda h(v)
 
         where *p*=x.shape[0] and :math:`h(v)` = self.evaluate_seminorm(v).
         """
         raise NotImplementedError
 
+
+    def primal_prox_optimum(self, x, L):
+        """
+        Returns
+        
+        .. math::
+
+           \inf_{v \in \mathbb{R}^p} \frac{L}{2}
+           \|x-v\|^2_2 + \lambda h(v)
+
+        where *p*=x.shape[0] and :math:`h(v)` = self.evaluate_seminorm(v).
+
+        """
+        argmin = self.primal_prox(x, L)
+        return L * np.linalg.norm(x-argmin)**2 / 2. + self.evaluate_seminorm(argmin)
+    
     def dual_prox(self, u, L):
         r"""
-        Return a minimizer
+        Return unique minimizer
 
         .. math::
 
            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-           \|u-D'v\|^2_2  \ \text{s.t.} \   h^*(v) \leq \lambda
+           \|u-'v\|^2_2  \ \text{s.t.} \   h^*(v) \leq \lambda
 
         where *m*=u.shape[0] and :math:`h^*` is the 
-        conjugate of self.evaluate.
+        conjugate of self.evaluate_seminorm.
         """
         raise NotImplementedError
+
+    def dual_prox_optimum(self, x, L):
+        """
+        Returns
+        
+        .. math::
+
+           \inf_{v \in \mathbb{R}^p} \frac{L}{2}
+           \|x-v\|^2_2 \ \text{s.t.} \   h^*(v) \leq \lambda
+
+        where *m*=u.shape[0] and :math:`h^*` is the 
+        conjugate of self.evaluate_seminorm and :math:`\lambda` = self.l.
+
+        """
+        argmin = self.dual_prox(x, L)
+        return L * np.linalg.norm(x-argmin)**2 / 2.
+    
 
     def affine_objective(self, u):
         """
@@ -216,7 +249,7 @@ class maxnorm(seminorm_atom):
     tol = 1.0e-06
     def evaluate_seminorm(self, x):
         """
-        The l-infinity norm of Dx.
+        The l-infinity norm of x.
         """
         return self.l * np.fabs(x).max()
 
@@ -304,7 +337,7 @@ class l2norm(seminorm_atom):
     
     def evaluate_seminorm(self, x):
         """
-        The L2 norm of Dx.
+        The L2 norm of x.
         """
         return self.l * np.linalg.norm(x)
 
@@ -322,10 +355,9 @@ class l2norm(seminorm_atom):
         .. math::
 
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 + \lambda \|Dv\|_2
+            \|x-v\|^2_2 + \lambda \|v\|_2
 
         where *p*=x.shape[0], :math:`\lambda` = self.l. 
-        If :math:`D=I` this is just a "James-Stein" estimator
 
         .. math::
 
@@ -370,7 +402,7 @@ class nonnegative(seminorm_atom):
     
     def evaluate_seminorm(self, x):
         """
-        The non-negative constraint of Dx.
+        The non-negative constraint of x.
         """
         tol_lim = np.fabs(x).max() * self.tol
         incone = np.all(np.greater_equal(x, -tol_lim))
@@ -396,7 +428,7 @@ class nonnegative(seminorm_atom):
         .. math::
 
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  (Dv)_i \geq 0.
+            \|x-v\|^2_2 \ \text{s.t.} \  (v)_i \geq 0.
 
         where *p*=x.shape[0], :math:`\lambda` = self.l. 
         This is just a element-wise
@@ -438,7 +470,7 @@ class nonpositive(nonnegative):
     
     def evaluate_seminorm(self, x):
         """
-        The non-positive constraint of Dx.
+        The non-positive constraint of x.
         """
         tol_lim = np.fabs(x).max() * self.tol
         incone = np.all(np.less_equal(self.affine_map(x), tol_lim))
@@ -504,10 +536,9 @@ class positive_part(seminorm_atom):
     
     def evaluate_seminorm(self, x):
         """
-        The non-negative constraint of Dx.
+        The non-negative constraint of x.
         """
-        Dx = self.affine_map(x)
-        return self.l * np.maximum(Dx, 0).sum()
+        return self.l * np.maximum(x, 0).sum()
 
     def evaluate_dual_constraint(self, u):
         inbox = np.product(np.less_equal(u, self.l) * np.greater_equal(u, 0))
@@ -584,7 +615,7 @@ class constrained_positive_part(seminorm_atom):
     
     def evaluate_seminorm(self, x):
         """
-        The non-negative constraint of Dx.
+        The non-negative constraint of x.
         """
         anyneg = np.any(x < -self.tol)
         if not anyneg:
@@ -605,10 +636,10 @@ class constrained_positive_part(seminorm_atom):
         .. math::
 
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2  + \sum_i \lambda \max(Dv_i, 0)
+            \|x-v\|^2_2  + \sum_i \lambda \max(v_i, 0)
 
         where *p*=x.shape[0], :math:`\lambda` = self.l. 
-        If :math:`D=I` this is just soft-thresholding
+        This is just soft-thresholding
         positive values and leaving negative values untouched.
 
         .. math::
@@ -705,7 +736,7 @@ class affine_atom(seminorm_atom):
 
     """
     Given a seminorm on :math:`\mathbb{R}^p`, i.e.
-    :math:`\beta \mapsto h_K(D\beta)`
+    :math:`\beta \mapsto h_K(\beta)`
     this class creates a new seminorm 
     that evaluates :math:`h_K(D\beta+\alpha)`
 

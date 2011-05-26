@@ -8,6 +8,7 @@ class smooth_function(object):
     A container class for smooth_atom classes
     """
 
+    # TODO? use a list for atoms instead of *atoms?
     def __init__(self, *atoms, **keywords):
         if not set(keywords.keys()).issubset(['l']):
             warnings.warn('only keyword argument should be multiplier, "l", got %s' % `keywords`)
@@ -303,6 +304,9 @@ class logistic_loglikelihood(smooth_atom):
             raise ValueError("mode incorrectly specified")
 
 class zero(smooth_function):
+
+    def __init__(self, primal_shape):
+        self.primal_shape = primal_shape
 
     def smooth_eval(self, beta, mode='both'):
         """

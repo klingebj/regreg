@@ -26,7 +26,8 @@ and the RegReg classes necessary for this problem,
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
    from regreg.container import container
-   from regreg.smooth import smooth_function, smoothed_seminorm
+   from regreg.smooth import smooth_function
+   from regreg.smoothing import smoothed_seminorm
 
 The l1norm object represents the penalty, the huber_loss class represents the loss function and smooth_function is a container class for combining smooth functions. FISTA is a first-order algorithm and seminorm is a class for combining different seminorm penalties. 
 

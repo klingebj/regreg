@@ -1,5 +1,6 @@
 import numpy as np
 from container import container
+from smooth import smooth_function, zero
 
 class smoothed_seminorm(smooth_function):
 
@@ -50,6 +51,9 @@ class smoothed_seminorm(smooth_function):
         if prox_center is not None:
             # XXX dtype manipulations -- would be nice not to have to do this
             self.prox_center = prox_center.view(self.container.dual_dtype).reshape(())
+        else:
+            self.prox_center = None
+
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -146,6 +150,8 @@ class smoothed_constraint(smooth_function):
         if prox_center is not None:
             # XXX dtype manipulations -- would be nice not to have to do this
             self.prox_center = prox_center.view(self.container.dual_dtype).reshape(())
+        else:
+            self.prox_center = None
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -156,25 +162,28 @@ class smoothed_constraint(smooth_function):
         if mode == 'func', return only the function value
         """
 
+        atom = self.container.atoms[0]
+        if self.prox_center is not None:
+            prox = self.prox_center['dual_0']
+        else:
+            prox = None
         if mode == 'both':
-            objective, grad = 0, 0
-
             u = atom.affine_map(beta)
             ueps = u / self.epsilon
-            if self.prox_center is not None:
-                prox = self.prox_center['dual_0']
+            if prox is not None:
                 projected_ueps = atom.dual_prox(ueps+prox)
                 grad = prox+ueps-atom.adjoint_map(projected_ueps)
+                objective = self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(projected_ueps)**2) + (prox*ueps).sum()
             else:
                 projected_ueps = atom.dual_prox(ueps)
                 grad = ueps-atom.adjoint_map(projected_ueps)
-            objective = self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(ueps-projected_ueps)**2)
+                objective = self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(projected_ueps)**2)
             return objective, grad
         elif mode == 'grad':
             grad = 0
             u = atom.affine_map(beta)
             ueps = u / self.epsilon
-            if self.prox_center is not None:
+            if prox is not None:
                 prox = self.prox_center['dual_0']
                 projected_ueps = atom.dual_prox(ueps+prox)
                 grad = ueps+prox-atom.adjoint_map(projected_ueps)
@@ -186,12 +195,13 @@ class smoothed_constraint(smooth_function):
             objective = 0
             u = atom.affine_map(beta)
             ueps = u / self.epsilon
-            if self.prox_center is not None:
+            if prox is not None:
                 prox = self.prox_center['dual_0']
                 projected_ueps = atom.dual_prox(ueps+prox)
+                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - atom.primal_prox_optimum(ueps+prox, self.epsilon) + (prox*ueps).sum()
             else:
                 projected_ueps = atom.dual_prox(ueps)
-            objective = self.epsilon / 2. * (np.linalg.norm(ueps)**2 - np.linalg.norm(projected_ueps)**2) + (prox*ueps).sum()
+                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - atom.primal_prox_optimum(ueps, self.epsilon)
             return objective 
         else:
             raise ValueError("mode incorrectly specified")
