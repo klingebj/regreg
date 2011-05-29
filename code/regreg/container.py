@@ -157,10 +157,10 @@ class container(object):
 
             # XXX dtype manipulations -- would be nice not to have to do this
             z = z.reshape((1,)).view(np.float)
-            initial = self.dual_prox(z, 1.)
+            initial = self.dual_prox(z, 1./L_P)
         nonsmooth = self.evaluate_dual_atoms
         prox = self.dual_prox
-        return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1.)
+        return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1./L_P)
 
 
 
