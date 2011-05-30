@@ -103,6 +103,7 @@ class container(object):
             self.dualp.L = 1.05*self.power_LD(debug=debug)
             self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = debug
+        self.dualopt.problem.smooth_multiplier = 1./L_P
         self._dual_prox_center = yL
         history = self.dualopt.fit(max_its=max_its, min_its=5, tol=tol, backtrack=False)
         if with_history:
