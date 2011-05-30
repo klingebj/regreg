@@ -63,6 +63,12 @@ By default, the container class will try to solve this problem with the two-loop
    constrained_solution = constrained_solver.problem.coefs
 
 
+We can now check that the obtained value matches the constraint,
+
+.. ipython::
+
+   constrained_delta = np.fabs(D * constrained_solution).sum()
+   print delta, constrained_delta
 We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^*`
 
 .. ipython::
