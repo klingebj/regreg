@@ -10,25 +10,39 @@ class affine_transform(object):
         if linear_operator is None:
             self.noneD = True
             self.sparseD = False
+            self.affineD = False
             self.diagD = False
             self.primal_shape = affine_offset.shape
             self.dual_shape = affine_offset.shape
         else:
             self.noneD = False
             self.sparseD = sparse.isspmatrix(self.linear_operator)
-            if linear_operator.ndim == 1 and not diag:
+
+            # does it support the affine_transform API
+            if np.alltrue([hasattr(self.linear_operator, n) for 
+                           n in ['linear_map',
+                                 'affine_map',
+                                 'affine_offset',
+                                 'adjoint_map',
+                                 'affine_objective']]):
+                self.affineD = True
+                self.diagD = False
+            elif linear_operator.ndim == 1 and not diag:
                 self.linear_operator = self.linear_operator.reshape((1,-1))
                 self.diagD = False
+                self.affineD = False
                 self.primal_shape = (self.linear_operator.shape[1],)
                 self.dual_shape = (1,)
             elif linear_operator.ndim == 1 and diag:
                 self.diagD = True
+                self.affineD = False
                 self.primal_shape = (linear_operator.shape[0],)
                 self.dual_shape = (linear_operator.shape[0],)
             else:
                 self.primal_shape = (linear_operator.shape[1],)
                 self.dual_shape = (linear_operator.shape[0],)
                 self.diagD = False
+                self.affineD = False
 
     def linear_map(self, x, copy=True):
         r"""
@@ -46,6 +60,9 @@ class affine_transform(object):
             if copy:
                 return x.copy()
             return x
+        elif self.affineD:
+            stop
+            return self.linear_operator.linear_map(x)
         else:
             if self.sparseD or self.diagD:
                 return self.linear_operator * x
@@ -61,7 +78,10 @@ class affine_transform(object):
         also call FFTs if D is a DFT matrix, in a subclass.
         """
 
-        v = self.linear_map(x, copy)
+        if self.affineD:
+            v = self.linear_operator.affine_map(x)
+        else:
+            v = self.linear_map(x, copy)
         if self.affine_offset is not None:
             return self.affine_offset + v
         else:
@@ -79,6 +99,8 @@ class affine_transform(object):
         if not self.noneD:
             if self.sparseD or self.diagD:
                 return u * self.linear_operator
+            elif self.affineD:
+                return self.linear_operator.adjoint_map(u)
             else:
                 return np.dot(u, self.linear_operator)
         else:
@@ -94,11 +116,98 @@ class affine_transform(object):
                                                               
     def affine_objective(self, u):
         if self.affine_offset is not None:
-            return np.dot(u, self.affine_offset)
+            if self.affineD and self.linear_operator.affine_offset is not None:
+                affine_offset = (self.linear_operator.affine_offset + 
+                                 self.affine_offset)
+                return np.dot(u, affine_offset)
+            else:
+                return np.dot(u, self.affine_offset)
         else:
+            if self.affineD and self.linear_operator.affine_offset is not None:
+                return np.dot(u, self.linear_operator.affine_offset)
             return 0
 
-        
+class normalize(object):
+
+    '''
+    Normalize column by means and possibly scale. Could make
+    a class for row normalization to.
+
+    Columns are normalized to have std equal to value.
+    '''
+
+    def __init__(self, M, center=True, scale=True, value=1, inplace=False):
+        '''
+        Parameters
+        ----------
+        M : ndarray or scipy.sparse
+            The matrix to be normalized. If an ndarray and inplace=True,
+            then the values of M are modified in place. Sparse matrices
+            are not modified in place.
+
+        center : bool
+            Center the columns?
+
+        scale : bool
+            Scale the columns?
+
+        value : float
+            Set the std of the columns to be value.
+
+        inplace : bool
+            If an ndarray and True, modify values in place.
+
+        '''
+        n, p = M.shape
+        self.primal_shape = (p,)
+        self.dual_shape = (n,)
+        self.M = M
+
+        self.sparseD = sparse.isspmatrix(self.M)
+
+        self.center = center
+        self.scale = scale
+
+        if self.center:
+            col_means = np.mean(M,0)
+            if self.scale:
+                self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * value
+            if not self.sparseD and inplace:
+                self.M -= col_means[np.newaxis,:]
+                self.M /= self.invcol_scalings[np.newaxis,:]
+        elif self.scale:
+            self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) # or n-1?
+            if not self.sparseD and inplace:
+                self.M /= self.invcol_scalings[np.newaxis,:]
+        self.affine_offset = None
+
+    def linear_map(self, x):
+        if self.scale:
+            x = x / self.invcol_scalings
+        if self.sparseD:
+            v = self.M * x
+        else:
+            v = np.dot(self.M, x)
+        if self.center:
+            v -= v.mean()
+        return v
+
+    def affine_map(self, x):
+        return self.linear_map(x)
+
+    def affine_objective(self, x):
+        return 0
+
+    def adjoint_map(self, u):
+        if self.center:
+            u = u - u.mean()
+        if self.sparseD:
+            v = u * self.M
+        else:
+            v = np.dot(u, self.M)
+        if self.scale:
+            v /= self.invcol_scalings
+        return v
 
 class identity(object):
 

@@ -4,7 +4,8 @@ from smooth import smooth_function, zero
 
 class smoothed_seminorm(smooth_function):
 
-    def __init__(self, atoms, epsilon=0.1, prox_center=None):
+    def __init__(self, atoms, epsilon=0.1, prox_center=None,
+                 store_argmin=False):
         """
         Given a seminorm :math:`h_K(D\beta)`, this
         class creates a smoothed version
@@ -55,6 +56,11 @@ class smoothed_seminorm(smooth_function):
         else:
             self.prox_center = None
 
+        # for NESTA the argmin corresponds to a feasible
+        # point for the dual constraint
+
+        self.store_argmin = store_argmin
+
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -74,11 +80,17 @@ class smoothed_seminorm(smooth_function):
                 if self.prox_center is not None:
                     prox = self.prox_center['dual_%d' % i]
                     argmin, optimal_value = atom.dual_prox_optimum(prox+ueps, self.epsilon)                    
-                    objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*ueps).sum()
+                    if self.store_argmin:
+                        self.argmin = argmin
+                    objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*u).sum()
                 else:
                     argmin, optimal_value = atom.dual_prox_optimum(ueps, self.epsilon)                    
                     objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value
+
                 grad += atom.adjoint_map(argmin)
+                if self.store_argmin:
+                    self.argmin = argmin
+
             return objective, grad
         elif mode == 'grad':
             grad = 0
@@ -91,6 +103,9 @@ class smoothed_seminorm(smooth_function):
                 else:
                     argmin = atom.dual_prox(ueps, self.epsilon)             
                 grad += atom.adjoint_map(argmin)
+                if self.store_argmin:
+                    self.argmin = argmin
+
             return grad 
         elif mode == 'func':
             objective = 0
@@ -100,7 +115,7 @@ class smoothed_seminorm(smooth_function):
                 if self.prox_center is not None:
                     prox = self.prox_center['dual_%d' % i]
                     _, optimal_value = atom.dual_prox_optimum(prox+ueps, self.epsilon)                    
-                    objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*ueps).sum()
+                    objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*u).sum()
                 else:
                     _, optimal_value = atom.dual_prox_optimum(ueps, self.epsilon)                    
                     objective += self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value
@@ -111,7 +126,8 @@ class smoothed_seminorm(smooth_function):
 
 class smoothed_constraint(smooth_function):
 
-    def __init__(self, atom, epsilon=0.1, prox_center=None):
+    def __init__(self, atom, epsilon=0.1, prox_center=None,
+                 store_argmin=False):
         """
         Given a constraint :math:`\delta_K(\beta+\alpha)=h_K^*(\beta)`,
         that is, a possibly atom whose linear_operator is None, and
@@ -157,6 +173,11 @@ class smoothed_constraint(smooth_function):
         else:
             self.prox_center = None
 
+        # for TFOCS the argmin corresponds to the 
+        # primal solution because the smoothed_constraint
+        # is the smooth objective of the dual problem
+
+        self.store_argmin = store_argmin
     def smooth_eval(self, beta, mode='both'):
         """
         Evaluate a smooth function and/or its gradient
@@ -176,11 +197,14 @@ class smoothed_constraint(smooth_function):
             ueps = u / self.epsilon
             if prox is not None:
                 argmin, optimal_value = dual_atom.primal_prox_optimum(prox+ueps, self.epsilon)                    
-                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*ueps).sum()
+                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*u).sum()
             else:
                 argmin, optimal_value = dual_atom.primal_prox_optimum(ueps, self.epsilon)                    
                 objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value
             grad = atom.adjoint_map(argmin)
+            if self.store_argmin:
+                self.argmin = argmin
+
             return objective, grad
         elif mode == 'grad':
             grad = 0
@@ -191,6 +215,9 @@ class smoothed_constraint(smooth_function):
             else:
                 argmin = dual_atom.primal_prox(ueps, self.epsilon)         
             grad = atom.adjoint_map(argmin)
+
+            if self.store_argmin:
+                self.argmin = argmin
             return grad 
         elif mode == 'func':
             objective = 0
@@ -198,7 +225,7 @@ class smoothed_constraint(smooth_function):
             ueps = u / self.epsilon
             if prox is not None:
                 _, optimal_value = dual_atom.primal_prox_optimum(ueps+prox, self.epsilon)                    
-                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*ueps).sum()
+                objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + (prox*u).sum()
             else:
                 _, optimal_value = dual_atom.primal_prox_optimum(ueps, self.epsilon)                    
                 objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value

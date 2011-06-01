@@ -4,7 +4,7 @@ from smooth import smooth_function, linear, l2normsq
 
 class conjugate(object):
 
-    def __init__(self, smooth_f, epsilon=0.01):
+    def __init__(self, smooth_f, epsilon=0.01, store_argmin=True):
         self._smooth_function = smooth_f
         self._linear = linear(np.zeros(smooth_f.primal_shape))
         self._quadratic = l2normsq(smooth_f.primal_shape, l=epsilon/2.)
@@ -19,6 +19,8 @@ class conjugate(object):
             self._backtrack = True
         self._have_solved_once = False
         self.epsilon = epsilon
+
+        self.store_argmin = store_argmin
 
     def smooth_eval(self, x, mode='both'):
         """
@@ -35,6 +37,8 @@ class conjugate(object):
         self._solver.fit(max_its=1000, tol=1.0e-08, backtrack=self._backtrack)
         minimizer = self._smooth_function_linear.coefs
             
+        if self.store_argmin:
+            self.argmin = minimizer
         if mode == 'both':
             v = self._smooth_function_linear.smooth_eval(minimizer, mode='func')
             return -v, minimizer
