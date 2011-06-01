@@ -103,6 +103,7 @@ class container(object):
             self.dualp.L = 1.05*self.power_LD(debug=debug)
             self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = debug
+        self.dualopt.problem.smooth_multiplier = 1./L_P
         self._dual_prox_center = yL
         history = self.dualopt.fit(max_its=max_its, min_its=5, tol=tol, backtrack=False)
         if with_history:
@@ -157,10 +158,10 @@ class container(object):
 
             # XXX dtype manipulations -- would be nice not to have to do this
             z = z.reshape((1,)).view(np.float)
-            initial = self.dual_prox(z, 1.)
+            initial = self.dual_prox(z, 1./L_P)
         nonsmooth = self.evaluate_dual_atoms
         prox = self.dual_prox
-        return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1.)
+        return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1./L_P)
 
 
 

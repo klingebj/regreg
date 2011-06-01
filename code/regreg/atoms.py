@@ -192,7 +192,7 @@ class l1norm(seminorm_atom):
     """
     The l1 norm
     """
-
+    tol = 1e-5
     def evaluate_seminorm(self, x):
         """
         The L1 norm of x.
@@ -200,7 +200,7 @@ class l1norm(seminorm_atom):
         return self.l * np.fabs(x).sum()
 
     def evaluate_dual_constraint(self, u):
-        inbox = np.product(np.less_equal(np.fabs(u), self.l))
+        inbox = np.product(np.less_equal(np.fabs(u), self.l * (1+self.tol)))
         if inbox:
             return 0
         else:
@@ -246,7 +246,8 @@ class maxnorm(seminorm_atom):
     The :math:`\ell_{\infty}` norm
     """
 
-    tol = 1.0e-06
+    tol = 1e-5
+    prox_tol = 1.0e-10
     def evaluate_seminorm(self, x):
         """
         The l-infinity norm of x.
@@ -254,7 +255,7 @@ class maxnorm(seminorm_atom):
         return self.l * np.fabs(x).max()
 
     def evaluate_dual_constraint(self, u):
-        inbox = np.fabs(u).sum() <= self.l
+        inbox = np.fabs(u).sum() <= self.l * (1 + self.tol)
         if inbox:
             return 0
         else:
@@ -315,7 +316,7 @@ class maxnorm(seminorm_atom):
         ll = upper / 2.
         val = _st_l1(ll)
         max_iters = 30000; itercount = 0
-        while np.fabs(val-l) >= upper * self.tol:
+        while np.fabs(val-l) >= upper * self.prox_tol:
             if itercount > max_iters:
                 break
             itercount += 1
@@ -333,7 +334,7 @@ class l2norm(seminorm_atom):
     """
     The l2 norm
     """
-    tol = 1e-10
+    tol = 1e-5
     
     def evaluate_seminorm(self, x):
         """
