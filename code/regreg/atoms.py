@@ -143,8 +143,8 @@ class seminorm_atom(object):
         prox = self.primal_prox
         nonsmooth = self.evaluate_seminorm
         if initial is None:
-            initial = np.random.standard_normal(self.p)
-        return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
+            initial = np.random.standard_normal(self.primal_shape)
+        return dummy_problem(smooth_func.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
 
     def dual_problem(self, smooth_func, smooth_multiplier=1., initial=None):
         """
@@ -153,7 +153,7 @@ class seminorm_atom(object):
         prox = self.dual_prox
         nonsmooth = self.evaluate_dual_constraint
         if initial is None:
-            initial = np.random.standard_normal(self.p)
+            initial = np.random.standard_normal(self.dual_shape)
         return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
 
     @classmethod

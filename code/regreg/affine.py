@@ -24,7 +24,11 @@ class affine_transform(object):
                                  'affine_map',
                                  'affine_offset',
                                  'adjoint_map',
-                                 'affine_objective']]):
+                                 'affine_objective',
+                                 'primal_shape',
+                                 'dual_shape']]):
+                self.primal_shape = self.linear_operator.primal_shape
+                self.dual_shape = self.linear_operator.dual_shape
                 self.affineD = True
                 self.diagD = False
             elif linear_operator.ndim == 1 and not diag:
@@ -61,7 +65,6 @@ class affine_transform(object):
                 return x.copy()
             return x
         elif self.affineD:
-            stop
             return self.linear_operator.linear_map(x)
         else:
             if self.sparseD or self.diagD:
@@ -126,6 +129,41 @@ class affine_transform(object):
             if self.affineD and self.linear_operator.affine_offset is not None:
                 return np.dot(u, self.linear_operator.affine_offset)
             return 0
+
+class selector(object):
+
+    """
+    Apply an affine transform after applying an
+    indexing operation to the array.
+    """
+    def __init__(self, index_obj, initial_shape, affine_transform=None):
+        self.index_obj = index_obj
+        self.initial_shape = initial_shape
+
+        if affine_transform == None:
+            test = np.empty(initial_shape)
+            affine_transform = identity(test[index_obj].shape)
+        self.affine_transform = affine_transform
+        self.affine_offset = self.affine_transform.affine_offset
+        self.primal_shape = initial_shape
+        self.dual_shape = self.affine_transform.dual_shape
+
+    def linear_map(self, x, copy=True):
+        x_indexed = x[self.index_obj]
+        return self.affine_transform.linear_map(x_indexed)
+
+    def affine_map(self, x, copy=True):
+        x_indexed = x[self.index_obj]
+        return self.affine_transform.affine_map(x_indexed)
+
+    def adjoint_map(self, u, copy=True):
+        out = np.zeros(self.initial_shape)
+        out[self.index_obj] = self.affine_transform.adjoint_map(u)
+        return out
+
+    def affine_objective(self, x):
+        x_indexed = x[self.index_obj]
+        return self.affine_transform.affine_objective(x_indexed)
 
 class normalize(object):
 

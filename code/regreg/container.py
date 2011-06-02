@@ -100,14 +100,19 @@ class container(object):
         if not hasattr(self, 'dualopt'):
             self.dualp = self.dual_problem(yL, L_P=L_P)
             #Approximate Lipschitz constant
-            self.dualp.L = 1.05*self.power_LD(debug=debug)
+            self.dual_reference_Lipshitz = 1.05*self.power_LD(debug=debug)
             self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = debug
+
+        # XXX this is hopefully going to work...
         self.dualopt.problem.smooth_multiplier = 1./L_P
+        self.dualp.L = self.dual_reference_Lipshitz / L_P
+
         self._dual_prox_center = yL
         history = self.dualopt.fit(max_its=max_its, min_its=5, tol=tol, backtrack=False)
         if with_history:
-            return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P), history
+            return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P,
+                                         tol=tol), history
         else:
             return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P)
 

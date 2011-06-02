@@ -33,7 +33,8 @@ class ISTA(algorithm):
             coef_stop=False,
             prox_tol = None,
             prox_max_its = None,
-            prox_debug = None):
+            prox_debug = None,
+            prox_L = None):
 
 
 
@@ -51,7 +52,8 @@ class ISTA(algorithm):
                 prox_debug=False
             prox_control = {'tol':prox_tol,
                             'max_its':prox_max_its,
-                            'debug':prox_debug}
+                            'debug':prox_debug,
+                            'L_P':prox_L}
         else:
             set_prox_control = False
 
