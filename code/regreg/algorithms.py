@@ -34,7 +34,8 @@ class ISTA(algorithm):
             prox_tol = None,
             prox_max_its = None,
             prox_debug = None,
-            prox_L = None):
+            prox_L = None,
+            prox_backtrack = None):
 
 
 
@@ -42,7 +43,7 @@ class ISTA(algorithm):
         # This is a bit inconsistent: simple prox functions don't accept tolerance parameters, but when the prox function
         # is an optimization (like primal_prox) then it accepts some control paramters. This checks whether the user
         # gave the parameters before passing them on
-        if (prox_tol is not None) or (prox_max_its is not None) or (prox_debug is not None):
+        if (prox_tol is not None) or (prox_max_its is not None) or (prox_debug is not None) or (prox_L is not None) or (prox_backtrack is not None):
             set_prox_control = True
             if prox_tol is None:
                 prox_tol = 1e-14
@@ -50,10 +51,13 @@ class ISTA(algorithm):
                 prox_max_its = 5000
             if prox_debug is None:
                 prox_debug=False
+            if prox_backtrack is None:
+                prox_backtrack=False
             prox_control = {'tol':prox_tol,
                             'max_its':prox_max_its,
                             'debug':prox_debug,
-                            'L_P':prox_L}
+                            'L_P':prox_L,
+                            'backtrack':prox_backtrack}
         else:
             set_prox_control = False
 
