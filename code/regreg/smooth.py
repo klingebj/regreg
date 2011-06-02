@@ -103,7 +103,7 @@ class smooth_function(object):
                                     smooth_multiplier=smooth_multiplier,
                                     initial=initial)
 
-class affine_smooth_atom(smooth_function):
+class affine_smooth(smooth_function):
 
     # if smooth_obj is a class, an object is created
     # smooth_obj(*args, **keywords)
@@ -165,8 +165,8 @@ class smooth_atom(smooth_function):
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
-        return affine_smooth_atom(cls, linear_operator, offset, diag=diag, l=l,
-                                  args=args, keywords=keywords)
+        return affine_smooth(cls, linear_operator, offset, diag=diag, l=l,
+                             args=args, keywords=keywords)
 
     @classmethod
     def linear(cls, linear_operator, l=1, diag=False,
@@ -175,8 +175,8 @@ class smooth_atom(smooth_function):
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
-        return affine_smooth_atom(cls, linear_operator, None, diag=diag, l=l,
-                                  args=args, keywords=keywords)
+        return affine_smooth(cls, linear_operator, None, diag=diag, l=l,
+                             args=args, keywords=keywords)
 
     @classmethod
     def shift(cls, offset, l=1, diag=False,
@@ -185,8 +185,8 @@ class smooth_atom(smooth_function):
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
-        return affine_smooth_atom(cls, None, offset, diag=diag, l=l,
-                                  args=args, keywords=keywords)
+        return affine_smooth(cls, None, offset, diag=diag, l=l,
+                             args=args, keywords=keywords)
 
 
 def squaredloss(linear_operator, offset, l=1):

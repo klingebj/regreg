@@ -73,8 +73,7 @@ class smoothed_seminorm(smooth_function):
 
         if mode == 'both':
             objective, grad = 0, 0
-            for i, atoms in enumerate(self.atoms):
-                atom, dual_atom = atoms
+            for i, atom in enumerate(self.atoms):
                 u = atom.affine_map(beta)
                 ueps = u / self.epsilon
                 if self.prox_center is not None:

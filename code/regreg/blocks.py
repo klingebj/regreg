@@ -58,7 +58,7 @@ class Block(object):
         else:
             initial = initial.copy()
         if atom.affine_transform.linear_operator is not None:
-            self.loss = smooth.affine_smooth_atom(smooth.l2normsq, atom.affine_transform.linear_operator.T, -response, l=0.5, diag=atom.affine_transform.diagD)
+            self.loss = smooth.affine_smooth(smooth.l2normsq, atom.affine_transform.linear_operator.T, -response, l=0.5, diag=atom.affine_transform.diagD)
         else:
             self.loss = smooth.l2normsq.shift(-response, l=0.5)
         if atom.affine_transform.affine_offset is not None:

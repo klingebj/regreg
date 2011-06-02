@@ -28,7 +28,6 @@ we will skip some comments.
 
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
-   from regreg.container import container
    from regreg.smooth import smooth_function, l2normsq
 
    # generate the data
@@ -99,7 +98,6 @@ We can then plot solution to see the result of the regression,
 
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
-   from regreg.container import container
    from regreg.smooth import smooth_function, l2normsq
    from regreg.smoothing import smoothed_seminorm
 
