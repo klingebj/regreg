@@ -63,10 +63,9 @@ it will actually be our primal solution. The penalty is specified as
 
 .. ipython::
 
-   max_norm = np.linalg.norm(Y)
-   l2_constraint_value = np.sqrt(0.1) * max_norm
-   l2_constraint = R.l2norm(500, l=l2_constraint_value, constraint=True)
-   l2_lagrange = l2_constraint.dual_atom
+   norm_Y = np.linalg.norm(Y)
+   l2_constraint_value = np.sqrt(0.1) * norm_Y
+   l2_lagrange = R.l2norm(500, l=l2_constraint_value)
 
 The container puts these together, then solves the problem by
 decreasing the smoothing.
@@ -84,6 +83,14 @@ decreasing the smoothing.
 
    basis_pursuit_soln = smooth_l1.argmin
 
+The solution should explain about 90% of the norm of *Y*
+
+.. ipython::
+
+   print 1 - (np.linalg.norm(Y-np.dot(X, basis_pursuit_soln)) / norm_Y)**2
+
+
+
 Now, let's solve the corresponding bound form of the LASSO and verify
 we obtain the same solution.
 
@@ -98,6 +105,7 @@ we obtain the same solution.
 
    print np.fabs(lasso_soln).sum(), np.fabs(basis_pursuit_soln).sum()
    print np.linalg.norm(Y-np.dot(X, lasso_soln)), np.linalg.norm(Y-np.dot(X, basis_pursuit_soln))
+
 
 .. plot::
 
@@ -121,10 +129,9 @@ we obtain the same solution.
    smooth_f = R.smooth_function(loss, linear(Y))
 
 
-   max_norm = np.linalg.norm(Y)
-   l2_constraint_value = np.sqrt(0.1) * max_norm
-   l2_constraint = R.l2norm(500, l=l2_constraint_value, constraint=True)
-   l2_lagrange = l2_constraint.dual_atom
+   norm_Y = np.linalg.norm(Y)
+   l2_constraint_value = np.sqrt(0.1) * norm_Y
+   l2_lagrange = R.l2norm(500, l=l2_constraint_value)
 
    basis_pursuit = R.container(smooth_f, l2_lagrange)
    solver = R.FISTA(basis_pursuit.problem(initial=np.random.standard_normal(500)))
@@ -147,3 +154,4 @@ we obtain the same solution.
 
    pylab.plot(basis_pursuit_soln, label='Basis pursuit')
    pylab.plot(lasso_soln, label='LASSO')
+   pylab.legend()
