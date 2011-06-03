@@ -257,15 +257,19 @@ class FISTA(algorithm):
             if self.debug:
                 print itercount, current_obj, self.inv_step, obj_rel_change, np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]), tol
 
-
             if itercount >= min_its:
+
                 if coef_stop:
                     if np.linalg.norm(self.problem.coefs - beta) / np.max([1.,np.linalg.norm(beta)]) < tol:
                         self.problem.coefs = beta
+                        if self.debug:
+                            print "Stopped because coefficients haven't changed"
                         break
                 else:
                     if obj_rel_change < tol or obj_change < tol:
                         self.problem.coefs = beta
+                        if self.debug:
+                            print 'Stopped because objective value decreased'
                         break
 
             if FISTA:
@@ -288,6 +292,8 @@ class FISTA(algorithm):
                     #Gradient step didn't decrease objective: tolerance problems or incorrect prox op... time to give up?
                     badstep += 1
                     if badstep > 3:
+                        if self.debug:
+                            print 'Stopped in badstep'
                         break
                 itercount += 1
                 t_old = 1.
