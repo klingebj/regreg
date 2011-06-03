@@ -17,6 +17,10 @@ class affine_transform(object):
         else:
             self.noneD = False
             self.sparseD = sparse.isspmatrix(self.linear_operator)
+            self.sparseD_csr = sparse.isspmatrix_csr(self.linear_operator)
+            if self.sparseD_csr:
+                self.linear_operator_T = sparse.csr_matrix(self.linear_operator.T)
+
 
             # does it support the affine_transform API
             if np.alltrue([hasattr(self.linear_operator, n) for 
@@ -101,7 +105,10 @@ class affine_transform(object):
         """
         if not self.noneD:
             if self.sparseD or self.diagD:
-                return u * self.linear_operator
+                if self.sparseD_csr:
+                    return self.linear_operator_T * u
+                else:
+                    return u * self.linear_operator
             elif self.affineD:
                 return self.linear_operator.adjoint_map(u)
             else:
