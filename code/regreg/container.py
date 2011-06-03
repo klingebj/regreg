@@ -92,7 +92,7 @@ class container(object):
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
-    def primal_prox(self, y, L_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
+    def primal_prox(self, y, L_P=1., with_history=False, debug=False, max_its=5000, tol=1e-14):
         """
         The proximal function for the primal problem
         """

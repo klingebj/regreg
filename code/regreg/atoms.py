@@ -294,39 +294,26 @@ class maxnorm(seminorm_atom):
             \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{1} \leq \lambda
 
         where *m*=u.shape[0], :math:`\lambda` = self.l. 
-        This is solved with a binary search.
         """
-        
-        #XXX TO DO, make this efficient
-        fabsu = np.fabs(u)
+
+        # Used sorting-based computation
         l = self.l / L
-        upper = fabsu.sum()
-        lower = 0.
+        p = len(u)
+        ufabs = np.fabs(u)
+        v = np.sort(ufabs)
+        eta = v[p-1]
+        csum = eta
+        for i in range(p):
+            eta = v[p-i-2]
+            csum += eta
+            if csum - (i+2)*eta > l:
+                eta = (csum - eta - l)/(i+1)
+                return np.maximum(ufabs-eta,0)*np.sign(u)
+    
+        eta = np.maximum((np.sum(ufabs) - l)/p,0)
+        return np.maximum(ufabs-eta,0)*np.sign(u)
+        
 
-        if upper <= l:
-            return u
-
-        # else, do a bisection search
-        def _st_l1(ll):
-            """
-            the ell1 norm of a soft-thresholded vector
-            """
-            return np.maximum(fabsu-ll,0).sum()
-
-        ll = upper / 2.
-        val = _st_l1(ll)
-        max_iters = 30000; itercount = 0
-        while np.fabs(val-l) >= upper * self.prox_tol:
-            if itercount > max_iters:
-                break
-            itercount += 1
-            val = _st_l1(ll)
-            if val > l:
-                lower = ll
-            else:
-                upper = ll
-            ll = (upper + lower) / 2.
-        return np.maximum(fabsu - ll, 0) * np.sign(u)
 
 
 class l2norm(seminorm_atom):
