@@ -8,7 +8,7 @@ Specifically, on p. 70 \S 8.1.3, making the substitutions
 
    \newcommand{\argmin}{\mathop{argmin}}
    \begin{aligned}
-   \beta_i^{k+1} &= \argmin_{\beta_i} \left(\frac{\rho}{2} \|X_i\beta_i-X_i\beta_i^k - \bar{\mu}^k + \bar{X\beta}^k + u^k\|^2_2 + \lambda\|\beta\|_1 \right) \\
+   \beta_i^{k+1} &= \argmin_{\beta_i} \left(\frac{\rho}{2} \|X_i\beta_i-X_i\beta_i^k - \bar{\mu}^k + \bar{X\beta}^k + u^k\|^2_2 + \lambda\|\beta_i\|_1 \right) \\
    \bar{\mu}^{k+1} &= \frac{1}{N+\rho} \left(y + \rho \bar{X\beta}^k + \rho u^k\right) \\
    u^{k+1} &= u^k + \bar{X\beta}^k - \bar{\mu}^{k+1}
    \end{aligned}
@@ -17,16 +17,7 @@ Specifically, on p. 70 \S 8.1.3, making the substitutions
 import regreg.api as R
 import numpy as np
 
-# generate a data matrix
-
-n, p = (500, 400)
-X = np.random.standard_normal((n, p))
-beta = 10 * np.ones(p)
-beta[200:] = 0
-Y = np.dot(X, beta) + np.random.standard_normal(n)
-
-groups = [slice(0,200), slice(200,300), range(300,400)]
-Xs = [X[:,group] for group in groups]
+# np.random.seed(1)  # for debugging
 
 class LassoNode(object):
 
@@ -72,56 +63,91 @@ class LassoNode(object):
     def fitted(self):
         return self.X.linear_map(self.beta)
 
-# the Lagrange penalty parameter, lambda
-l = 40.
 
-# the different nodes, living on different nodes 
-# in an ipcluster. 
-# the matrix X would have to be split up
-# onto the different nodes...
-lasso_nodes = [LassoNode(x, l=l) for x in Xs]
+if __name__ == '__main__':
+    import os.path
 
-def update_lasso_nodes(lasso_nodes, mu_bar, Xbeta_bar, u):
-    # this is a scatter -- no serial dependencies
-    for node in lasso_nodes:
-        node.response = node.fitted + mu_bar - Xbeta_bar - u
-        node.solver.fit(max_its=1000, min_its=10, tol=1.0e-06)
+    # Load IPython parallel resources, a cluster should have been instantiated
+    from IPython.parallel import Client
+    rc = Client()
+    # We actually work with the view, in this case using all engines
+    view = rc[:]
+    # Use the view in synchronous mode, we don't have any major space below for
+    # overlapping local and remote computation, and this is easier to work with
+    view.block = True
 
-def update_global_variables(lasso_nodes, y, u, rho):
-    # this is a gather
-    Xbeta_bar = np.mean([node.fitted for node in lasso_nodes], 0)
+    @view.remote()
+    def update_lasso_nodes(pseudo_response, tol):
+        node.response = node.fitted + pseudo_response
+        node.solver.fit(max_its=1000, min_its=10, tol=tol)
+        beta[:] = node.beta
+        return node.fitted
 
-    N = len(lasso_nodes)
-    mu_bar = (y + rho * (Xbeta_bar + u)) / (N + rho)
-    u = u + Xbeta_bar - mu_bar
-    return Xbeta_bar, mu_bar, u
+    def update_global_variables(lasso_fits, y, u, rho):
+        # this is a reduction operation
+        Xbeta_bar = np.mean(lasso_fits, 0)
 
-mu_bar = 0 * Y
-Xbeta_bar = 0 * Y
-u = 0 * Y
-rho = 1.
+        N = len(lasso_fits)
+        mu_bar = (y + rho * (Xbeta_bar + u)) / (N + rho)
+        u = u + Xbeta_bar - mu_bar
+        return Xbeta_bar, mu_bar, u
 
-def objective(beta, X, Y, l):
-    return np.linalg.norm(Y - np.dot(X, beta))**2 / 2. + l * np.fabs(beta).sum()
+    def objective(beta, X, Y, l):
+        return np.linalg.norm(Y - np.dot(X, beta))**2 / 2. + \
+               l * np.fabs(beta).sum()
 
-tol = 1.0e-10
-old_obj = np.inf
-for i in range(2000):
-    update_lasso_nodes(lasso_nodes, mu_bar, Xbeta_bar, u)
-    Xbeta_bar, mu_bar, u = update_global_variables(lasso_nodes, Y, u, rho)
-    for g, n in zip(groups, lasso_nodes):
-        beta[g] = n.beta
-    new_obj = objective(beta, X, Y, l)
-    if np.fabs(old_obj-new_obj) / np.fabs(new_obj) < tol:
-        break
-    old_obj = new_obj
-    print 'Iteration %d, objective %0.2f' % (i, new_obj)
+    # generate a data matrix
+    n, p = (500, 400)
+    X = np.random.standard_normal((n, p))
+    beta = 10 * np.ones(p)
+    beta[200:] = 0
+    Y = np.dot(X, beta) + np.random.standard_normal(n)
 
-penalty = R.l1norm(p, l=l)
-loss = R.l2normsq.affine(-X, Y, l=0.5)
-lasso = R.container(loss, penalty)
-solver = R.FISTA(lasso.problem())
-solver.fit(tol=1.0e-10)
+    # Scatter works on the first dimension, and we want to break things up by
+    # columns, so we transpose before scattering and transpo
+    view.scatter('Xt', X.T)
 
-lasso_soln = solver.problem.coefs
-distributed_soln = beta
+    @view.remote()
+    def node_init(l, path):
+        global node, beta
+        import os
+        import numpy as np
+        os.chdir(path)
+        import distributed_lasso as dl
+
+        #np.random.seed(1) # for debugging
+        node = dl.LassoNode(Xt.T, l=l)
+        beta = np.empty(Xt.shape[0])
+
+    # the Lagrange penalty parameter, lambda
+    l = 40.
+    mu_bar = 0 * Y
+    Xbeta_bar = 0 * Y
+    u = 0 * Y
+    rho = 1.
+    tol = 1.0e-10
+
+    # This initializes all the nodes and creates the Lasso objects
+    node_init(l, os.path.dirname(os.path.abspath(__file__)))
+    
+    old_obj = np.inf
+    for i in range(2000):
+        lasso_fits = update_lasso_nodes(mu_bar - Xbeta_bar - u, tol)
+        Xbeta_bar, mu_bar, u = update_global_variables(lasso_fits, Y, u, rho)
+        beta = view.gather('beta')
+        new_obj = objective(beta, X, Y, l)
+        if np.fabs(old_obj-new_obj) / np.fabs(new_obj) < tol:
+            break
+        old_obj = new_obj
+        print 'Iteration %d, objective %0.2f' % (i, new_obj)
+
+    #np.random.seed(1) # for debugging
+
+    penalty = R.l1norm(p, l=l)
+    loss = R.l2normsq.affine(-X, Y, l=0.5)
+    lasso = R.container(loss, penalty)
+    solver = R.FISTA(lasso.problem())
+    solver.fit(tol=tol)
+
+    lasso_soln = solver.problem.coefs
+    distributed_soln = beta
