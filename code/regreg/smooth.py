@@ -77,11 +77,11 @@ class smooth_function(object):
             return obj.copy()
         return obj
     
-    def proximal(self, x, g, L):
+    def proximal(self, x, g, lipshitz):
         """
         Take a gradient step
         """
-        return x - g / L
+        return x - g / lipshitz
 
     def obj_rough(self, x):
         """

@@ -57,7 +57,7 @@ By default, the container class will try to solve this problem with the two-loop
    fused_constraint = l1norm.linear(D, bound=delta)
    constrained_problem = container(loss, fused_constraint, sparsity)
    constrained_solver = FISTA(constrained_problem.problem())
-   constrained_solver.problem.L = 1.01
+   constrained_solver.problem.lipshitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
    constrained_solution = constrained_solver.problem.coefs
 
@@ -124,7 +124,7 @@ Let's also solve this with the generic constraint class, which is called by defa
    fused_constraint = l1norm.linear(D, bound=delta)
    constrained_problem = container(loss, fused_constraint, sparsity)
    constrained_solver = FISTA(constrained_problem.problem())
-   constrained_solver.problem.L = 1.01
+   constrained_solver.problem.lipshitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
    constrained_solution = constrained_solver.problem.coefs
 

@@ -2,7 +2,7 @@
 
 
 Nearly isotonic signal approximator
-~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Solves
 

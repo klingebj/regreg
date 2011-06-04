@@ -54,7 +54,7 @@ class Atom(object):
         """
         raise NotImplementedError
 
-    def primal_prox(self, x, L):
+    def primal_prox(self, x, lipschitz):
         r"""
         Return (unique) minimizer
 
@@ -68,7 +68,7 @@ class Atom(object):
         raise NotImplementedError
 
 
-    def primal_prox_optimum(self, x, L):
+    def primal_prox_optimum(self, x, lipschitz):
         """
         Returns
         
@@ -80,10 +80,10 @@ class Atom(object):
         where *p*=x.shape[0] and :math:`h(v)` = self.evaluate_seminorm(v).
 
         """
-        argmin = self.primal_prox(x, L)
-        return argmin, L * np.linalg.norm(x-argmin)**2 / 2. + self.evaluate_seminorm(argmin)
+        argmin = self.primal_prox(x, lipschitz)
+        return argmin, lipschitz * np.linalg.norm(x-argmin)**2 / 2. + self.evaluate_seminorm(argmin)
     
-    def dual_prox(self, u, L):
+    def dual_prox(self, u, lipschitz):
         r"""
         Return unique minimizer
 
@@ -97,7 +97,7 @@ class Atom(object):
         """
         raise NotImplementedError
 
-    def dual_prox_optimum(self, x, L):
+    def dual_prox_optimum(self, x, lipschitz):
         """
         Returns
         
@@ -110,8 +110,8 @@ class Atom(object):
         conjugate of self.evaluate_seminorm and :math:`\lambda` = self.lagrange.
 
         """
-        argmin = self.dual_prox(x, L)
-        return argmin, L * np.linalg.norm(x-argmin)**2 / 2.
+        argmin = self.dual_prox(x, lipschitz)
+        return argmin, lipschitz * np.linalg.norm(x-argmin)**2 / 2.
     
 
     def affine_objective(self, u):
@@ -221,7 +221,7 @@ class l1norm(Atom):
             return np.inf
 
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -238,9 +238,9 @@ class l1norm(Atom):
             v^{\lambda}(x) = \text{sign}(x) \max(|x|-\lambda/L, 0)
         """
 
-        return np.sign(x) * np.maximum(np.fabs(x)-self.lagrange/L, 0)
+        return np.sign(x) * np.maximum(np.fabs(x)-self.lagrange/lipschitz, 0)
 
-    def dual_prox(self, u, L=1):
+    def dual_prox(self, u, lipschitz=1):
         r"""
         Return a minimizer
 
@@ -275,7 +275,7 @@ class maxnorm(Atom):
         else:
             return np.inf
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -294,11 +294,11 @@ class maxnorm(Atom):
             v^{\lambda}(x) = x - P_{\lambda/L B_{\ell_1}}(x)
         """
 
-        d = self.dual_prox(x,L)
+        d = self.dual_prox(x,lipschitz)
         u = x - d
         return u
 
-    def dual_prox(self, u, L=1):
+    def dual_prox(self, u, lipschitz=1):
         r"""
         Return a minimizer
 
@@ -313,7 +313,7 @@ class maxnorm(Atom):
         
         #XXX TO DO, make this efficient
         fabsu = np.fabs(u)
-        l = self.lagrange / L
+        l = self.lagrange / lipschitz
         upper = fabsu.sum()
         lower = 0.
 
@@ -364,7 +364,7 @@ class l2norm(Atom):
         else:
             return np.inf
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -381,13 +381,13 @@ class l2norm(Atom):
         """
 
         n = np.linalg.norm(x)
-        if n <= self.lagrange / L:
+        if n <= self.lagrange / lipschitz:
             proj = x
         else:
-            proj = (self.lagrange / (L * n)) * x
+            proj = (self.lagrange / (lipschitz * n)) * x
         return x - proj * (1 - l2norm.tol)
 
-    def dual_prox(self, u,  L=1):
+    def dual_prox(self, u,  lipschitz=1):
         r"""
         Return a minimizer
 
@@ -438,7 +438,7 @@ class nonnegative(Atom):
         else:
             return np.inf
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -460,7 +460,7 @@ class nonnegative(Atom):
         return np.maximum(x, 0)
 
 
-    def dual_prox(self, u,  L=1):
+    def dual_prox(self, u,  lipschitz=1):
         r"""
         Return unique minimizer
 
@@ -506,7 +506,7 @@ class nonpositive(nonnegative):
         else:
             return np.inf
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return unique minimizer
 
@@ -527,7 +527,7 @@ class nonpositive(nonnegative):
 
         return np.minimum(x, 0)
 
-    def dual_prox(self, u,  L=1):
+    def dual_prox(self, u,  lipschitz=1):
         r"""
         Return unique minimizer
 
@@ -564,7 +564,7 @@ class positive_part(Atom):
         else:
             return np.inf
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -593,7 +593,7 @@ class positive_part(Atom):
         v[pos] = np.maximum(v[pos] - self.lagrange, 0)
         return v.reshape(x.shape)
 
-    def dual_prox(self, u,  L=1):
+    def dual_prox(self, u,  lipschitz=1):
         r"""
         Return a minimizer
 
@@ -646,7 +646,7 @@ class constrained_positive_part(Atom):
         else:
             return np.inf
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -675,7 +675,7 @@ class constrained_positive_part(Atom):
         v[~pos] = 0.
         return v.reshape(x.shape)
 
-    def dual_prox(self, u,  L=1):
+    def dual_prox(self, u,  lipschitz=1):
         r"""
         Return a minimizer
 
@@ -714,7 +714,7 @@ class linear_atom(Atom):
     def __init__(self, primal_shape, basis, lagrange=None):
         self.basis = basis
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -732,7 +732,7 @@ class linear_atom(Atom):
         coefs = np.dot(self.basis, x)
         return np.dot(coefs, self.basis)
 
-    def dual_prox(self, u,  L=1):
+    def dual_prox(self, u,  lipschitz=1):
         r"""
 
         Return (unique) minimizer
@@ -830,7 +830,7 @@ class affine_atom(Atom):
     def evaluate_dual_constraint(self, u):
         return self.atom.evaluate_dual_constraint(u)
 
-    def primal_prox(self, x,  L=1):
+    def primal_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -845,13 +845,13 @@ class affine_atom(Atom):
         """
         if self.affine_transform.linear_operator is None:
             if self.affine_transform.affine_offset is not None:
-                return self.atom.primal_prox(x + self.affine_transform.affine_offset, L) - self.affine_transform.affine_offset
+                return self.atom.primal_prox(x + self.affine_transform.affine_offset, lipschitz) - self.affine_transform.affine_offset
             else:
-                return self.atom.primal_prox(x, L)
+                return self.atom.primal_prox(x, lipschitz)
         else:
             raise NotImplementedError('when linear_operator is not None, primal_prox is not implemented, can be done with FISTA')
 
-    def dual_prox(self, u, L=1):
+    def dual_prox(self, u, lipschitz=1):
         r"""
         Return a minimizer
 
@@ -863,7 +863,7 @@ class affine_atom(Atom):
         where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
         This is just truncation: np.clip(u, -self.lagrange/L, self.lagrange/L).
         """
-        return self.atom.dual_prox(u, L)
+        return self.atom.dual_prox(u, lipschitz)
 
 primal_dual_seminorm_pairs = {}
 for n1, n2 in [(l1norm,maxnorm),

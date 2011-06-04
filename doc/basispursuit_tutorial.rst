@@ -78,7 +78,7 @@ decreasing the smoothing.
 
    for epsilon in [0.6**i for i in range(20)]:
        smooth_linf_constraint.epsilon = epsilon
-       solver.problem.L = 1.1/epsilon * Xnorm
+       solver.problem.lipshitz = 1.1/epsilon * Xnorm
        h = solver.fit(max_its=2000, tol=tol, min_its=10, backtrack=False)
 
    basis_pursuit_soln = smooth_linf_constraint.argmin
@@ -140,7 +140,7 @@ we obtain the same solution.
    solver = R.FISTA(basis_pursuit.problem(initial=np.random.standard_normal(500)))
    for epsilon in [0.6**i for i in range(20)]:
        smooth_linf_constraint.epsilon = epsilon
-       solver.problem.L = 1.1/epsilon * Xnorm
+       solver.problem.lipshitz = 1.1/epsilon * Xnorm
        solver.fit(max_its=2000, tol=tol, min_its=10, backtrack=False)
 
    basis_pursuit_soln = smooth_linf_constraint.argmin

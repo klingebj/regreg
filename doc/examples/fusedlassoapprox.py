@@ -9,11 +9,11 @@ from regreg.smooth import signal_approximator
 
 Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
-sparsity = l1norm(500, l=1.3)
+sparsity = l1norm(500, lagrange=1.3)
 #Create D
 D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
 D = sparse.csr_matrix(D)
-fused = l1norm.linear(D, l=25.5)
+fused = l1norm.linear(D, lagrange=25.5)
 
 loss = signal_approximator(Y)
 

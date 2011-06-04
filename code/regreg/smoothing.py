@@ -35,7 +35,7 @@ class smoothed_seminorm(smooth_function):
 
         """
         self.epsilon = epsilon
-        if not np.all([(atom.bound is not None) for atom in atoms]):
+        if not np.all([(not atom.constraint for atom in atoms)]):
             raise ValueError('all atoms should be in Lagrange form, i.e. bound=None')
         if self.epsilon <= 0:
             raise ValueError('to smooth, epsilon must be positive')
