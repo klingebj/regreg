@@ -25,17 +25,17 @@ class dummy_problem(object):
     def obj(self, x):
         return self.smooth_eval(x,mode='func') + self.obj_rough(x)
 
-    def proximal(self, x, g, lipshitz, prox_control=None):
+    def proximal(self, x, g, lipschitz, prox_control=None):
         """
         Compute the proximal optimization
 
         prox_control: If not None, then a dictionary of parameters for the prox procedure
         """
-        z = x - g / lipshitz
+        z = x - g / lipschitz
         
         if prox_control is None:
-            v = self._prox(z, lipshitz)
+            v = self._prox(z, lipschitz)
             return v
         else:
-            return self._prox(z, lipshitz, **prox_control)
+            return self._prox(z, lipschitz, **prox_control)
 
