@@ -85,10 +85,10 @@ def group_lasso_example():
     def selector(p, slice):
         return np.identity(p)[slice]
     penalties = [R.l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
-    penalties[0].l = 250.
-    penalties[1].l = 225.
-    penalties[2].l = 150.
-    penalties[3].l = 100.
+    penalties[0].lagrange = 250.
+    penalties[1].lagrange = 225.
+    penalties[2].lagrange = 150.
+    penalties[3].lagrange = 100.
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
@@ -127,10 +127,10 @@ def test_group_lasso_sparse(n=100):
     loss = R.l2normsq.affine(X, -Y, l=0.5)
 
     penalties = [R.l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
-    penalties[0].l = 250.
-    penalties[1].l = 225.
-    penalties[2].l = 150.
-    penalties[3].l = 100.
+    penalties[0].lagrange = 250.
+    penalties[1].lagrange = 225.
+    penalties[2].lagrange = 150.
+    penalties[3].lagrange = 100.
     group_lasso = R.container(loss, *penalties)
 
     solver=FISTA(group_lasso.problem())

@@ -74,8 +74,8 @@ class container(object):
 
         where *m*=u.shape[0]=np.sum(self.dual_dims), :math:`M`=self.M
         and :math:`h^*_i` is the conjugate of 
-        self.atoms[i].l * self.atoms[i].evaluate and 
-        :math:`\lambda_i`=self.atoms[i].l.
+        self.atoms[i].lagrange * self.atoms[i].evaluate and 
+        :math:`\lambda_i`=self.atoms[i].lagrange
 
         This is used in the ISTA/FISTA solver loop with :math:`u=z-g/L` when finding
         self.primal_prox, i.e., the signal approximator problem.
