@@ -36,10 +36,10 @@ Next, let's generate an example signal, and solve the Lagrange form of the probl
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
    loss = l2normsq.shift(-Y, lagrange=0.5)
 
-   sparsity = l1norm(len(Y), 1.4)
+   sparsity = l1norm(len(Y), lagrange=1.4)
    # TODO should make a module to compute typical Ds
    D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
-   fused = l1norm.linear(D, 25.5)
+   fused = l1norm.linear(D, lagrange=25.5)
    problem = container(loss, sparsity, fused)
    
    solver = FISTA(problem.problem())
@@ -53,9 +53,8 @@ By default, the container class will try to solve this problem with the two-loop
 .. ipython::
 
    delta = np.fabs(D * solution).sum()
-   sparsity = l1norm(len(Y), 1.4)
-   fused_constraint = l1norm.linear(D, delta)
-   fused_constraint.constraint = True   
+   sparsity = l1norm(len(Y), lagrange=1.4)
+   fused_constraint = l1norm.linear(D, bound=delta)
    constrained_problem = container(loss, fused_constraint, sparsity)
    constrained_solver = FISTA(constrained_problem.problem())
    constrained_solver.problem.L = 1.01
@@ -110,10 +109,10 @@ Let's also solve this with the generic constraint class, which is called by defa
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
    loss = l2normsq.shift(-Y, lagrange=0.5)
 
-   sparsity = l1norm(len(Y), 1.4)
+   sparsity = l1norm(len(Y), lagrange=1.4)
    # TODO should make a module to compute typical Ds
    D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
-   fused = l1norm.linear(D, 25.5)
+   fused = l1norm.linear(D, lagrange=25.5)
    problem = container(loss, sparsity, fused)
    
    solver = FISTA(problem.problem())
@@ -121,9 +120,8 @@ Let's also solve this with the generic constraint class, which is called by defa
    solution = solver.problem.coefs
 
    delta = np.fabs(D * solution).sum()
-   sparsity = l1norm(len(Y), 1.4)
-   fused_constraint = l1norm.linear(D, delta)
-   fused_constraint.constraint = True   
+   sparsity = l1norm(len(Y), lagrange=1.4)
+   fused_constraint = l1norm.linear(D, bound=delta)
    constrained_problem = container(loss, fused_constraint, sparsity)
    constrained_solver = FISTA(constrained_problem.problem())
    constrained_solver.problem.L = 1.01

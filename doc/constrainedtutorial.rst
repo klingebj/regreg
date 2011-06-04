@@ -75,10 +75,8 @@ By default, the container class will try to solve this problem with the two-loop
 
    delta1 = np.fabs(D * solution).sum()
    delta2 = np.fabs(solution).sum()
-   fused_constraint = l1norm.linear(D, delta1)
-   sparsity_constraint = l1norm(500, delta2)
-   fused_constraint.constraint = True   
-   sparsity_constraint.constraint = True   
+   fused_constraint = l1norm.linear(D, bound=delta1)
+   sparsity_constraint = l1norm(500, bound=delta2)
    constrained_problem = container(loss, fused_constraint, sparsity_constraint)
    constrained_solver = FISTA(constrained_problem.problem())
    constrained_solver.problem.L = 1.01
@@ -140,10 +138,8 @@ Let's also solve this with the generic constraint class, which is called by defa
    delta1 = np.fabs(D * solution).sum()
    delta2 = np.fabs(solution).sum()
 
-   fused_constraint = l1norm.linear(D, delta1)
-   sparsity_constraint = l1norm(500, delta2)
-   fused_constraint.constraint = True   
-   sparsity_constraint.constraint = True   
+   fused_constraint = l1norm.linear(D, bound=delta1)
+   sparsity_constraint = l1norm(500, bound=delta2)
 
    constrained_problem = container(loss, fused_constraint, sparsity_constraint)
    constrained_solver = FISTA(constrained_problem.problem())

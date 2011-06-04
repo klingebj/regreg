@@ -3,13 +3,13 @@ from scipy import sparse
 from problem import dummy_problem
 from affine import affine_transform, identity
 
-class seminorm_atom(object):
+class Atom(object):
 
     """
-    A seminorm atom class
+    A class that defines the API for support functions.
     """
 
-    def __init__(self, primal_shape, lagrange=1., constraint=False):
+    def __init__(self, primal_shape, lagrange=None, bound=None):
 
         if type(primal_shape) == type(1):
             self.primal_shape = (primal_shape,)
@@ -17,19 +17,30 @@ class seminorm_atom(object):
             self.primal_shape = primal_shape
         self.dual_shape = self.primal_shape
         self.lagrange = lagrange
-        self.constraint = constraint
+        self.bound = bound
+        if not (self.bound is None or self.lagrange is None):
+            raise ValueError('An atom must be either in Lagrange form or bound form. Only one of the parameters in the constructor can not be None.')
         self.affine_transform = identity(self.primal_shape)
         self.atoms = [self]
 
     @property
-    def dual_atom(self):
-        atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, self.lagrange)
-        atom.constraint = not self.constraint
-        return atom
+    def constraint(self):
+        if self.bound is not None:
+            return True
+        return False
     
     @property
+    def dual_atom(self):
+        if not self.constraint:
+            atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, bound=self.lagrange, lagrange=None)
+        else:
+            atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, lagrange=self.bound, bound=None)
+        return atom
+    
+    #XXX this will fail for things that are constraints...
+    @property
     def dual_seminorm(self):
-        return primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 1./self.lagrange)
+        return primal_dual_seminorm_pairs[self.__class__](self.primal_shape, lagrange=1./self.lagrange)
 
     def evaluate_seminorm(self, x):
         """
@@ -157,37 +168,40 @@ class seminorm_atom(object):
         return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
 
     @classmethod
-    def affine(cls, linear_operator, affine_offset, lagrange=1, diag=False,
+    def affine(cls, linear_operator, affine_offset, lagrange=None,
+               bound=None, diag=False,
                args=(), keywords={}):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
         return affine_atom(cls, linear_operator, affine_offset, diag=diag,
-                           lagrange=lagrange, args=args, keywords=keywords)
+                           lagrange=lagrange, bound=bound, args=args, keywords=keywords)
     
     @classmethod
-    def linear(cls, linear_operator, lagrange=1, diag=False,
-               args=(), keywords={}):
+    def linear(cls, linear_operator, lagrange=None, diag=False,
+               bound=None, args=(), keywords={}):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
         return affine_atom(cls, linear_operator, None, diag=diag,
-                           lagrange=lagrange, args=args, keywords=keywords)
+                           lagrange=lagrange, args=args, keywords=keywords,
+                           bound=bound)
     
     @classmethod
-    def shift(cls, affine_offset, lagrange=1, diag=False,
-              args=(), keywords={}):
+    def shift(cls, affine_offset, lagrange=None, diag=False,
+              bound=None, args=(), keywords={}):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
         return affine_atom(cls, None, affine_offset, diag=diag,
-                           lagrange=lagrange, args=args, keywords=keywords)
+                           lagrange=lagrange, args=args, keywords=keywords,
+                           bound=bound)
     
 
-class l1norm(seminorm_atom):
+class l1norm(Atom):
 
     """
     The l1 norm
@@ -240,7 +254,7 @@ class l1norm(seminorm_atom):
         """
         return np.clip(u, -self.lagrange, self.lagrange) 
 
-class maxnorm(seminorm_atom):
+class maxnorm(Atom):
 
     """
     The :math:`\ell_{\infty}` norm
@@ -330,7 +344,7 @@ class maxnorm(seminorm_atom):
         return np.maximum(fabsu - ll, 0) * np.sign(u)
 
 
-class l2norm(seminorm_atom):
+class l2norm(Atom):
 
     """
     The l2 norm
@@ -372,9 +386,6 @@ class l2norm(seminorm_atom):
         else:
             proj = (self.lagrange / (L * n)) * x
         return x - proj * (1 - l2norm.tol)
-#             v = (1 - self.lagrange / (L*n) * (1 - l2norm.tol)) * x
-#             print np.linalg.norm(v), 'here'
-#             return v
 
     def dual_prox(self, u,  L=1):
         r"""
@@ -398,7 +409,7 @@ class l2norm(seminorm_atom):
         else:
             return (self.lagrange / n) * u
 
-class nonnegative(seminorm_atom):
+class nonnegative(Atom):
 
     """
     The non-negative cone constraint (which is the support
@@ -533,7 +544,7 @@ class nonpositive(nonnegative):
         """
         return np.maximum(u, 0)
 
-class positive_part(seminorm_atom):
+class positive_part(Atom):
 
     """
     The positive_part seminorm (which is the support
@@ -610,7 +621,7 @@ class positive_part(seminorm_atom):
         v[~neg] = np.minimum(self.lagrange, u[~neg])
         return v.reshape(u.shape)
 
-class constrained_positive_part(seminorm_atom):
+class constrained_positive_part(Atom):
 
     """
     The constrained positive part seminorm (which is the support
@@ -691,7 +702,7 @@ class constrained_positive_part(seminorm_atom):
         v[pos] = np.minimum(self.lagrange, u[pos])
         return v.reshape(u.shape)
 
-class linear_atom(seminorm_atom):
+class linear_atom(Atom):
 
     """
     An atom representing a linear constraint.
@@ -699,7 +710,8 @@ class linear_atom(seminorm_atom):
     to be an set of row vectors spanning the space.
     """
 
-    def __init__(self, primal_shape, basis, lagrange=1.):
+    #XXX this is broken currently
+    def __init__(self, primal_shape, basis, lagrange=None):
         self.basis = basis
 
     def primal_prox(self, x,  L=1):
@@ -738,7 +750,7 @@ class linear_atom(seminorm_atom):
         """
         return u - self.primal_prox(u)
 
-class affine_atom(seminorm_atom):
+class affine_atom(Atom):
 
     """
     Given a seminorm on :math:`\mathbb{R}^p`, i.e.
@@ -763,24 +775,31 @@ class affine_atom(seminorm_atom):
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
-    def __init__(self, atom_obj, linear_operator, affine_offset, diag=False, lagrange=1, args=(), keywords={}, constraint = False):
+    def __init__(self, atom_obj, linear_operator, affine_offset, diag=False, lagrange=None, args=(), keywords={}, bound=None):
         self.affine_transform = affine_transform(linear_operator, affine_offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.dual_shape = self.affine_transform.dual_shape
-        keywords = keywords.copy(); keywords['lagrange'] = lagrange
+
+        # overwrite keyword arguments for bound, lagrange
+        # not quite kosher...
+        keywords = keywords.copy()
+        keywords['lagrange'] = lagrange
+        keywords['bound'] = bound
+
         if type(atom_obj) == type(type): # it is a class
             atom_class = atom_obj
             self.atom = atom_class(self.dual_shape, *args, **keywords)
         else:
             self.atom = atom_obj
-        self.constraint = constraint
         self.atoms = [self]
         
 
     @property
     def dual_atom(self):
-        atom = primal_dual_seminorm_pairs[self.atom.__class__](self.dual_shape, self.lagrange)
-        atom.constraint = not self.constraint
+        if not self.constraint:
+            atom = primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, bound=self.lagrange, lagrange=None)
+        else:
+            atom = primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, lagrange=self.bound, bound=None)
         return atom
 
     @property
@@ -793,6 +812,13 @@ class affine_atom(seminorm_atom):
     def _setlagrange(self, lagrange):
         self.atom.lagrange = lagrange
     lagrange = property(_getlagrange, _setlagrange)
+
+    def _getbound(self):
+        return self.atom.bound
+
+    def _setbound(self, bound):
+        self.atom.bound = bound
+    bound = property(_getbound, _setbound)
 
     def evaluate_seminorm(self, x):
         """
