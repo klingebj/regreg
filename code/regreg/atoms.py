@@ -2,6 +2,7 @@ import numpy as np
 from scipy import sparse
 from problem import dummy_problem
 from affine import affine_transform, identity
+from projl1 import projl1
 
 class seminorm_atom(object):
 
@@ -296,6 +297,7 @@ class maxnorm(seminorm_atom):
         where *m*=u.shape[0], :math:`\lambda` = self.l. 
         """
 
+        """
         # Used sorting-based computation
         l = self.l / L
         p = len(u)
@@ -312,7 +314,8 @@ class maxnorm(seminorm_atom):
     
         eta = np.maximum((np.sum(ufabs) - l)/p,0)
         return np.maximum(ufabs-eta,0)*np.sign(u)
-        
+        """
+        return projl1(u)
 
 
 
