@@ -51,7 +51,7 @@ The penalty contains the regularization parameter that can be easily accessed an
 
 .. ipython::
 
-   penalty.l 
+   penalty.lagrange
 
 Now we can create the final problem object
 

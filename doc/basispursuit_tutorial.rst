@@ -53,7 +53,7 @@ The code to construct the loss function looks like this
 
    import regreg.api as R
    from regreg.smooth import linear
-   smooth_l1 = R.smoothed_constraint(R.l1norm(1000, l=1).dual_atom, epsilon=0.01,
+   smooth_l1 = R.smoothed_constraint(R.l1norm(1000, lagrange=1).dual_atom, epsilon=0.01,
    	                                  store_argmin=True)
    loss = R.affine_smooth(smooth_l1, -X.T, None)
    smooth_f = R.smooth_function(loss, linear(Y))
@@ -65,7 +65,7 @@ it will actually be our primal solution. The penalty is specified as
 
    norm_Y = np.linalg.norm(Y)
    l2_constraint_value = np.sqrt(0.1) * norm_Y
-   l2_lagrange = R.l2norm(500, l=l2_constraint_value)
+   l2_lagrange = R.l2norm(500, lagrange=l2_constraint_value)
 
 The container puts these together, then solves the problem by
 decreasing the smoothing.
@@ -96,7 +96,7 @@ we obtain the same solution.
 
 .. ipython::
 
-   sparsity = R.l1norm(1000, l=np.fabs(basis_pursuit_soln).sum(), constraint=True)
+   sparsity = R.l1norm(1000, lagrange=np.fabs(basis_pursuit_soln).sum(), constraint=True)
    loss = R.l2normsq.affine(X, -Y)
    lasso = R.container(loss, sparsity)
    lasso_solver = R.FISTA(lasso.problem())
@@ -123,7 +123,7 @@ we obtain the same solution.
 
    import regreg.api as R
    from regreg.smooth import linear
-   smooth_l1 = R.smoothed_constraint(R.l1norm(1000, l=1).dual_atom, epsilon=0.01,
+   smooth_l1 = R.smoothed_constraint(R.l1norm(1000, lagrange=1).dual_atom, epsilon=0.01,
    	                                  store_argmin=True)
    loss = R.affine_smooth(smooth_l1, -X.T, None)
    smooth_f = R.smooth_function(loss, linear(Y))
@@ -131,7 +131,7 @@ we obtain the same solution.
 
    norm_Y = np.linalg.norm(Y)
    l2_constraint_value = np.sqrt(0.1) * norm_Y
-   l2_lagrange = R.l2norm(500, l=l2_constraint_value)
+   l2_lagrange = R.l2norm(500, lagrange=l2_constraint_value)
 
    basis_pursuit = R.container(smooth_f, l2_lagrange)
    solver = R.FISTA(basis_pursuit.problem(initial=np.random.standard_normal(500)))
@@ -145,7 +145,7 @@ we obtain the same solution.
 
    basis_pursuit_soln = smooth_l1.argmin
 
-   sparsity = R.l1norm(1000, l=np.fabs(basis_pursuit_soln).sum(), constraint=True)
+   sparsity = R.l1norm(1000, lagrange=np.fabs(basis_pursuit_soln).sum(), constraint=True)
    loss = R.l2normsq.affine(X, -Y)
    lasso = R.container(loss, sparsity)
    lasso_solver = R.FISTA(lasso.problem())
