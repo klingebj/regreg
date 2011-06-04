@@ -35,8 +35,8 @@ class smoothed_seminorm(smooth_function):
 
         """
         self.epsilon = epsilon
-        if not np.all([(atom.constraint == False) for atom in atoms]):
-            raise ValueError('all atoms should be in Lagrange form, i.e. constraint=False')
+        if not np.all([(not atom.constraint for atom in atoms)]):
+            raise ValueError('all atoms should be in Lagrange form, i.e. bound=None')
         if self.epsilon <= 0:
             raise ValueError('to smooth, epsilon must be positive')
         self.primal_shape = atoms[0].primal_shape
@@ -155,8 +155,8 @@ class smoothed_constraint(smooth_function):
 
         """
         self.epsilon = epsilon
-        if not atom.constraint == True:
-            raise ValueError('atom should be in constraint form, i.e. constraint=True')
+        if atom.bound is None:
+            raise ValueError('atom should be in constraint form, i.e. bound != None')
         if self.epsilon <= 0:
             raise ValueError('to smooth, epsilon must be positive')
         self.primal_shape = atom.primal_shape
@@ -177,6 +177,7 @@ class smoothed_constraint(smooth_function):
         # is the smooth objective of the dual problem
 
         self.store_argmin = store_argmin
+
     def smooth_eval(self, beta, mode='both'):
         """
         Evaluate a smooth function and/or its gradient

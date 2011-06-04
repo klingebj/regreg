@@ -61,15 +61,15 @@ there are other loss functions (squared error, logistic, etc) and any differenti
 
 .. ipython::
 
-   sparsity = l1norm(len(Y), 0.8)
+   sparsity = l1norm(len(Y), lagrange=0.8)
 
 which creates an l1norm object with :math:`\lambda_2=0.8`. The first argument specifies the length of the coefficient vector. The object sparsity now has a coefficient associated with it that we can access and change,
 
 .. ipython::
 
-   sparsity.l
-   sparsity.l += 1
-   sparsity.l
+   sparsity.lagrange
+   sparsity.lagrange += 1
+   sparsity.lagrange
 
 Next, we create the fused lasso matrix and the associated l1norm object,
 
@@ -78,7 +78,7 @@ Next, we create the fused lasso matrix and the associated l1norm object,
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
    D = sparse.csr_matrix(D)
-   fused = l1norm.linear(D, 25.5)
+   fused = l1norm.linear(D, lagrange=25.5)
 
 Here we first created D, converted it a sparse matrix, and then created an l1norm object with the sparse version of D and :math:`\lambda_1 = 25.5`. We can now combine the two l1norm objects and the loss function using the  container class
 
@@ -91,7 +91,7 @@ We could still easily access the penalty parameter
 .. ipython::
    
    problem.atoms
-   problem.atoms[0].l
+   problem.atoms[0].lagrange
 
 Next, we can select our algorithm of choice and use it solve the problem,
 
@@ -117,13 +117,11 @@ We can then plot solution to see the result of the regression,
 
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
    loss = smooth_function(signal_approximator(Y))
-   sparsity = l1norm(len(Y), l=0.8)
-   sparsity.l
-   sparsity.l += 1
-   sparsity.l
+   sparsity = l1norm(len(Y), lagrange=0.8)
+   sparsity.lagrange += 1
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D = sparse.csr_matrix(D)
-   fused = l1norm.linear(D, l=25.5)
+   fused = l1norm.linear(D, lagrange=25.5)
    problem = container(loss, sparsity, fused)
    solver = FISTA(problem.problem())
    solver.fit(max_its=100, tol=1e-10)

@@ -58,12 +58,12 @@ class Block(object):
         else:
             initial = initial.copy()
         if atom.affine_transform.linear_operator is not None:
-            self.loss = smooth.affine_smooth(smooth.l2normsq, atom.affine_transform.linear_operator.T, -response, l=0.5, diag=atom.affine_transform.diagD)
+            self.loss = smooth.affine_smooth(smooth.l2normsq, atom.affine_transform.linear_operator.T, -response, lagrange=0.5, diag=atom.affine_transform.diagD)
         else:
-            self.loss = smooth.l2normsq.shift(-response, l=0.5)
+            self.loss = smooth.l2normsq.shift(-response, lagrange=0.5)
         if atom.affine_transform.affine_offset is not None:
-            affine_objective = smooth.linear(-atom.affine_transform.affine_offset, l=1)
-            self.objective = smooth.smooth_function(self.loss, affine_objective, l=1)
+            affine_objective = smooth.linear(-atom.affine_transform.affine_offset, lagrange=1)
+            self.objective = smooth.smooth_function(self.loss, affine_objective, lagrange=1)
         else:
             self.objective = self.loss
 
@@ -142,13 +142,13 @@ def test1():
 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
-    sparsity = l1norm(500, l=1.0)
+    sparsity = l1norm(500, lagrange=1.0)
     #Create D
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
     D = sparse.csr_matrix(D)
 
-    fused = l1norm.linear(D, l=19.5)
-    loss = l2normsq.shift(-Y, l=0.5)
+    fused = l1norm.linear(D, lagrange=19.5)
+    loss = l2normsq.shift(-Y, lagrange=0.5)
 
     p = container(loss, sparsity, fused)
     
@@ -179,7 +179,7 @@ def test2():
 
     n1, n2 = l1norm(1), l1norm(1)
     Y = np.array([30.])
-    loss = l2normsq.shift(-Y, l=0.5)
+    loss = l2normsq.shift(-Y, lagrange=0.5)
     blockwise([n1, n2], Y)
 
 

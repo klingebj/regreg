@@ -10,11 +10,11 @@ class smooth_function(object):
 
     # TODO? use a list for atoms instead of *atoms?
     def __init__(self, *atoms, **keywords):
-        if not set(keywords.keys()).issubset(['l']):
+        if not set(keywords.keys()).issubset(['lagrange']):
             warnings.warn('only keyword argument should be multiplier, "l", got %s' % `keywords`)
-        self.l = 1
-        if keywords.has_key('l'):
-            self.l *= keywords['l']
+        self.lagrange =1
+        if keywords.has_key('lagrange'):
+            self.lagrange *= keywords['lagrange']
         self.atoms = []
         self.primal_shape = -1
         for atom in atoms:
@@ -71,17 +71,17 @@ class smooth_function(object):
             raise ValueError("Mode specified incorrectly")
 
     def scale(self, obj, copy=False):
-        if self.l != 1:
-            return obj * self.l
+        if self.lagrange != 1:
+            return obj * self.lagrange
         if copy:
             return obj.copy()
         return obj
     
-    def proximal(self, x, g, L):
+    def proximal(self, x, g, lipshitz):
         """
         Take a gradient step
         """
-        return x - g / L
+        return x - g / lipshitz
 
     def obj_rough(self, x):
         """
@@ -93,7 +93,7 @@ class smooth_function(object):
         """
         Create a new problem object using the seminorm
         """
-        # XXX the class now has self.l -- no need form smooth_multiplier
+        # XXX the class now has self.lagrange -- no need form smooth_multiplier
         if initial is None:
             return seminorm.primal_problem(self.smooth_eval, 
                                     smooth_multiplier=smooth_multiplier,
@@ -109,11 +109,11 @@ class affine_smooth(smooth_function):
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
-    def __init__(self, smooth_obj, linear_operator=None, offset=None, diag=False, l=1, args=(), keywords={}):
+    def __init__(self, smooth_obj, linear_operator=None, offset=None, diag=False, lagrange=1, args=(), keywords={}):
         self.affine_transform = affine_transform(linear_operator, offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
-        keywords = keywords.copy(); keywords['l'] = l
+        keywords = keywords.copy(); keywords['lagrange'] = lagrange
         if type(smooth_obj) == type(type): # a class object
             smooth_class = smooth_obj
             self.sm_atom = smooth_class(self.primal_shape, *args, **keywords)
@@ -122,10 +122,10 @@ class affine_smooth(smooth_function):
         self.atoms = [self]
 
     def _getl(self):
-        return self.sm_atom.l
+        return self.sm_atom.lagrange
 
     def _setl(self, l):
-        self.sm_atom.l = l
+        self.sm_atom.lagrange = lagrange
     l = property(_getl, _setl)
 
     def smooth_eval(self, beta, mode='both'):
@@ -149,9 +149,9 @@ class smooth_atom(smooth_function):
     A class for representing a smooth function and its gradient
     """
 
-    def __init__(self, primal_shape, l=1):
+    def __init__(self, primal_shape, lagrange=1):
         self.primal_shape = primal_shape
-        self.l = l
+        self.lagrange = lagrange
         self.coefs = np.zeros(self.primal_shape)
         raise NotImplementedError
 
@@ -159,49 +159,49 @@ class smooth_atom(smooth_function):
         raise NotImplementedError
     
     @classmethod
-    def affine(cls, linear_operator, offset, l=1, diag=False,
+    def affine(cls, linear_operator, offset, lagrange=1, diag=False,
                args=(), keywords={}):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
-        return affine_smooth(cls, linear_operator, offset, diag=diag, l=l,
+        return affine_smooth(cls, linear_operator, offset, diag=diag, lagrange=lagrange,
                              args=args, keywords=keywords)
 
     @classmethod
-    def linear(cls, linear_operator, l=1, diag=False,
+    def linear(cls, linear_operator, lagrange=1, diag=False,
                args=(), keywords={}):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
-        return affine_smooth(cls, linear_operator, None, diag=diag, l=l,
+        return affine_smooth(cls, linear_operator, None, diag=diag, lagrange=lagrange,
                              args=args, keywords=keywords)
 
     @classmethod
-    def shift(cls, offset, l=1, diag=False,
+    def shift(cls, offset, lagrange=1, diag=False,
                args=(), keywords={}):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
-        return affine_smooth(cls, None, offset, diag=diag, l=l,
+        return affine_smooth(cls, None, offset, diag=diag, lagrange=lagrange,
                              args=args, keywords=keywords)
 
 
-def squaredloss(linear_operator, offset, l=1):
+def squaredloss(linear_operator, offset, lagrange=1):
     # the affine method gets rid of the need for the squaredloss class
     # as previously written squared loss had a factor of 2
 
-    #return l2normsq.affine(-linear_operator, offset, l=l/2., initial=np.zeros(linear_operator.shape[1]))
-    return l2normsq.affine(-linear_operator, offset, l=l/2.)
+    #return l2normsq.affine(-linear_operator, offset, lagrange=lagrange/2., initial=np.zeros(linear_operator.shape[1]))
+    return l2normsq.affine(-linear_operator, offset, lagrange=lagrange/2.)
 
 class l2normsq(smooth_atom):
     """
     The square of the l2 norm
     """
 
-    def __init__(self, primal_shape, l=None, Q=None, Qdiag=False):
+    def __init__(self, primal_shape, lagrange=None, Q=None, Qdiag=False):
         self.Q = Q
         if self.Q is not None:
             self.Q_transform = affine_transform(Q, 0, Qdiag)
@@ -209,7 +209,7 @@ class l2normsq(smooth_atom):
             self.primal_shape = (primal_shape,)
         else:
             self.primal_shape = primal_shape
-        self.l = l
+        self.lagrange = lagrange
 
     def smooth_eval(self, beta, mode='both'):
         """
@@ -241,10 +241,10 @@ class l2normsq(smooth_atom):
             
 class linear(smooth_atom):
 
-    def __init__(self, vector, l=1):
-        self.vector = l * vector
+    def __init__(self, vector, lagrange=1):
+        self.vector = lagrange * vector
         self.primal_shape = vector.shape
-        self.l = 1
+        self.lagrange =1
         self.coefs = np.zeros(self.primal_shape)
 
     def smooth_eval(self, beta, mode='both'):
@@ -266,8 +266,8 @@ class linear(smooth_atom):
             raise ValueError("mode incorrectly specified")
     
 
-def signal_approximator(offset, l=1):
-    return l2normsq.shift(-offset, l)
+def signal_approximator(offset, lagrange=1):
+    return l2normsq.shift(-offset, lagrange)
 
 class logistic_loglikelihood(smooth_atom):
 
@@ -275,11 +275,11 @@ class logistic_loglikelihood(smooth_atom):
     A class for combining the logistic log-likelihood with a general seminorm
     """
 
-    def __init__(self, linear_operator, binary_response, offset=None, l=1):
+    def __init__(self, linear_operator, binary_response, offset=None, lagrange=1):
         self.affine_transform = affine_transform(linear_operator, offset)
         self.binary_response = binary_response
         self.primal_shape = self.affine_transform.primal_shape
-        self.l = l
+        self.lagrange = lagrange
 
     def smooth_eval(self, beta, mode='both'):
         """

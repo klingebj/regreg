@@ -39,17 +39,17 @@ Now we can create the problem object, beginning with the loss function
 .. ipython::
 
    loss = squaredloss(X,Y)
-   grouping = l2normsq(1000, l=1.)
-   sparsity = l1norm(1000, l=5.)
+   grouping = l2normsq(1000, lagrange=1.)
+   sparsity = l1norm(1000, lagrange=5.)
 
 The penalty contains the regularization parameter that can be easily accessed and changed,
 
 .. ipython::
 
-   grouping.l 
-   grouping.l += 1 
-   grouping.l 
-   sparsity.l
+   grouping.lagrange
+   grouping.lagrange += 1 
+   grouping.lagrange
+   sparsity.lagrange
  
 
 Now we can create the final problem object by comining the smooth functions and the :math:`\ell_1` seminorm,
@@ -65,7 +65,7 @@ Next, we can select our algorithm of choice and use it solve the problem,
 .. ipython::
 
    solver = FISTA(problem.problem())
-   obj_vals = solver.fit(max_its=100, tol=1e-5)
+   obj_vals = solver.fit(max_its=100, tol=.l1e-5)
    solution = solver.problem.coefs
 
 Here max_its represents primal iterations, and tol is the primal tolerance. 

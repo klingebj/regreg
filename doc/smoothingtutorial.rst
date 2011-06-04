@@ -38,7 +38,7 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = l2normsq.shift(-Y,l=1)
+   loss = l2normsq.shift(-Y,lagrange=1)
    sparsity = l1norm(len(Y), 1.8)
 
    # fused
@@ -105,7 +105,7 @@ We can then plot solution to see the result of the regression,
 
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
-   loss = l2normsq.shift(-Y, l=1)
+   loss = l2normsq.shift(-Y, lagrange=1)
    sparsity = l1norm(len(Y), 1.8)
 
    # fused

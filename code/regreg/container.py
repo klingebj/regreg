@@ -63,7 +63,7 @@ class container(object):
         return out
 
     
-    def dual_prox(self, u, L_D=1.):
+    def dual_prox(self, u, lipshitz_D=1.):
         """
         Return (unique) minimizer
 
@@ -74,8 +74,8 @@ class container(object):
 
         where *m*=u.shape[0]=np.sum(self.dual_dims), :math:`M`=self.M
         and :math:`h^*_i` is the conjugate of 
-        self.atoms[i].l * self.atoms[i].evaluate and 
-        :math:`\lambda_i`=self.atoms[i].l.
+        self.atoms[i].lagrange * self.atoms[i].evaluate and 
+        :math:`\lambda_i`=self.atoms[i].lagrange
 
         This is used in the ISTA/FISTA solver loop with :math:`u=z-g/L` when finding
         self.primal_prox, i.e., the signal approximator problem.
@@ -86,39 +86,39 @@ class container(object):
         u = u.view(self.dual_dtype).reshape(())
         for atom, dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
             if atom.constraint:
-                v[segment] = dual_atom.primal_prox(u[segment], L_D)
+                v[segment] = dual_atom.primal_prox(u[segment], lipshitz_D)
             else:
-                v[segment] = atom.dual_prox(u[segment], L_D)
+                v[segment] = atom.dual_prox(u[segment], lipshitz_D)
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
-    def primal_prox(self, y, L_P=1., with_history=False, debug=False, max_its=5000, tol=1e-14):
+    def primal_prox(self, y, lipshitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
         """
         The proximal function for the primal problem
         """
-        yL = L_P * y
+        yL = lipshitz_P * y
         if not hasattr(self, 'dualopt'):
-            self.dualp = self.dual_problem(yL, L_P=L_P)
-            #Approximate Lipschitz constant
-            self.dual_reference_Lipshitz = 1.05*self.power_LD(debug=debug)
+            self.dualp = self.dual_problem(yL, lipshitz_P=lipshitz_P)
+            #Approximate Lipshitz constant
+            self.dual_reference_lipshitz = 1.05*self.power_LD(debug=debug)
             self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = debug
 
         # XXX this is hopefully going to work...
-        self.dualopt.problem.smooth_multiplier = 1./L_P
-        self.dualp.L = self.dual_reference_Lipshitz / L_P
+        self.dualopt.problem.smooth_multiplier = 1./lipshitz_P
+        self.dualp.lipshitz = self.dual_reference_lipshitz / lipshitz_P
 
         self._dual_prox_center = yL
         history = self.dualopt.fit(max_its=max_its, min_its=5, tol=tol, backtrack=False)
         if with_history:
-            return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P,
+            return self.primal_from_dual(y, self.dualopt.problem.coefs/lipshitz_P,
                                          tol=tol), history
         else:
-            return self.primal_from_dual(y, self.dualopt.problem.coefs/L_P)
+            return self.primal_from_dual(y, self.dualopt.problem.coefs/lipshitz_P)
 
     def power_LD(self,max_its=500,tol=1e-8, debug=False):
         """
-        Approximate the Lipschitz constant for the dual problem using power iterations
+        Approximate the Lipshitz constant for the dual problem using power iterations
         """
         v = np.random.standard_normal(self.primal_shape)
         z = np.zeros((), self.dual_dtype)
@@ -150,7 +150,7 @@ class container(object):
             x -= atom.adjoint_map(u[segment])
         return x
 
-    def dual_problem(self, y, L_P=1, initial=None):
+    def dual_problem(self, y, lipshitz_P=1, initial=None):
         """
         Return a problem instance of the dual
         prox problem with a given y value.
@@ -163,10 +163,10 @@ class container(object):
 
             # XXX dtype manipulations -- would be nice not to have to do this
             z = z.reshape((1,)).view(np.float)
-            initial = self.dual_prox(z, 1./L_P)
+            initial = self.dual_prox(z, 1./lipshitz_P)
         nonsmooth = self.evaluate_dual_atoms
         prox = self.dual_prox
-        return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1./L_P)
+        return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1./lipshitz_P)
 
 
 

@@ -46,7 +46,7 @@ Now we can create the problem object, beginning with the loss function
 
    alpha = np.linspace(0,10,500)
    Y += alpha
-   loss = l2normsq.shift(-Y.copy(), l=0.5)
+   loss = l2normsq.shift(-Y.copy(), lagrange=0.5)
 
    shrink_to_alpha = l1norm.shift(-alpha, 3.)
 
@@ -108,7 +108,7 @@ We can then plot solution to see the result of the regression,
 
    alpha = np.linspace(0,10,500)
    Y += alpha
-   loss = l2normsq.shift(-Y.copy(), l=0.5)
+   loss = l2normsq.shift(-Y.copy(), lagrange=0.5)
 
    shrink_to_alpha = l1norm.shift(-alpha, 3.)
 

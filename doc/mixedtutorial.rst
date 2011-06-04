@@ -34,12 +34,12 @@ Next, let's generate an example signal, and solve the Lagrange form of the probl
 .. ipython::
  
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-   loss = l2normsq.shift(-Y, l=0.5)
+   loss = l2normsq.shift(-Y, lagrange=0.5)
 
-   sparsity = l1norm(len(Y), 1.4)
+   sparsity = l1norm(len(Y), lagrange=1.4)
    # TODO should make a module to compute typical Ds
    D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
-   fused = l1norm.linear(D, 25.5)
+   fused = l1norm.linear(D, lagrange=25.5)
    problem = container(loss, sparsity, fused)
    
    solver = FISTA(problem.problem())
@@ -53,12 +53,11 @@ By default, the container class will try to solve this problem with the two-loop
 .. ipython::
 
    delta = np.fabs(D * solution).sum()
-   sparsity = l1norm(len(Y), 1.4)
-   fused_constraint = l1norm.linear(D, delta)
-   fused_constraint.constraint = True   
+   sparsity = l1norm(len(Y), lagrange=1.4)
+   fused_constraint = l1norm.linear(D, bound=delta)
    constrained_problem = container(loss, fused_constraint, sparsity)
    constrained_solver = FISTA(constrained_problem.problem())
-   constrained_solver.problem.L = 1.01
+   constrained_solver.problem.lipshitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
    constrained_solution = constrained_solver.problem.coefs
 
@@ -73,8 +72,8 @@ We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^
 
 .. ipython::
 
-   loss = l2normsq.shift(-Y, l=0.5)
-   true_conjugate = l2normsq.shift(Y, l=0.5)
+   loss = l2normsq.shift(-Y, lagrange=0.5)
+   true_conjugate = l2normsq.shift(Y, lagrange=0.5)
    problem = container(loss, fused_constraint, sparsity)
    solver = FISTA(problem.conjugate_problem(true_conjugate))
    solver.fit(max_its=200, tol=1e-08)
@@ -84,7 +83,7 @@ Let's also solve this with the generic constraint class, which is called by defa
 
 .. ipython::
 
-   loss = l2normsq.shift(-Y, l=0.5)
+   loss = l2normsq.shift(-Y, lagrange=0.5)
    problem = container(loss, fused_constraint, sparsity)
    solver = FISTA(problem.conjugate_problem())
    solver.fit(max_its=200, tol=1e-08)
@@ -108,12 +107,12 @@ Let's also solve this with the generic constraint class, which is called by defa
    from regreg.smooth import l2normsq
  
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-   loss = l2normsq.shift(-Y, l=0.5)
+   loss = l2normsq.shift(-Y, lagrange=0.5)
 
-   sparsity = l1norm(len(Y), 1.4)
+   sparsity = l1norm(len(Y), lagrange=1.4)
    # TODO should make a module to compute typical Ds
    D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
-   fused = l1norm.linear(D, 25.5)
+   fused = l1norm.linear(D, lagrange=25.5)
    problem = container(loss, sparsity, fused)
    
    solver = FISTA(problem.problem())
@@ -121,25 +120,24 @@ Let's also solve this with the generic constraint class, which is called by defa
    solution = solver.problem.coefs
 
    delta = np.fabs(D * solution).sum()
-   sparsity = l1norm(len(Y), 1.4)
-   fused_constraint = l1norm.linear(D, delta)
-   fused_constraint.constraint = True   
+   sparsity = l1norm(len(Y), lagrange=1.4)
+   fused_constraint = l1norm.linear(D, bound=delta)
    constrained_problem = container(loss, fused_constraint, sparsity)
    constrained_solver = FISTA(constrained_problem.problem())
-   constrained_solver.problem.L = 1.01
+   constrained_solver.problem.lipshitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
    constrained_solution = constrained_solver.problem.coefs
 
 
-   loss = l2normsq.shift(-Y, l=0.5)
-   true_conjugate = l2normsq.shift(Y, l=0.5)
+   loss = l2normsq.shift(-Y, lagrange=0.5)
+   true_conjugate = l2normsq.shift(Y, lagrange=0.5)
    problem = container(loss, fused_constraint, sparsity)
    solver = FISTA(problem.conjugate_problem(true_conjugate))
    solver.fit(max_its=200, tol=1e-08)
    conjugate_coefs = problem.conjugate_primal_from_dual(solver.problem.coefs)
 
 
-   loss = l2normsq.shift(-Y, l=0.5)
+   loss = l2normsq.shift(-Y, lagrange=0.5)
    problem = container(loss, fused_constraint, sparsity)
    solver = FISTA(problem.conjugate_problem())
    solver.fit(max_its=200, tol=1e-08)

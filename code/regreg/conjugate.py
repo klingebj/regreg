@@ -7,14 +7,14 @@ class conjugate(object):
     def __init__(self, smooth_f, epsilon=0.01, store_argmin=True):
         self._smooth_function = smooth_f
         self._linear = linear(np.zeros(smooth_f.primal_shape))
-        self._quadratic = l2normsq(smooth_f.primal_shape, l=epsilon/2.)
+        self._quadratic = l2normsq(smooth_f.primal_shape, lagrange=epsilon/2.)
         self._smooth_function_linear = smooth_function(smooth_f, self._linear, self._quadratic)
         self._solver = FISTA(self._smooth_function_linear)
         #XXX we need a better way to pass around the Lipschitz constant
         # should go in the container class
-        if hasattr(smooth_f, "L"):
+        if hasattr(smooth_f, "lipschitz"):
             self._backtrack = False
-            self._smooth_function_linear.L = smooth_f.L + epsilon
+            self._smooth_function_linear.lipschitz = smooth_f.lipschitz + epsilon
         else:
             self._backtrack = True
         self._have_solved_once = False

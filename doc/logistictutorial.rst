@@ -44,13 +44,13 @@ Now we can create the problem object, beginning with the loss function
 .. ipython::
 
    loss = logistic_loglikelihood(X,Y)
-   penalty = l2normsq(1000, l=1.)
+   penalty = l2normsq(1000, lagrange=1.)
 
 The penalty contains the regularization parameter that can be easily accessed and changed,
 
 .. ipython::
 
-   penalty.l 
+   penalty.lagrange
 
 .. ipython::
 
