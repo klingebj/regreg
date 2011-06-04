@@ -48,7 +48,7 @@ Now we can create the problem object, beginning with the loss function
    Y += alpha
    loss = l2normsq.shift(-Y.copy(), l=0.5)
 
-   shrink_to_alpha = l1norm.shift(alpha, 3.)
+   shrink_to_alpha = l1norm.shift(-alpha, 3.)
 
 which creates an affine_atom object with :math:`\lambda_2=3`. That is, it creates the penalty
 
@@ -94,22 +94,23 @@ We can then plot solution to see the result of the regression,
 
 .. plot::
 
-
    import numpy as np
    import pylab	
    from scipy import sparse
+
    from regreg.algorithms import FISTA
    from regreg.atoms import l1norm
    from regreg.container import container
    from regreg.smooth import l2normsq
    from regreg.blocks import blockwise
 
-   Y = np.random.standard_normal(500) ; Y[100:150] += 7; Y[250:300] += 14
+   Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
+
    alpha = np.linspace(0,10,500)
    Y += alpha
    loss = l2normsq.shift(-Y.copy(), l=0.5)
 
-   shrink_to_alpha = l1norm.shift(-alpha, 3)
+   shrink_to_alpha = l1norm.shift(-alpha, 3.)
 
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D = sparse.csr_matrix(D)
@@ -117,16 +118,20 @@ We can then plot solution to see the result of the regression,
 
    cont = container(loss, shrink_to_alpha, fused)
    solver = FISTA(cont.problem())
-   solver.debug = True
-   solver.fit(max_its=200, tol=1.0e-10)
-
+   solver.fit(max_its=200, tol=1e-10)
    solution = solver.problem.coefs
+
+   from regreg.blocks import blockwise
+   block_soln = blockwise([shrink_to_alpha, fused], Y, max_its=500, tol=1.0e-10)
+   np.linalg.norm(block_soln - solution) / np.linalg.norm(solution)
+   problem = cont.problem()
+   problem.obj(block_soln), problem.obj(solution)
+
    pylab.clf()
    pylab.plot(solution, c='g', linewidth=6, label=r'$\hat{Y}$')	
    pylab.plot(alpha, c='black', linewidth=3, label=r'$\alpha$')	
    pylab.scatter(np.arange(Y.shape[0]), Y, facecolor='red', label=r'$Y$')
-   soln2 = blockwise([shrink_to_alpha, fused], Y, max_its=500, tol=1.0e-10, min_its=20)
-   pylab.plot(soln2, c='yellow', linewidth=2, label='blockwise')	
+   pylab.plot(block_soln, c='yellow', linewidth=2, label='blockwise')	
    pylab.legend()
 
 

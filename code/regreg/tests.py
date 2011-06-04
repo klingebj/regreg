@@ -2,8 +2,7 @@ import numpy as np
 from scipy import sparse
 import time
 
-from algorithms import FISTA
-from old_framework.lasso import lasso
+import regreg.api as R
         
 import pylab
 
@@ -11,12 +10,15 @@ def fused_example():
 
     x=np.random.standard_normal(500); x[100:150] += 7
 
-    sparsity = l1norm(500, l=1.3)
+    sparsity = R.l1norm(500, l=1.3)
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
-    fused = l1norm(D, l=10.5)
+    fused = R.l1norm.linear(D, l=10.5)
 
-    pen = seminorm(sparsity,fused)
-    soln, vals = pen.primal_prox(x, 1, with_history=True)
+    loss = R.l2normsq.shift(-x, l=0.5)
+    pen = R.container(loss, sparsity,fused)
+    solver = R.FISTA(pen.problem())
+    vals = solver.fit()
+    soln = solver.problem.coefs
     
     # solution
 
@@ -31,85 +33,69 @@ def fused_example():
     pylab.clf()
     pylab.plot(vals)
 
-def lasso_example(compare=False):
+def lasso_example():
 
     l1 = 20.
-    sparsity = l1norm(500, l=l1/2.)
+    sparsity = R.l1norm(500, l=l1/2.)
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
-    regloss = squaredloss(X,Y)
+    regloss = R.l2normsq.affine(X,-Y, l=0.5)
     sparsity2 = l1norm(500, l=l1/2.)
-    #p=regloss.add_seminorm(sparsity)
-    p=regloss.add_seminorm(seminorm(sparsity,sparsity2))
-    solver=FISTA(p)
+    p=R.container(regloss, sparsity, sparsity2)
+    solver=R.FISTA(p.problem())
     solver.debug = True
     vals = solver.fit(max_its=2000, min_its = 100)
     soln = solver.problem.coefs
 
-    if not compare:
-        # solution
-        pylab.figure(num=1)
-        pylab.clf()
-        pylab.plot(soln, c='g')
+    # solution
+    pylab.figure(num=1)
+    pylab.clf()
+    pylab.plot(soln, c='g')
 
-        # objective values
-        pylab.figure(num=2)
-        pylab.clf()
-        pylab.plot(vals)
-    else:
-        p2 = lasso.gengrad((X, Y))
-        p2.assign_penalty(l1=l1)
-        opt = FISTA(p2)
-        opt.debug = True
-        opt.fit(tol=1e-10,max_its=5000)
-        beta = opt.problem.coefs
-        print "Terminal error with seminorm:", np.min(vals), "\tTerminal error with lasso", p.obj(beta) ,"\nTerminal relative error:", (np.min(vals) - p.obj(beta))/p.obj(beta)
-
-        pylab.figure(num=1)
-        pylab.clf()
-        #pylab.plot(soln, c='g')
-        pylab.scatter(soln,beta)
-        
-        pylab.figure(num=2)
-        pylab.clf()
-        pylab.plot(vals)
-
+    # objective values
+    pylab.figure(num=2)
+    pylab.clf()
+    pylab.plot(vals)
 
 def group_lasso_signal_approx():
 
     def selector(p, slice):
         return np.identity(p)[slice]
-    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=10.) for i in range(5)]
-    group_lasso = seminorm(*penalties)
+    penalties = [R.l2norm(selector(500, slice(i*100,(i+1)*100)), l=10.) for i in range(5)]
+    loss = R.l2normsq.shift(-x, l=0.5)
+    group_lasso = R.container(loss, **penalties)
     x = np.random.standard_normal(500)
-    a = group_lasso.primal_prox(x, 1., debug=True)
+    solver = R.FISTA(group_lasso.problem())
+    solver.fit()
+    a = solver.problem.coefs
     
 def lasso_via_dual_split():
 
     def selector(p, slice):
         return np.identity(p)[slice]
-    penalties = [l1norm(selector(500, slice(i*100,(i+1)*100)), l=0.2) for i in range(5)]
-    lasso = seminorm(*penalties)
+    penalties = [R.l1norm(selector(500, slice(i*100,(i+1)*100)), l=0.2) for i in range(5)]
     x = np.random.standard_normal(500)
-    a = lasso.primal_prox(x, debug=True)
-    np.testing.assert_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), a)
+    loss = R.l2normsq.shift(-x, l=0.5)
+    lasso = R.container(loss,*penalties)
+    solver = R.FISTA(lasso.problem())
+    np.testing.assert_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), solver.problem.coefs)
     
 def group_lasso_example():
 
     def selector(p, slice):
         return np.identity(p)[slice]
-    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
+    penalties = [R.l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
     penalties[0].l = 250.
     penalties[1].l = 225.
     penalties[2].l = 150.
     penalties[3].l = 100.
-    group_lasso = seminorm(*penalties)
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
-    regloss = squaredloss(X,Y)
-    p=regloss.add_seminorm(group_lasso)
-    solver=FISTA(p)
+    loss = R.l2normsq.affine(X, -Y, l=0.5)
+    group_lasso = R.container(loss, *penalties)
+
+    solver=R.FISTA(group_lasso.problem())
     solver.debug = True
     vals = solver.fit(max_its=2000, min_its=20,tol=1e-10)
     soln = solver.problem.coefs
@@ -138,17 +124,16 @@ def test_group_lasso_sparse(n=100):
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
+    loss = R.l2normsq.affine(X, -Y, l=0.5)
 
-
-    penalties = [l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
+    penalties = [R.l2norm(selector(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
     penalties[0].l = 250.
     penalties[1].l = 225.
     penalties[2].l = 150.
     penalties[3].l = 100.
-    group_lasso = seminorm(*penalties)
-    regloss = squaredloss(X,Y)
-    p=regloss.add_seminorm(group_lasso)
-    solver=FISTA(p)
+    group_lasso = R.container(loss, *penalties)
+
+    solver=FISTA(group_lasso.problem())
     solver.debug = True
     t1 = time.time()
     vals = solver.fit(max_its=2000, min_its=20,tol=1e-8)
@@ -157,33 +142,14 @@ def test_group_lasso_sparse(n=100):
     dt1 = t2 - t1
 
 
-    penalties = [l2norm(selector_sparse(500, slice(i*100,(i+1)*100)), l=.1) for i in range(5)]
-    penalties[0].l = 250.
-    penalties[1].l = 225.
-    penalties[2].l = 150.
-    penalties[3].l = 100.
-    group_lasso = seminorm(*penalties)
-    regloss = squaredloss(X,Y)
-    p=regloss.add_seminorm(group_lasso)
-    solver=FISTA(p)
-    solver.debug = True
-    t1 = time.time()
-    vals = solver.fit(max_its=2000, min_its=20,tol=1e-8)
-    soln2 = solver.problem.coefs
-    t2 = time.time()
-    dt2 = t2- t1
 
-    print "Times", dt1, dt2
     print soln1[range(10)]
-    print soln2[range(10)]
-    np.testing.assert_almost_equal(soln1,soln2)
 
 def test_1d_fused_lasso(n=100):
 
     l1 = 1.
 
-
-    sparsity1 = l1norm(n, l=l1)
+    sparsity1 = R.l1norm(n, l=l1)
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
     extra = np.zeros(n)
     extra[0] = 1.
@@ -194,9 +160,9 @@ def test_1d_fused_lasso(n=100):
 
     X = np.random.standard_normal((2*n,n))
     Y = np.random.standard_normal((2*n,))
-    regloss = squaredloss(X,Y)
-    p=regloss.add_seminorm(fused)
-    solver=FISTA(p)
+    loss = R.l2normsq.affine(X, -Y, l=0.5)
+    fused_lasso = R.container(loss, fused)
+    solver=FISTA(fused_lasso.problem())
     solver.debug = True
     vals1 = solver.fit(max_its=25000, tol=1e-12)
     soln1 = solver.problem.coefs
@@ -204,23 +170,22 @@ def test_1d_fused_lasso(n=100):
     B = np.array(sparse.tril(np.ones((n,n))).todense())
     X2 = np.dot(X,B)
 
-    time.sleep(3)
-    
-    D2 = np.diag(np.ones(n))
-    p2 = lasso.gengrad((X2, Y))
-    p2.assign_penalty(l1=l1)
-    opt = FISTA(p2)
-    opt.debug = True
-    opt.fit(tol=1e-12,max_its=25000)
-    beta = opt.problem.coefs
-    soln2 = np.dot(B,beta)
+#     D2 = np.diag(np.ones(n))
+#     p2 = lasso.gengrad((X2, Y))
+#     p2.assign_penalty(l1=l1)
+#     opt = FISTA(p2)
+#     opt.debug = True
+#     opt.fit(tol=1e-12,max_its=25000)
+#     beta = opt.problem.coefs
+#     soln2 = np.dot(B,beta)
 
-    print soln1[range(10)]
-    print soln2[range(10)]
-    print p.obj(soln1), p.obj(soln2)
-    #np.testing.assert_almost_equal(soln1,soln2)
+#     print soln1[range(10)]
+#     print soln2[range(10)]
+#     print p.obj(soln1), p.obj(soln2)
+#     #np.testing.assert_almost_equal(soln1,soln2)
 
-    return vals1
+#     return vals1
+
 def test_lasso_dual():
 
     """
@@ -228,10 +193,13 @@ def test_lasso_dual():
     """
 
     l1 = .1
-    sparsity = l1norm(500, l=l1)
+    sparsity = R.l1norm(500, l=l1)
     x = np.random.normal(0,1,500)
-    pen = seminorm(sparsity)
-    soln, vals = pen.primal_prox(x, 1, with_history=True, debug=True)
+    loss = R.l2normsq.shift(-x, l=0.5)
+    pen = R.container(loss, sparsity)
+    solver = R.FISTA(pen.problem())
+    solver.fit()
+    soln = solver.problem.coefs
     st = np.maximum(np.fabs(x)-l1,0) * np.sign(x) 
 
     print soln[range(10)]
@@ -310,17 +278,6 @@ def test_lasso(n=100):
     soln = solver.problem.coefs
 
     time.sleep(5)
-
-
-    p2 = lasso.gengrad((X, Y))#,initial_coefs = np.random.normal(0,1,n))
-    p2.assign_penalty(l1=l1)
-    opt = FISTA(p2)
-    opt.debug = True
-    t1 = time.time()
-    vals2 = opt.fit(tol=1e-18,max_its=800)
-    t2 = time.time()
-    dt2 = t2 - t1
-    beta = opt.problem.coefs
 
 
     print soln[range(10)]

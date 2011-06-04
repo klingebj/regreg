@@ -45,3 +45,11 @@ RegReg tutorials
 * :ref:`hubertutorial`
 
   * A "robust" objective function with an :math:`\ell_1` penalty   
+
+* :ref:`basispursuit_tutorial`
+
+  * Strategy used is that of the TFOCS paper.
+
+  * Illustrates the basis pursuit problem using a smoothed constraint in the
+    conjugate.
+
