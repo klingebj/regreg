@@ -758,7 +758,7 @@ class affine_atom(seminorm_atom):
     
     """
 
-   # if smooth_obj is a class, an object is created
+    # if smooth_obj is a class, an object is created
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
@@ -766,7 +766,7 @@ class affine_atom(seminorm_atom):
         self.affine_transform = affine_transform(linear_operator, affine_offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.dual_shape = self.affine_transform.dual_shape
-        keywords = keywords.copy(); keywords['l'] = lagrange
+        keywords = keywords.copy(); keywords['lagrange'] = lagrange
         if type(atom_obj) == type(type): # it is a class
             atom_class = atom_obj
             self.atom = atom_class(self.dual_shape, *args, **keywords)
@@ -786,12 +786,12 @@ class affine_atom(seminorm_atom):
     def dual_seminorm(self):
         return primal_dual_seminorm_pairs[self.atom.__class__](self.dual_shape, 1./self.lagrange)
 
-    def _getl(self):
+    def _getlagrange(self):
         return self.atom.lagrange
 
-    def _setl(self, l):
+    def _setlagrange(self, lagrange):
         self.atom.lagrange = lagrange
-    l = property(_getl, _setl)
+    lagrange = property(_getlagrange, _setlagrange)
 
     def evaluate_seminorm(self, x):
         """

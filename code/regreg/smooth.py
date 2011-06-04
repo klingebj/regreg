@@ -10,11 +10,11 @@ class smooth_function(object):
 
     # TODO? use a list for atoms instead of *atoms?
     def __init__(self, *atoms, **keywords):
-        if not set(keywords.keys()).issubset(['l']):
+        if not set(keywords.keys()).issubset(['lagrange']):
             warnings.warn('only keyword argument should be multiplier, "l", got %s' % `keywords`)
         self.lagrange =1
-        if keywords.has_key('l'):
-            self.lagrange *= keywords['l']
+        if keywords.has_key('lagrange'):
+            self.lagrange *= keywords['lagrange']
         self.atoms = []
         self.primal_shape = -1
         for atom in atoms:
@@ -113,7 +113,7 @@ class affine_smooth(smooth_function):
         self.affine_transform = affine_transform(linear_operator, offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
-        keywords = keywords.copy(); keywords['l'] = lagrange
+        keywords = keywords.copy(); keywords['lagrange'] = lagrange
         if type(smooth_obj) == type(type): # a class object
             smooth_class = smooth_obj
             self.sm_atom = smooth_class(self.primal_shape, *args, **keywords)
