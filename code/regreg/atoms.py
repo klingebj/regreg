@@ -31,18 +31,13 @@ class Atom(object):
         return False
     
     @property
-    def dual_atom(self):
+    def conjugate(self):
         if not self.constraint:
             atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, bound=self.lagrange, lagrange=None)
         else:
             atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, lagrange=self.bound, bound=None)
         return atom
     
-    #XXX this will fail for things that are constraints...
-    @property
-    def dual_seminorm(self):
-        return primal_dual_seminorm_pairs[self.__class__](self.primal_shape, lagrange=1./self.lagrange)
-
     def evaluate_seminorm(self, x):
         """
         Abstract method. Evaluate the norm of x.
@@ -784,16 +779,12 @@ class affine_atom(Atom):
         
 
     @property
-    def dual_atom(self):
+    def conjugate(self):
         if not self.constraint:
             atom = primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, bound=self.lagrange, lagrange=None)
         else:
             atom = primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, lagrange=self.bound, bound=None)
         return atom
-
-    @property
-    def dual_seminorm(self):
-        return primal_dual_seminorm_pairs[self.atom.__class__](self.dual_shape, 1./self.lagrange)
 
     def _getlagrange(self):
         return self.atom.lagrange

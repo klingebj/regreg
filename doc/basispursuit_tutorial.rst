@@ -53,8 +53,9 @@ The code to construct the loss function looks like this
 
    import regreg.api as R
    from regreg.smooth import linear
-   smooth_linf_constraint = R.smoothed_constraint(R.l1norm(1000, lagrange=1).dual_atom, epsilon=0.01,
-   	                                  store_argmin=True)
+   smooth_linf_constraint = R.smoothed_constraint(R.maxnorm(1000, bound=1), 
+                                                  epsilon=0.01,
+                                                  store_argmin=True)
    loss = R.affine_smooth(smooth_linf_constraint, -X.T, None)
    smooth_f = R.smooth_function(loss, linear(Y))
 
@@ -123,8 +124,9 @@ we obtain the same solution.
 
    import regreg.api as R
    from regreg.smooth import linear
-   smooth_linf_constraint = R.smoothed_constraint(R.l1norm(1000, lagrange=1).dual_atom, epsilon=0.01,
-   	                                  store_argmin=True)
+   smooth_linf_constraint = R.smoothed_constraint(R.maxnorm(1000, bound=1),
+                                                  epsilon=0.01,
+                                                  store_argmin=True)
    loss = R.affine_smooth(smooth_linf_constraint, -X.T, None)
    smooth_f = R.smooth_function(loss, linear(Y))
 

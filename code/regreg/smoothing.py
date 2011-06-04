@@ -164,7 +164,7 @@ class smoothed_constraint(smooth_function):
         zero_sm = zero(self.primal_shape)
         self.dual_dtype = container(zero, atom).dual_dtype
         self.atom = atom
-        self.dual_atom = atom.dual_atom
+        self.dual_atom = atom.conjugate
 
         if prox_center is not None:
             # XXX dtype manipulations -- would be nice not to have to do this
