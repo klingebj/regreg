@@ -24,7 +24,7 @@ class container(object):
                     raise ValueError("primal dimensions don't agree")
             self.atoms.append(atom)
             
-            dual_atom = atom.dual_atom
+            dual_atom = atom.conjugate
             self.dual_atoms.append(dual_atom)
             
             self.dual_shapes += [atom.dual_shape]

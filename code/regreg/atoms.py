@@ -30,7 +30,7 @@ class Atom(object):
         return False
     
     @property
-    def dual_atom(self):
+    def conjugate(self):
         if not self.constraint:
             atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, bound=self.lagrange, lagrange=None)
         else:
@@ -795,7 +795,7 @@ class affine_atom(Atom):
         
 
     @property
-    def dual_atom(self):
+    def conjugate(self):
         if not self.constraint:
             atom = primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, bound=self.lagrange, lagrange=None)
         else:
