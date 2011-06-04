@@ -324,7 +324,7 @@ class maxnorm(Atom):
         eta = np.maximum((np.sum(ufabs) - l)/p,0)
         return np.maximum(ufabs-eta,0)*np.sign(u)
         """
-        return projl1(u)
+        return projl1(u, self.lagrange/lipschitz)
 
 
 
