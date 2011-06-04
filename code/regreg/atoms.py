@@ -299,11 +299,11 @@ class maxnorm(seminorm_atom):
         
         #XXX TO DO, make this efficient
         fabsu = np.fabs(u)
-        lagrange = self.lagrange / L
+        l = self.lagrange / L
         upper = fabsu.sum()
         lower = 0.
 
-        if upper <= lagrange:
+        if upper <= l:
             return u
 
         # else, do a bisection search
@@ -313,6 +313,7 @@ class maxnorm(seminorm_atom):
             """
             return np.maximum(fabsu-ll,0).sum()
 
+        # XXX this code will be changed by Brad -- names for l, ll?
         ll = upper / 2.
         val = _st_l1(ll)
         max_iters = 30000; itercount = 0
