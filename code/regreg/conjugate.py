@@ -4,12 +4,13 @@ from smooth import smooth_function, linear, l2normsq
 
 class conjugate(object):
 
-    def __init__(self, smooth_f, epsilon=0.01, store_argmin=True):
+    def __init__(self, smooth_f, epsilon=0.01, store_argmin=True, tol=1e-8):
         self._smooth_function = smooth_f
         self._linear = linear(np.zeros(smooth_f.primal_shape))
         self._quadratic = l2normsq(smooth_f.primal_shape, lagrange=epsilon/2.)
         self._smooth_function_linear = smooth_function(smooth_f, self._linear, self._quadratic)
         self._solver = FISTA(self._smooth_function_linear)
+        self.tol = tol
         #XXX we need a better way to pass around the Lipschitz constant
         # should go in the container class
         if hasattr(smooth_f, "lipschitz"):
@@ -34,7 +35,7 @@ class conjugate(object):
         self._solver.debug = False
 
         self._linear.vector[:] = -x
-        self._solver.fit(max_its=1000, tol=1.0e-08, backtrack=self._backtrack)
+        self._solver.fit(max_its=5000, tol=self.tol, backtrack=self._backtrack)
         minimizer = self._smooth_function_linear.coefs
             
         if self.store_argmin:

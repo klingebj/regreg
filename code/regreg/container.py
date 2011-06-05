@@ -245,7 +245,7 @@ class container(object):
             raise ValueError("mode incorrectly specified")
 
 
-    def conjugate_problem(self, conj=None, initial=None, smooth_multiplier=1.):
+    def conjugate_problem(self, conj=None, initial=None, smooth_multiplier=1., conjugate_tol=1e-8):
         """
         Create a problem object for solving the conjugate problem
         """
@@ -254,7 +254,7 @@ class container(object):
             self.conjugate = conj
         if not hasattr(self, 'conjugate'):
             #If the conjugate of the loss function is not provided use the generic solver
-            self.conjugate = conjugate(self.loss)
+            self.conjugate = conjugate(self.loss, tol=conjugate_tol)
 
         prox = self.dual_prox
         nonsmooth = self.evaluate_dual_atoms
@@ -279,8 +279,7 @@ class container(object):
         prox = self.primal_prox
         nonsmooth = self.evaluate_primal_atoms
         if initial is None:
-            initial = np.random.standard_normal(self.primal_shape)
-            initial = initial/np.linalg.norm(initial)
+            initial = prox(np.random.standard_normal(self.primal_shape),1.)
         if nonsmooth(initial) + self.loss.smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
         
