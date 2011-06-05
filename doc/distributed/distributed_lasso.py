@@ -25,11 +25,11 @@ class LassoNode(object):
     A class that can handle a LASSO problem, with
     changeable responses and Lagrange parameter
     """
-    def __init__(self, X, initial=None, l=1, rho=1):
+    def __init__(self, X, initial=None, lagrange=1, rho=1):
         self.X = R.affine_transform(X, None)
         self.atom = R.l1norm(X.shape[1], l)
         self.rho = rho
-        self.loss = R.l2normsq.affine(X, -np.zeros(X.shape[0]), l=rho/2.)
+        self.loss = R.l2normsq.affine(X, -np.zeros(X.shape[0]), lagrange=rho/2.)
         self.lasso = R.container(self.loss, self.atom)
         self.solver = R.FISTA(self.lasso.problem())
 
@@ -46,12 +46,12 @@ class LassoNode(object):
     response = property(get_response, set_response)
 
     # The Lagrange parameter
-    def get_l(self):
-        return self.atom.l
+    def get_lagrange(self):
+        return self.atom.lagrange
     
-    def set_l(self, l):
-        self.atom.l = l
-    l = property(get_l, set_l)
+    def set_l(self, lagrange):
+        self.atom.lagrange = lagrange
+    lagrange = property(get_lagrange, set_lagrange)
 
     # The coefficients for this node
     @property
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     view.scatter('Xt', X.T)
 
     @view.remote()
-    def node_init(l, path):
+    def node_init(lagrange, path):
         global node, beta
         import os
         import numpy as np
@@ -116,11 +116,11 @@ if __name__ == '__main__':
         import distributed_lasso as dl
 
         #np.random.seed(1) # for debugging
-        node = dl.LassoNode(Xt.T, l=l)
+        node = dl.LassoNode(Xt.T, lagrange=lagrange)
         beta = np.empty(Xt.shape[0])
 
     # the Lagrange penalty parameter, lambda
-    l = 40.
+    lagrange = 40.
     mu_bar = 0 * Y
     Xbeta_bar = 0 * Y
     u = 0 * Y
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     tol = 1.0e-10
 
     # This initializes all the nodes and creates the Lasso objects
-    node_init(l, os.path.dirname(os.path.abspath(__file__)))
+    node_init(lagrange, os.path.dirname(os.path.abspath(__file__)))
     
     old_obj = np.inf
     for i in range(2000):
@@ -143,8 +143,8 @@ if __name__ == '__main__':
 
     #np.random.seed(1) # for debugging
 
-    penalty = R.l1norm(p, l=l)
-    loss = R.l2normsq.affine(-X, Y, l=0.5)
+    penalty = R.l1norm(p, lagrange=lagrange)
+    loss = R.l2normsq.affine(-X, Y, lagrange=0.5)
     lasso = R.container(loss, penalty)
     solver = R.FISTA(lasso.problem())
     solver.fit(tol=tol)
