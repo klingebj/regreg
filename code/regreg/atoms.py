@@ -23,6 +23,17 @@ class Atom(object):
         self.affine_transform = identity(self.primal_shape)
         self.atoms = [self]
 
+    def __repr__(self):
+        if self.lagrange is not None:
+            return "%s(%s, lagrange=%f)" % (self.__class__.__name__,
+                                            `self.primal_shape`, 
+                                            self.lagrange)
+
+        else:
+            return "%s(%s, bound=%f)" % (self.__class__.__name__,
+                                         `self.primal_shape`, 
+                                         self.bound)
+
     @property
     def constraint(self):
         if self.bound is not None:
@@ -788,6 +799,12 @@ class affine_atom(Atom):
             self.atom = atom_obj
         self.atoms = [self]
         
+
+    def __repr__(self):
+        return "affine_atom(%s, %s, %s)" % (`self.atom`,
+                                            `self.affine_transform.linear_operator`, 
+                                            `self.affine_transform.affine_offset`)
+
 
     @property
     def conjugate(self):
