@@ -4,12 +4,12 @@ from algorithms import FISTA
 from problem import dummy_problem
 from conjugate import conjugate
 from smooth import smooth_function
-import regreg.api as R
+
 
 
 #TODO: this is only written for linear compositions, need to add affine
 
-class master_problem(object):
+class admm_problem(object):
 
     """
     A class for solving the generic problem
@@ -25,31 +25,35 @@ class master_problem(object):
        \mbox{argmin}_\beta \mathcal{L}(\beta) + \sum_i \lambda_i h_{K_i}(z_i) + \sum_i u_i^T(z_i - D_i \beta) + \frac{\rho}{2} \sum_i \|z_i - D_i\beta\|_2^2  
     """
         
-    def __init__(self, smooth,  *atoms):
+    def __init__(self, container):
 
-        self.smooth = smooth
-        self.atoms = atoms
+        self.smooth = container.loss
+        self.atoms = container.atoms
 
-        self.beta = np.zeros(self.atoms[0].primal_shape[0])
+        self.beta = np.zeros(self.atoms[0].primal_shape)
         self.us = [np.zeros(atom.dual_shape) for atom in self.atoms]
-        self.node_problems = [node_problem(atom, beta, u) for atom, u in zip(self.atoms, self.us)]
+        self.node_problems = [node_problem(atom, self.beta, u) for atom, u in zip(self.atoms, self.us)]
         self.rho = 1.
 
         self.prob = self.problem()
         self.solver = FISTA(self.prob)
 
-    def fit(self):
-        for i in range(20):
+    def fit(self, tol = 1e-6, max_its = 500, debug=False):
+        coef_change = 1.
+        itercount = 0
+        while coef_change > tol and itercount <= max_its:
             old_beta = self.beta.copy()
             self.solve_beta()
-            print i, np.linalg.norm(self.beta - old_beta)/ np.linalg.norm(beta)
             self.solve_z()
             self.solve_u()
-            print self.solver.problem.smooth_eval(self.beta, mode='func')
+            coef_change = np.linalg.norm(self.beta - old_beta) / np.linalg.norm(self.beta)
+            itercount += 1
+            if debug:
+                print itercount, coef_change
         
 
-    def solve_beta(self):
-        self.solver.fit(tol=1e-6)
+    def solve_beta(self, tol=1e-6):
+        self.solver.fit(tol=tol)
         self.beta = self.solver.problem.coefs
 
     def solve_z(self):
@@ -176,9 +180,11 @@ class node_problem(object):
         if self.atom.constraint:
             return dummy_problem(self.smooth_eval, self.dual_atom.evaluate_dual_constraint, self.dual_atom.dual_prox, initial, smooth_multiplier)
         else:
-            return dummy_problem(self.smooth_eval, self.atom.evaluate_seminorm, self.atom.primal_prox, initial, smooth_multiplier) 
-
-
+            if hasattr(self.atom, 'atom'):
+                return dummy_problem(self.smooth_eval, self.atom.atom.evaluate_seminorm, self.atom.atom.primal_prox, initial, smooth_multiplier)
+            else:
+                return dummy_problem(self.smooth_eval, self.atom.evaluate_seminorm, self.atom.primal_prox, initial, smooth_multiplier) 
+            
 #This is a lazy, temporary fix, to embed a smooth_eval into a smooth_function object with primal_shape, etc. We should probably have the zero function seminorm atom.
 class hold_smooth(object):
 

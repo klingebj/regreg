@@ -14,6 +14,10 @@ RegReg tutorials
   * Solved with generalized gradient strategy
   * Also solved with blocks
 
+* :ref:`admmtutorial`
+
+  * Illustrates using the ADMM algorithm
+
 * :ref:`smoothingtutorial`
 
   * Illustrates smoothing seminorms as in NESTA.
