@@ -3,7 +3,7 @@ from scipy import sparse
 from problem import dummy_problem
 from affine import affine_transform, identity
 
-class Atom(object):
+class atom(object):
 
     """
     A class that defines the API for support functions.
@@ -54,13 +54,25 @@ class Atom(object):
         """
         raise NotImplementedError
 
-    def evaluate_dual_constraint(self, u):
+    def evaluate_constraint(self, x):
         """
         Abstract method. Evaluate the constraint on the dual norm of x.
         """
         raise NotImplementedError
 
-    def primal_prox(self, x, lipschitz):
+    def nonsmooth(self, x):
+        if self.constraint:
+            return self.evaluate_constraint(x)
+        else:
+            return self.evaluate_seminorm(x)
+
+    def prox(self, x, lipschitz):
+        if self.constraint:
+            return self.bound_prox(x, lipschitz)
+        else:
+            return self.lagrange_prox(x, lipschitz)
+
+    def lagrange_prox(self, x, lipschitz):
         r"""
         Return (unique) minimizer
 
@@ -69,12 +81,12 @@ class Atom(object):
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
            \|x-v\|^2_2 + \lambda h(v)
 
-        where *p*=x.shape[0] and :math:`h(v)` = self.evaluate_seminorm(v).
+        where *p*=x.shape[0] and :math:`h(v)` = self.seminorm(v).
         """
         raise NotImplementedError
 
 
-    def primal_prox_optimum(self, x, lipschitz):
+    def lagrange_prox_optimum(self, x, lipschitz):
         """
         Returns
         
@@ -83,27 +95,27 @@ class Atom(object):
            \inf_{v \in \mathbb{R}^p} \frac{L}{2}
            \|x-v\|^2_2 + \lambda h(v)
 
-        where *p*=x.shape[0] and :math:`h(v)` = self.evaluate_seminorm(v).
+        where *p*=x.shape[0] and :math:`h(v)` = self.seminorm(v).
 
         """
-        argmin = self.primal_prox(x, lipschitz)
-        return argmin, lipschitz * np.linalg.norm(x-argmin)**2 / 2. + self.evaluate_seminorm(argmin)
+        argmin = self.lagrange_prox(x, lipschitz)
+        return argmin, lipschitz * np.linalg.norm(x-argmin)**2 / 2. + self.seminorm(argmin)
     
-    def dual_prox(self, u, lipschitz):
+    def bound_prox(self, x, lipschitz):
         r"""
         Return unique minimizer
 
         .. math::
 
-           v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+           v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
            \|u-'v\|^2_2  \ \text{s.t.} \   h^*(v) \leq \lambda
 
         where *m*=u.shape[0] and :math:`h^*` is the 
-        conjugate of self.evaluate_seminorm.
+        conjugate of self.seminorm.
         """
         raise NotImplementedError
 
-    def dual_prox_optimum(self, x, lipschitz):
+    def bound_prox_optimum(self, x, lipschitz):
         """
         Returns
         
@@ -113,20 +125,20 @@ class Atom(object):
            \|x-v\|^2_2 \ \text{s.t.} \   h^*(v) \leq \lambda
 
         where *m*=u.shape[0] and :math:`h^*` is the 
-        conjugate of self.evaluate_seminorm and :math:`\lambda` = self.lagrange.
+        conjugate of self.seminorm and :math:`\lambda` = self.lagrange.
 
         """
-        argmin = self.dual_prox(x, lipschitz)
+        argmin = self.bound_prox(x, lipschitz)
         return argmin, lipschitz * np.linalg.norm(x-argmin)**2 / 2.
     
 
-    def affine_objective(self, u):
+    def affine_objective(self, x):
         """
         Return :math:`\alpha'u`. 
         """
-        return self.affine_transform.affine_objective(u)
+        return self.affine_transform.affine_objective(x)
 
-    def adjoint_map(self, u, copy=True):
+    def adjoint_map(self, x, copy=True):
         r"""
         Return :math:`u`
 
@@ -134,7 +146,7 @@ class Atom(object):
         affine_transform, but could
         also call FFTs if D is a DFT matrix, in a subclass.
         """
-        return self.affine_transform.adjoint_map(u, copy=copy)
+        return self.affine_transform.adjoint_map(x, copy=copy)
 
     def linear_map(self, x, copy=True):
         r"""
@@ -153,22 +165,22 @@ class Atom(object):
         """
         return self.affine_transform.affine_map(x, copy)
 
-    def primal_problem(self, smooth_func, smooth_multiplier=1., initial=None):
+    def lagrange_problem(self, smooth_func, smooth_multiplier=1., initial=None):
         """
         Return a problem instance 
         """
-        prox = self.primal_prox
-        nonsmooth = self.evaluate_seminorm
+        prox = self.lagrange_prox
+        nonsmooth = self.seminorm
         if initial is None:
             initial = np.random.standard_normal(self.primal_shape)
         return dummy_problem(smooth_func.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
 
-    def dual_problem(self, smooth_func, smooth_multiplier=1., initial=None):
+    def bound_problem(self, smooth_func, smooth_multiplier=1., initial=None):
         """
         Return a problem instance 
         """
-        prox = self.dual_prox
-        nonsmooth = self.evaluate_dual_constraint
+        prox = self.bound_prox
+        nonsmooth = self.constraint
         if initial is None:
             initial = np.random.standard_normal(self.dual_shape)
         return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
@@ -207,27 +219,28 @@ class Atom(object):
                            bound=bound)
     
 
-class l1norm(Atom):
+class l1norm(atom):
 
     """
     The l1 norm
     """
     tol = 1e-5
+    prox_tol = 1.0e-10
+
     def evaluate_seminorm(self, x):
         """
         The L1 norm of x.
         """
         return self.lagrange * np.fabs(x).sum()
 
-    def evaluate_dual_constraint(self, u):
-        inbox = np.product(np.less_equal(np.fabs(u), self.lagrange * (1+self.tol)))
+    def evaluate_constraint(self, x):
+        inbox = np.fabs(x).sum() <= self.lagrange * (1 + self.tol)
         if inbox:
             return 0
         else:
             return np.inf
 
-
-    def primal_prox(self, x,  lipschitz=1):
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -246,42 +259,74 @@ class l1norm(Atom):
 
         return np.sign(x) * np.maximum(np.fabs(x)-self.lagrange/lipschitz, 0)
 
-    def dual_prox(self, u, lipschitz=1):
+
+    def bound_prox(self, x, lipschitz=1):
         r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{\infty} \leq \lambda
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{1} \leq \lambda
 
-        where *m*=u.shape[0], :math:`\lambda` = self.lagrange.
-        This is just truncation: np.clip(u, -self.lagrange/L, self.lagrange/L)
+        where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
+        This is solved with a binary search.
         """
-        return np.clip(u, -self.lagrange, self.lagrange) 
+        
+        #XXX TO DO, make this efficient
+        fabsx = np.fabs(x)
+        l = self.bound / lipschitz
+        upper = fabsx.sum()
+        lower = 0.
 
-class maxnorm(Atom):
+        if upper <= l:
+            return x
+
+        # else, do a bisection search
+        def _st_l1(ll):
+            """
+            the ell1 norm of a soft-thresholded vector
+            """
+            return np.maximum(fabsx-ll,0).sum()
+
+        # XXX this code will be changed by Brad -- names for l, ll?
+        ll = upper / 2.
+        val = _st_l1(ll)
+        max_iters = 30000; itercount = 0
+        while np.fabs(val-l) >= upper * self.prox_tol:
+            if itercount > max_iters:
+                break
+            itercount += 1
+            val = _st_l1(ll)
+            if val > l:
+                lower = ll
+            else:
+                upper = ll
+            ll = (upper + lower) / 2.
+        return np.maximum(fabsx - ll, 0) * np.sign(x)
+
+class maxnorm(atom):
 
     """
     The :math:`\ell_{\infty}` norm
     """
 
     tol = 1e-5
-    prox_tol = 1.0e-10
     def evaluate_seminorm(self, x):
         """
         The l-infinity norm of x.
         """
         return self.lagrange * np.fabs(x).max()
 
-    def evaluate_dual_constraint(self, u):
-        inbox = np.fabs(u).sum() <= self.lagrange * (1 + self.tol)
+    def evaluate_constraint(self, x):
+        inbox = np.product(np.less_equal(np.fabs(x), self.lagrange * (1+self.tol)))
         if inbox:
             return 0
         else:
             return np.inf
 
-    def primal_prox(self, x,  lipschitz=1):
+
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -300,57 +345,24 @@ class maxnorm(Atom):
             v^{\lambda}(x) = x - P_{\lambda/L B_{\ell_1}}(x)
         """
 
-        d = self.dual_prox(x,lipschitz)
-        u = x - d
-        return u
+        d = self.conjugate.bound_prox(x,lipschitz)
+        return x - d
 
-    def dual_prox(self, u, lipschitz=1):
+    def bound_prox(self, x, lipschitz=1):
         r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{1} \leq \lambda
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{\infty} \leq \lambda
 
-        where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
-        This is solved with a binary search.
+        where *m*=u.shape[0], :math:`\lambda` = self.lagrange.
+        This is just truncation: np.clip(x, -self.lagrange/L, self.lagrange/L)
         """
-        
-        #XXX TO DO, make this efficient
-        fabsu = np.fabs(u)
-        l = self.lagrange / lipschitz
-        upper = fabsu.sum()
-        lower = 0.
+        return np.clip(x, -self.bound, self.bound)
 
-        if upper <= l:
-            return u
-
-        # else, do a bisection search
-        def _st_l1(ll):
-            """
-            the ell1 norm of a soft-thresholded vector
-            """
-            return np.maximum(fabsu-ll,0).sum()
-
-        # XXX this code will be changed by Brad -- names for l, ll?
-        ll = upper / 2.
-        val = _st_l1(ll)
-        max_iters = 30000; itercount = 0
-        while np.fabs(val-l) >= upper * self.prox_tol:
-            if itercount > max_iters:
-                break
-            itercount += 1
-            val = _st_l1(ll)
-            if val > l:
-                lower = ll
-            else:
-                upper = ll
-            ll = (upper + lower) / 2.
-        return np.maximum(fabsu - ll, 0) * np.sign(u)
-
-
-class l2norm(Atom):
+class l2norm(atom):
 
     """
     The l2 norm
@@ -363,14 +375,14 @@ class l2norm(Atom):
         """
         return self.lagrange * np.linalg.norm(x)
 
-    def evaluate_dual_constraint(self, u):
-        inball = (np.linalg.norm(u) <= self.lagrange * (1 + self.tol))
+    def evaluate_constraint(self, x):
+        inball = (np.linalg.norm(x) <= self.lagrange * (1 + self.tol))
         if inball:
             return 0
         else:
             return np.inf
 
-    def primal_prox(self, x,  lipschitz=1):
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -393,13 +405,13 @@ class l2norm(Atom):
             proj = (self.lagrange / (lipschitz * n)) * x
         return x - proj * (1 - l2norm.tol)
 
-    def dual_prox(self, u,  lipschitz=1):
+    def bound_prox(self, x,  lipschitz=1):
         r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 s.t. \|v\|_2 \leq \lambda
 
         where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
@@ -407,15 +419,15 @@ class l2norm(Atom):
 
         .. math::
 
-            v^{\lambda}(u) = \min\left(1, \frac{\lambda/L}{\|u\|_2}\right) u
+            v^{\lambda}(x) = \min\left(1, \frac{\lambda/L}{\|u\|_2}\right) u
         """
-        n = np.linalg.norm(u)
-        if n <= self.lagrange:
+        n = np.linalg.norm(x)
+        if n <= self.bound:
             return u
         else:
-            return (self.lagrange / n) * u
+            return (self.bound / n) * u
 
-class nonnegative(Atom):
+class nonnegative(atom):
 
     """
     The non-negative cone constraint (which is the support
@@ -433,18 +445,14 @@ class nonnegative(Atom):
             return 0
         return np.inf
 
-    def evaluate_dual_constraint(self, u):
+    def evaluate_constraint(self, x):
         """
-        The non-positive constraint of u.
+        The non-negative constraint of u.
         """
-        tol_lim = np.fabs(u).max() * self.tol
-        indual = np.all(np.less_equal(u, tol_lim))
-        if indual:
-            return 0
-        else:
-            return np.inf
+        return self.seminorm(x)
 
-    def primal_prox(self, x,  lipschitz=1):
+
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -466,22 +474,22 @@ class nonnegative(Atom):
         return np.maximum(x, 0)
 
 
-    def dual_prox(self, u,  lipschitz=1):
+    def bound_prox(self, x, lipschitz=1):
         r"""
         Return unique minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 \ \text{s.t.} \  v_i \leq 0
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  v_i \geq 0
 
         where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
 
         .. math::
 
-            v^{\lambda}(u)_i = \min(u_i, 0)
+            v^{\lambda}(x)_i = \max(u_i, 0)
         """
-        return np.minimum(u, 0)
+        return self.lagrange_prox(x, lipschitz)
 
 class nonpositive(nonnegative):
 
@@ -496,23 +504,18 @@ class nonpositive(nonnegative):
         The non-positive constraint of x.
         """
         tol_lim = np.fabs(x).max() * self.tol
-        incone = np.all(np.less_equal(self.affine_map(x), tol_lim))
+        incone = np.all(np.less_equal(x, tol_lim))
         if incone:
             return 0
         return np.inf
 
-    def evaluate_dual_constraint(self, u):
+    def evaluate_constraint(self, x):
         """
-        The non-negative constraint of u.
+        The non-positive constraint of u.
         """
-        tol_lim = np.fabs(u).max() * self.tol
-        indual = np.all(np.greater_equal(u, -tol_lim))
-        if indual:
-            return 0
-        else:
-            return np.inf
+        return self.seminorm(x)
 
-    def primal_prox(self, x,  lipschitz=1):
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return unique minimizer
 
@@ -530,27 +533,26 @@ class nonpositive(nonnegative):
             v^{\lambda}(x)_i = \min(x_i, 0)
 
         """
-
         return np.minimum(x, 0)
 
-    def dual_prox(self, u,  lipschitz=1):
+    def bound_prox(self, x,  lipschitz=1):
         r"""
         Return unique minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 \ \text{s.t.} \  v_i \geq 0
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  v_i \leq 0
 
         where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
 
         .. math::
 
-            v^{\lambda}(u)_i = \max(u_i, 0)
+            v^{\lambda}(x)_i = \min(u_i, 0)
         """
-        return np.maximum(u, 0)
+        return self.lagrange_prox(x, lipschitz)
 
-class positive_part(Atom):
+class positive_part(atom):
 
     """
     The positive_part seminorm (which is the support
@@ -563,14 +565,15 @@ class positive_part(Atom):
         """
         return self.lagrange * np.maximum(x, 0).sum()
 
-    def evaluate_dual_constraint(self, u):
-        inbox = np.product(np.less_equal(u, self.lagrange) * np.greater_equal(u, 0))
-        if inbox:
+
+    def evaluate_constraint(self, x):
+        inside = np.product(np.less_equal(x, self.lagrange))
+        if inside:
             return 0
         else:
             return np.inf
 
-    def primal_prox(self, x,  lipschitz=1):
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -599,13 +602,14 @@ class positive_part(Atom):
         v[pos] = np.maximum(v[pos] - self.lagrange, 0)
         return v.reshape(x.shape)
 
-    def dual_prox(self, u,  lipschitz=1):
+
+    def bound_prox(self, x,  lipschitz=1):
         r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 \ \text{s.t.} \  0 \leq v_i \leq \lambda
 
         where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
@@ -613,21 +617,20 @@ class positive_part(Atom):
 
         .. math::
 
-            v^{\lambda}(u)_i = \begin{cases}
+            v^{\lambda}(x)_i = \begin{cases}
             \min(u_i, \lambda) & u_i \geq 0 \\
             0 & u_i \leq 0.  
             \end{cases} 
 
         """
-        u = np.asarray(u)
-        v = u.copy()
+        x = np.asarray(x)
+        v = x.copy()
         v = np.atleast_1d(v)
-        neg = v < 0
-        v[neg] = 0
-        v[~neg] = np.minimum(self.lagrange, u[~neg])
-        return v.reshape(u.shape)
+        pos = v > 0
+        v[pos] = np.minimum(self.bound, x[pos])
+        return v.reshape(x.shape)
 
-class constrained_positive_part(Atom):
+class constrained_positive_part(atom):
 
     """
     The constrained positive part seminorm (which is the support
@@ -645,14 +648,15 @@ class constrained_positive_part(Atom):
             return self.lagrange * np.maximum(x, 0).sum()
         return np.inf
     
-    def evaluate_dual_constraint(self, u):
-        inside = np.product(np.less_equal(u, self.lagrange))
-        if inside:
+    def evaluate_constraint(self, x):
+        inbox = np.product(np.less_equal(x, self.lagrange) * np.greater_equal(x, 0))
+        if inbox:
             return 0
         else:
             return np.inf
 
-    def primal_prox(self, x,  lipschitz=1):
+
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -681,13 +685,13 @@ class constrained_positive_part(Atom):
         v[~pos] = 0.
         return v.reshape(x.shape)
 
-    def dual_prox(self, u,  lipschitz=1):
+    def bound_prox(self, x,  lipschitz=1):
         r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
             \|u-v\|^2_2 \ \text{s.t.} \  0 \leq v_i \leq \lambda
 
         where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
@@ -695,20 +699,21 @@ class constrained_positive_part(Atom):
 
         .. math::
 
-            v^{\lambda}(u)_i = \begin{cases}
+            v^{\lambda}(x)_i = \begin{cases}
             \min(u_i, \lambda) & u_i \geq 0 \\
             0 & u_i \leq 0.  
             \end{cases} 
 
         """
-        u = np.asarray(u)
-        v = u.copy()
-        v = np.atleast_1d(v)
-        pos = v > 0
-        v[pos] = np.minimum(self.lagrange, u[pos])
-        return v.reshape(u.shape)
+        x = np.asarray(x)
+        v = x.copy()
+        v = np.atleast_1d(x)
+        neg = v < 0
+        v[neg] = 0
+        v[~neg] = np.minimum(self.bound, x[~neg])
+        return v.reshape(x.shape)
 
-class linear_atom(Atom):
+class linear_atom(atom):
 
     """
     An atom representing a linear constraint.
@@ -720,7 +725,7 @@ class linear_atom(Atom):
     def __init__(self, primal_shape, basis, lagrange=None):
         self.basis = basis
 
-    def primal_prox(self, x,  lipschitz=1):
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -738,7 +743,7 @@ class linear_atom(Atom):
         coefs = np.dot(self.basis, x)
         return np.dot(coefs, self.basis)
 
-    def dual_prox(self, u,  lipschitz=1):
+    def bound_prox(self, x,  lipschitz=1):
         r"""
 
         Return (unique) minimizer
@@ -754,9 +759,9 @@ class linear_atom(Atom):
         This is just projection onto :math:`\text{row}(L)^{\perp}`.
 
         """
-        return u - self.primal_prox(u)
+        return self.lagrange_prox(x, lipschitz)
 
-class affine_atom(Atom):
+class affine_atom(atom):
 
     """
     Given a seminorm on :math:`\mathbb{R}^p`, i.e.
@@ -772,8 +777,8 @@ class affine_atom(Atom):
 
     .. math::
 
-       \text{minimize} \frac{1}{2} \|y-D^Tu\|^2_2 + u^T\alpha
-       \ \text{s.t.} \ u \in \lambda K
+       \text{minimize} \frac{1}{2} \|y-D^Tx\|^2_2 + x^T\alpha
+       \ \text{s.t.} \ x \in \lambda K
     
     """
 
@@ -797,9 +802,10 @@ class affine_atom(Atom):
             self.atom = atom_class(self.dual_shape, *args, **keywords)
         else:
             self.atom = atom_obj
+        if not isinstance(self.atom, atom):
+            raise ValueError('atom should be an instance of a seminorm_atom, got: %s' % `self.atom`)
         self.atoms = [self]
         
-
     def __repr__(self):
         return "affine_atom(%s, %s, %s)" % (`self.atom`,
                                             `self.affine_transform.linear_operator`, 
@@ -830,15 +836,14 @@ class affine_atom(Atom):
 
     def evaluate_seminorm(self, x):
         """
-        Return self.atom.evaluate_seminorm(self.affine_map(x))
-
+        Return self.atom.seminorm(self.affine_map(x))
         """
-        return self.atom.evaluate_seminorm(self.affine_map(x))
+        return self.atom.seminorm(self.affine_map(x))
 
-    def evaluate_dual_constraint(self, u):
-        return self.atom.evaluate_dual_constraint(u)
+    def evaluate_constraint(self, x):
+        return self.atom.constraint(self.affine_map(x))
 
-    def primal_prox(self, x,  lipschitz=1):
+    def lagrange_prox(self, x,  lipschitz=1):
         r"""
         Return (unique) minimizer
 
@@ -849,29 +854,37 @@ class affine_atom(Atom):
 
         where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
 
-        This is just self.atom.primal_prox(x + self.affine_offset, L) + self.affine_offset
+        This is just self.atom.lagrange_prox(x + self.affine_offset, L) + self.affine_offset
         """
         if self.affine_transform.linear_operator is None:
             if self.affine_transform.affine_offset is not None:
-                return self.atom.primal_prox(x + self.affine_transform.affine_offset, lipschitz) - self.affine_transform.affine_offset
+                return self.atom.lagrange_prox(x + self.affine_transform.affine_offset, lipschitz) - self.affine_transform.affine_offset
             else:
-                return self.atom.primal_prox(x, lipschitz)
+                return self.atom.lagrange_prox(x, lipschitz)
         else:
-            raise NotImplementedError('when linear_operator is not None, primal_prox is not implemented, can be done with FISTA')
+            raise NotImplementedError('when linear_operator is not None, lagrange_prox is not implemented, can be done with FISTA')
 
-    def dual_prox(self, u, lipschitz=1):
+    def bound_prox(self, x, lipschitz=1):
         r"""
         Return a minimizer
 
         .. math::
 
-            v^{\lambda}(u) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 \ \text{s.t.} \  \|v\|_{\infty} \leq \lambda
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|x-v\|^2_2 \ \text{s.t.} \  \|v\|_{\infty} \leq \lambda
 
-        where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
-        This is just truncation: np.clip(u, -self.lagrange/L, self.lagrange/L).
+        where *m*=x.shape[0], :math:`\lambda` = self.lagrange. 
+        This is just truncation: np.clip(x, -self.lagrange/L, self.lagrange/L).
         """
-        return self.atom.dual_prox(u, lipschitz)
+
+        if self.affine_transform.linear_operator is None:
+            if self.affine_transform.affine_offset is not None:
+                return self.atom.bound_prox(x + self.affine_transform.affine_offset, lipschitz) - self.affine_transform.affine_offset
+            else:
+                return self.atom.bound_prox(x, lipschitz)
+        else:
+            raise NotImplementedError('when linear_operator is not None, bound_prox is not implemented, can be done with FISTA')
+
 
 primal_dual_seminorm_pairs = {}
 for n1, n2 in [(l1norm,maxnorm),
