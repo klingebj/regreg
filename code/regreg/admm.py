@@ -4,8 +4,7 @@ from algorithms import FISTA
 from problem import dummy_problem
 from conjugate import conjugate
 from smooth import smooth_function
-
-
+import regreg.api as R
 
 
 #TODO: this is only written for linear compositions, need to add affine
@@ -30,34 +29,38 @@ class master_problem(object):
 
         self.smooth = smooth
         self.atoms = atoms
-        self._rho = 1.
+
         self.beta = np.zeros(self.atoms[0].primal_shape[0])
         self.us = [np.zeros(atom.dual_shape) for atom in self.atoms]
         self.node_problems = [node_problem(atom, beta, u) for atom, u in zip(self.atoms, self.us)]
+        self.rho = 1.
 
         self.prob = self.problem()
         self.solver = FISTA(self.prob)
 
     def fit(self):
-        for i in range(1000):
+        for i in range(20):
+            old_beta = self.beta.copy()
             self.solve_beta()
-            self.solve_u()
+            print i, np.linalg.norm(self.beta - old_beta)/ np.linalg.norm(beta)
             self.solve_z()
+            self.solve_u()
+            print self.solver.problem.smooth_eval(self.beta, mode='func')
         
 
     def solve_beta(self):
-        self.solver.fit()
+        self.solver.fit(tol=1e-6)
         self.beta = self.solver.problem.coefs
 
     def solve_z(self):
         for problem, u in zip(self.node_problems, self.us):
             problem.u = u
-            problem.beta = beta
+            problem.beta = self.beta
             problem.fit()
 
     def solve_u(self):
         for u, problem, atom in zip(self.us, self.node_problems, self.atoms):
-            u += self.rho * (problem.coefs - atom.linear_map(self.beta))
+            u += (problem.coefs - atom.linear_map(self.beta))
 
     def _get_rho(self):
         return self._rho
@@ -74,20 +77,20 @@ class master_problem(object):
             g = 0
             for u, problem, atom in zip(self.us, self.node_problems, self.atoms):
                 affine = atom.linear_map(x)
-                f += (self.rho/2.) * np.linalg.norm(problem.coefs - affine)**2 - np.dot(u, affine)
-                g += atom.adjoint_map(self.rho * (problem.coefs - affine) - u)
+                f += (self.rho/2.) * np.linalg.norm(problem.coefs - affine + u)**2 
+                g += - self.rho * atom.adjoint_map(problem.coefs - affine + u) 
             return f, g
         elif mode == 'func':
             f = 0
             for u, problem, atom in zip(self.us, self.node_problems, self.atoms):
                 affine = atom.linear_map(x)
-                f += (self.rho/2.) * np.linalg.norm(problem.coefs - affine)**2 - np.dot(u, affine)
+                f += (self.rho/2.) * np.linalg.norm(problem.coefs - affine + u)**2 
             return f
         elif mode == 'grad':
             g = 0
             for u, problem, atom in zip(self.us, self.node_problems, self.atoms):
                 affine = atom.linear_map(x)
-                g += atom.adjoint_map(self.rho * (problem.coefs - affine) - u)
+                g += - self.rho * atom.adjoint_map(problem.coefs - affine + u) 
             return  g
         else:
             raise ValueError("Mode not specified correctly")
@@ -144,18 +147,18 @@ class node_problem(object):
     u = property(_get_u, _set_u)
 
 
-    def fit(self, debug=True):
+    def fit(self, debug=False):
         self.solver.debug = debug
         self.solver.fit()
         self.coefs = self.solver.problem.coefs
 
     def smooth_eval(self, x, mode='both'):
         if mode == 'both':
-            return np.dot(self.u, x) + (self.rho/2.)*np.linalg.norm(x - self.affine)**2, self.u + (self.rho)*(x - self.affine)
+            return (self.rho/2.) * np.linalg.norm(x - self.affine + self.u)**2, (self.rho)*(x - self.affine + self.u)
         elif mode == 'func':
-            return np.dot(self.u, x) + (self.rho/2.)* np.linalg.norm(x - self.affine)**2
+            return  (self.rho/2.) * np.linalg.norm(x - self.affine + self.u)**2
         elif mode == 'grad':
-            return self.u + (self.rho)*(x - self.affine)
+            return  (self.rho)*(x - self.affine + self.u)
         else:
             raise ValueError("Mode specified incorrectly")
 
