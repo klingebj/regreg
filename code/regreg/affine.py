@@ -157,9 +157,10 @@ class selector(object):
         return self.affine_transform.affine_map(x_indexed)
 
     def adjoint_map(self, u, copy=True):
-        out = np.zeros(self.initial_shape)
-        out[self.index_obj] = self.affine_transform.adjoint_map(u)
-        return out
+        if not hasattr(self, "_output"):
+            self._output = np.zeros(self.initial_shape)
+        self._output[self.index_obj] = self.affine_transform.adjoint_map(u)
+        return self._output
 
     def affine_objective(self, x):
         x_indexed = x[self.index_obj]
