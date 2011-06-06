@@ -4,7 +4,6 @@ from algorithms import FISTA
 from problem import dummy_problem
 from conjugate import conjugate
 
-
 class container(object):
     """
     A container class for storing/combining seminorm_atom classes
@@ -12,10 +11,10 @@ class container(object):
     def __init__(self, loss, *atoms):
         self.loss = loss
         self.atoms = []
-        self.dual_atoms = []
         self.primal_shape = -1
         self.dual_segments = []
         self.dual_shapes = []
+        self.dual_atoms = []
         for atom in atoms:
             if self.primal_shape == -1:
                 self.primal_shape = atom.primal_shape
@@ -23,10 +22,8 @@ class container(object):
                 if atom.primal_shape != self.primal_shape:
                     raise ValueError("primal dimensions don't agree")
             self.atoms.append(atom)
-            
-            dual_atom = atom.conjugate
-            self.dual_atoms.append(dual_atom)
-            
+            self.dual_atoms.append(atom.conjugate)
+
             self.dual_shapes += [atom.dual_shape]
         self.dual_dtype = np.dtype([('dual_%d' % i, np.float, shape) 
                                     for i, shape in enumerate(self.dual_shapes)])
@@ -46,20 +43,14 @@ class container(object):
         # XXX dtype manipulations -- would be nice not to have to do this
         u = u.view(self.dual_dtype).reshape(())
 
-        for atom, dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
-            if dual_atom.constraint:
-                out += atom.evaluate_dual_constraint(u[segment])
-            else:
-                out += dual_atom.evaluate_seminorm(u[segment])
+        for atom, segment in zip(self.atoms, self.dual_segments):
+            out += atom.nonsmooth(u[segment])
         return out
 
     def evaluate_primal_atoms(self, x):
         out = 0.
-        for atom, dual_atom in zip(self.atoms, self.dual_atoms):
-            if atom.constraint:
-                out += dual_atom.evaluate_dual_constraint(atom.affine_map(x))
-            else:
-                out += atom.evaluate_seminorm(x)
+        for atom in zip(self.atoms):
+            out += atom.nonsmooth(x)
         return out
 
     
@@ -84,11 +75,8 @@ class container(object):
 
         v = np.empty((), self.dual_dtype)
         u = u.view(self.dual_dtype).reshape(())
-        for atom, dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
-            if atom.constraint:
-                v[segment] = dual_atom.primal_prox(u[segment], lipshitz_D)
-            else:
-                v[segment] = atom.dual_prox(u[segment], lipshitz_D)
+        for dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
+            v[segment] = dual_atom.prox(u[segment], lipshitz_D)
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
