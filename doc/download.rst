@@ -25,3 +25,11 @@ Then installation is a simple call to python::
 
 where MYDIR is a site-packages directory you can write to. This directory will need to be on your PYTHONPATH for you to import RegReg. That's it!
 
+Testing your installation
+-------------------------
+
+There is a small but growing suite of tests that be easily checked using `nose <http://somethingaboutorange.com/mrl/projects/nose/1.0.0/>`_::
+
+     cd regreg/code/tests
+     nosetests
+
