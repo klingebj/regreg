@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Cython setup file for RegReg
 """
