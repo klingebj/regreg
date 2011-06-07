@@ -115,11 +115,13 @@ class container(object):
         itercount = 0
         while np.fabs(norm-old_norm)/norm > tol and itercount < max_its:
             z = np.zeros(z.shape, z.dtype)
-            for atom, segment in zip(self.atoms, self.dual_segments):
-                z[segment] += atom.linear_map(v)
+            for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+                transform, _ = dual_atom
+                z[segment] += transform.linear_map(v)
             v *= 0.
-            for atom, segment in zip(self.atoms, self.dual_segments):
-                v += atom.adjoint_map(z[segment])
+            for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+                transform, _ = dual_atom
+                v += transform.adjoint_map(z[segment])
             old_norm = norm
             norm = np.linalg.norm(v)
             v /= norm
@@ -134,8 +136,9 @@ class container(object):
         """
         x = y * 1.
         u = u.view(self.dual_dtype).reshape(())
-        for atom, segment in zip(self.atoms, self.dual_segments):
-            x -= atom.adjoint_map(u[segment])
+        for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+            transform, _ = dual_atom
+            x -= transform.adjoint_map(u[segment])
         return x
 
     def dual_problem(self, y, lipshitz_P=1, initial=None):
@@ -154,7 +157,7 @@ class container(object):
             initial = self.dual_prox(z, 1./lipshitz_P)
         nonsmooth = self.evaluate_dual_atoms
         prox = self.dual_prox
-        return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1./lipshitz_P)
+        return composite(self._dual_smooth_eval, nonsmooth, prox, initial, 1./lipshitz_P)
 
     def _dual_smooth_eval(self,v,mode='both'):
 
@@ -167,22 +170,20 @@ class container(object):
 
         # residual is the residual from the fit
         residual = self.primal_from_dual(self._dual_prox_center, v)
-        affine_objective = 0
+
         if mode == 'func':
-            for atom, segment in zip(self.atoms, self.dual_segments):
-                affine_objective -= atom.affine_objective(v[segment])
-            return (residual**2).sum() / 2. + affine_objective
+            return (residual**2).sum() / 2.
         elif mode == 'both' or mode == 'grad':
             g = np.zeros((), self.dual_dtype)
-            for atom, segment in zip(self.atoms, self.dual_segments):
-                g[segment] = -atom.affine_map(residual)
-                affine_objective -= atom.affine_objective(v[segment])
+            for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+                transform, _ = dual_atom
+                g[segment] = -transform.linear_map(residual)
             if mode == 'grad':
                 # XXX dtype manipulations -- would be nice not to have to do this
                 return g.reshape((1,)).view(np.float)
             if mode == 'both':
                 # XXX dtype manipulations -- would be nice not to have to do this
-                return (residual**2).sum() / 2. + affine_objective, g.reshape((1,)).view(np.float)
+                return (residual**2).sum() / 2., g.reshape((1,)).view(np.float)
         else:
             raise ValueError("Mode not specified correctly")
 
@@ -210,22 +211,21 @@ class container(object):
         if mode == 'both':
             v, g = self.conjugate.smooth_eval(-linear_term, mode='both')
             grad = np.empty((), self.dual_dtype)
-            for atom, segment in zip(self.atoms, self.dual_segments):
-                grad[segment] = -atom.affine_map(g)
-                v -= atom.affine_objective(u[segment])
+            for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+                transform, _ = dual_atom
+                grad[segment] = -transform.linear_map(g)
             # XXX dtype manipulations -- would be nice not to have to do this
             return v, grad.reshape((1,)).view(np.float) 
         elif mode == 'grad':
             g = self.conjugate.smooth_eval(-linear_term, mode='grad')
             grad = np.empty((), self.dual_dtype)
-            for atom, segment in zip(self.atoms, self.dual_segments):
-                grad[segment] = -atom.affine_map(g)
+            for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+                transform, _ = dual_atom
+                grad[segment] = -transform.linear_map(g)
             # XXX dtype manipulations -- would be nice not to have to do this
             return grad.reshape((1,)).view(np.float) 
         elif mode == 'func':
             v = self.conjugate.smooth_eval(-linear_term, mode='func')
-            for atom, segment in zip(self.atoms, self.dual_segments):
-                v -= atom.affine_objective(u[segment])
             return v
         else:
             raise ValueError("mode incorrectly specified")
@@ -254,7 +254,7 @@ class container(object):
             z = z.reshape((1,)).view(np.float)
             initial = self.dual_prox(z, 1.)
 
-        return dummy_problem(self.conjugate_smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
+        return composite(self.conjugate_smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
         
 
     def problem(self, smooth_multiplier=1., initial=None):
@@ -270,5 +270,5 @@ class container(object):
         if nonsmooth(initial) + self.loss.smooth_eval(initial,mode='func') == np.inf:
             raise ValueError('initial point is not feasible')
         
-        return dummy_problem(self.loss.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
+        return composite(self.loss.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
 

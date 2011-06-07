@@ -201,7 +201,7 @@ def test_lasso_dual():
 
     print soln[range(10)]
     print st[range(10)]
-    assert(np.allclose(soln,st,rtol=1e-3,atol=1e-3))
+    np.testing.assert_allclose(soln,st, atol=1e-3,rtol=1e-03)
 
 
 def test_multiple_lasso_dual(n=500):
@@ -227,7 +227,7 @@ def test_multiple_lasso_dual(n=500):
 
     print soln[range(10)]
     print st[range(10)]
-    assert(np.allclose(soln,st,rtol=1e-3,atol=1e-3))
+    np.testing.assert_almost_equal(soln,st)
 
 
 def test_lasso_dual_from_primal(l1 = .1, L = 2.):
@@ -242,7 +242,7 @@ def test_lasso_dual_from_primal(l1 = .1, L = 2.):
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
-    regloss = R.l2norm.affine(-X,Y)
+    regloss = R.l2normsq.affine(-X,Y)
     p= R.container(regloss, sparsity)
 
     z = x - y/L
@@ -252,7 +252,7 @@ def test_lasso_dual_from_primal(l1 = .1, L = 2.):
     print x[range(10)]
     print soln[range(10)]
     print st[range(10)]
-    assert(np.allclose(soln,st,rtol=1e-3,atol=1e-3))
+    np.testing.assert_allclose(soln,st, atol=1e-3,rtol=1e-03)
 
 
 def test_lasso(n=100):

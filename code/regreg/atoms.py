@@ -493,9 +493,9 @@ class l2norm(atom):
 
         n = np.linalg.norm(x)
         if n <= bound:
-            return u
+            return x
         else:
-            return (bound / n) * u
+            return (bound / n) * x
 
 class nonnegative(atom):
 
