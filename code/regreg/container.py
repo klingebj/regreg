@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse
 from algorithms import FISTA
-from problem import dummy_problem
+from problem import composite
 from conjugate import conjugate
 
 class container(object):
@@ -22,7 +22,7 @@ class container(object):
                 if atom.primal_shape != self.primal_shape:
                     raise ValueError("primal dimensions don't agree")
             self.atoms.append(atom)
-            self.dual_atoms.append(atom.conjugate)
+            self.dual_atoms.append(atom.dual)
 
             self.dual_shapes += [atom.dual_shape]
         self.dual_dtype = np.dtype([('dual_%d' % i, np.float, shape) 
@@ -42,17 +42,16 @@ class container(object):
         out = 0.
         # XXX dtype manipulations -- would be nice not to have to do this
         u = u.view(self.dual_dtype).reshape(())
-
-        for atom, segment in zip(self.atoms, self.dual_segments):
+        for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+            transform, atom = dual_atom
             out += atom.nonsmooth(u[segment])
         return out
 
     def evaluate_primal_atoms(self, x):
         out = 0.
-        for atom in zip(self.atoms):
+        for atom in self.atoms:
             out += atom.nonsmooth(x)
         return out
-
     
     def dual_prox(self, u, lipshitz_D=1.):
         """
@@ -75,8 +74,9 @@ class container(object):
 
         v = np.empty((), self.dual_dtype)
         u = u.view(self.dual_dtype).reshape(())
-        for dual_atom, segment in zip(self.atoms, self.dual_atoms, self.dual_segments):
-            v[segment] = dual_atom.prox(u[segment], lipshitz_D)
+        for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+            transform, atom = dual_atom
+            v[segment] = atom.prox(u[segment], lipshitz_D)
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
@@ -155,8 +155,6 @@ class container(object):
         nonsmooth = self.evaluate_dual_atoms
         prox = self.dual_prox
         return dummy_problem(self._dual_smooth_eval, nonsmooth, prox, initial, 1./lipshitz_P)
-
-
 
     def _dual_smooth_eval(self,v,mode='both'):
 

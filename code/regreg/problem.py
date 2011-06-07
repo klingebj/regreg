@@ -1,7 +1,7 @@
 
-class dummy_problem(object):
+class composite(object):
     """
-    A generic way to specify a problem
+    A generic way to specify a problem in composite form.
     """
 
     def __init__(self, smooth_eval, nonsmooth, prox, initial, smooth_multiplier=1):

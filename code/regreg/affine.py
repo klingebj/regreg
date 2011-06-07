@@ -130,6 +130,17 @@ class affine_transform(object):
                 return np.dot(u, self.linear_operator.affine_offset)
             return 0
 
+class linear_transform(affine_transform):
+
+    def __init__(self, linear_operator, diag=False):
+        affine_transform.__init__(self, linear_operator, None, diag=diag)
+
+    def affine_objective(self, u):
+        raise ValueError('linear transforms have no affine part')
+
+    def affine_map(self, u):
+        raise ValueError('linear transforms have no affine part')
+
 class selector(object):
 
     """

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse
-from problem import dummy_problem
-from affine import affine_transform, identity
+from problem import composite
+from affine import linear_transform, identity as identity_transform
 
 class atom(object):
 
@@ -9,7 +9,18 @@ class atom(object):
     A class that defines the API for support functions.
     """
 
-    def __init__(self, primal_shape, lagrange=None, bound=None):
+    def __init__(self, primal_shape, lagrange=None, bound=None, 
+                 linear_term=None, offset=None):
+
+        self.offset = None
+        # A private constant that makes atom.conjugate.conjugate == atom
+        self._constant_term = 0.
+        if offset is not None:
+            self.offset = np.array(offset)
+
+        self.linear_term = None
+        if linear_term is not None:
+            self.linear_term = np.array(linear_term)
 
         if type(primal_shape) == type(1):
             self.primal_shape = (primal_shape,)
@@ -20,27 +31,68 @@ class atom(object):
         self.bound = bound
         if not (self.bound is None or self.lagrange is None):
             raise ValueError('An atom must be either in Lagrange form or bound form. Only one of the parameters in the constructor can not be None.')
-        self.affine_transform = identity(self.primal_shape)
+        if self.bound is None and self.lagrange is None:
+            raise ValueError('Atom must be in lagrange or bound form, as specified by the choice of one of the keyword arguments.')
         self.atoms = [self]
 
     def __repr__(self):
         if self.lagrange is not None:
-            return "%s(%s, lagrange=%f)" % (self.__class__.__name__,
-                                            `self.primal_shape`, 
-                                            self.lagrange)
+            return "%s(%s, lagrange=%f, linear_term=%s, offset=%s)" % (self.__class__.__name__,
+                                                                       `self.primal_shape`, 
+                                                                       self.lagrange,
+                                                                       str(self.linear_term),
+                                                                       str(self.offset))
 
         else:
-            return "%s(%s, bound=%f)" % (self.__class__.__name__,
-                                         `self.primal_shape`, 
-                                         self.bound)
+            return "%s(%s, bound=%f, linear_term=%s, offset=%s)" % (self.__class__.__name__,
+                                                         `self.primal_shape`, 
+                                                         self.bound,
+                                                         str(self.linear_term),
+                                                         str(self.offset))
     
     @property
     def conjugate(self):
-        if not self.constraint:
-            atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, bound=self.lagrange, lagrange=None)
+        if self.offset is not None:
+            linear_term = -self.offset
         else:
-            atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, lagrange=self.bound, bound=None)
+            linear_term = None
+        if self.linear_term is not None:
+            offset = -self.linear_term
+        else:
+            offset = None
+        if self.bound is None:
+            atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 
+                                                              bound=self.lagrange, 
+                                                              lagrange=None,
+                                                              linear_term=linear_term,
+                                                              offset=offset)
+        else:
+            atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 
+                                                              lagrange=self.bound, 
+                                                              bound=None,
+                                                              linear_term=linear_term,
+                                                              offset=offset)
+
+        if offset is not None and linear_term is not None:
+            _constant_term = (linear_term * offset).sum()
+        else:
+            _constant_term = 0.
+        atom._constant_term = self._constant_term - _constant_term
         return atom
+    
+    @property
+    def dual(self):
+        return self.linear_transform, self.conjugate
+
+    @property
+    def linear_transform(self):
+        if not hasattr(self, "_linear_transform"):
+            self._linear_transform = identity_transform(self.primal_shape)
+        return self._linear_transform
+    
+    @property
+    def affine_transform(self):
+        return self.linear_transform
     
     def seminorm(self, x):
         """
@@ -55,30 +107,63 @@ class atom(object):
         raise NotImplementedError
 
     def nonsmooth(self, x):
-        if self.constraint:
-            return self.constraint(x)
+        if self.offset is not None:
+            x_offset = x + self.offset
         else:
-            return self.seminorm(x)
-
-    def prox(self, x, L=1):
+            x_offset = x
         if self.bound is not None:
-            return self.bound_prox(x, L=1, bound=self.bound)
+            v = self.constraint(x_offset)
         else:
-            return self.lagrange_prox(x, L=1, lagrange=self.lagrange)
-
-    def lagrange_prox(self, x, L=1, lagrange=None):
+            v = self.seminorm(x_offset)
+        if self.linear_term is None:
+            return v
+        else:
+            return v + (self.linear_term * x).sum()
+        
+    def prox(self, x, L=1):
         r"""
-        Return (unique) minimizer
+        The proximal operator. If the atom is in
+        Lagrange mode, this has the form
 
         .. math::
 
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v)
+           \|x-v\|^2_2 + \lambda h(v+\alpha) + \langle v, \eta \rangle
 
-        where *p*=x.shape[0] and :math:`h(v)` = self.seminorm(v).
+        where :math:`\alpha` is the offset of self.affine_transform and
+        :math:`\eta` is self.linear_term.
+
+        If the atom is in bound mode, then this has the form
+        
+        .. math::
+
+           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+           \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
+
         """
-        raise NotImplementedError
+        if self.offset is not None:
+            offset = self.offset
+        else:
+            offset = 0
+        if self.linear_term is not None:
+            shift = offset - self.linear_term / L
+        else:
+            shift = offset
 
+        if not np.all(np.equal(shift, 0)):
+            x = x + shift
+        if np.all(np.equal(offset, 0)):
+            offset = None
+
+        if self.bound is not None:
+            eta = self.bound_prox(x, L=L, bound=self.bound)
+        else:
+            eta = self.lagrange_prox(x, L=L, lagrange=self.lagrange)
+
+        if offset is None:
+            return eta
+        else:
+            return eta - offset
 
     def prox_optimum(self, x, L=1):
         """
@@ -94,6 +179,23 @@ class atom(object):
         """
         argmin = self.prox(x, L)
         return argmin, L * np.linalg.norm(x-argmin)**2 / 2. + self.nonsmooth(argmin)
+
+    def lagrange_prox(self, x, L=1, lagrange=None):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+           \|x-v\|^2_2 + \lambda h(v)
+
+        where *p*=x.shape[0] and :math:`h(v)` is the support function of self (with a
+        Lagrange multiplier of 1 in front) and :math:`\lambda` is the Lagrange parameter.
+        If the argument is None and the atom is in Lagrange mode, this parameter
+        is used for the proximal operator, else an exception is raised.
+        
+        """
+        raise NotImplementedError
     
     def bound_prox(self, x, L=1, bound=None):
         r"""
@@ -105,7 +207,10 @@ class atom(object):
            \|u-'v\|^2_2  \ \text{s.t.} \   h^*(v) \leq \lambda
 
         where *m*=u.shape[0] and :math:`h^*` is the 
-        conjugate of self.seminorm.
+        conjugate of the support function of self (with a Lagrange multiplier of 1 in front).
+        and :math:`\lambda` is the bound parameter.
+        If the argument is None and the atom is in bound mode, this parameter
+        is used for the proximal operator, else an exception is raised.
         """
         raise NotImplementedError
 
@@ -137,65 +242,25 @@ class atom(object):
                                                               
     def affine_map(self, x, copy=True):
         """
-        Return x + self.affine_offset. If copy: then x is copied if
-        affine_offset is None.
+        Return x + self.offset. If copy: then x is copied if
+        offset is None.
         """
         return self.affine_transform.affine_map(x, copy)
 
-    def lagrange_problem(self, smooth_func, smooth_multiplier=1., initial=None):
-        """
-        Return a problem instance 
-        """
-        prox = self.lagrange_prox
-        nonsmooth = self.seminorm
-        if initial is None:
-            initial = np.random.standard_normal(self.primal_shape)
-        return dummy_problem(smooth_func.smooth_eval, nonsmooth, prox, initial, smooth_multiplier)
-
-    def bound_problem(self, smooth_func, smooth_multiplier=1., initial=None):
-        """
-        Return a problem instance 
-        """
-        prox = self.bound_prox
-        nonsmooth = self.constraint
-        if initial is None:
-            initial = np.random.standard_normal(self.dual_shape)
-        return dummy_problem(smooth_func, nonsmooth, prox, initial, smooth_multiplier)
-
-    @classmethod
-    def affine(cls, linear_operator, affine_offset, lagrange=None,
-               bound=None, diag=False,
-               args=(), keywords={}):
-        """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
-        """
-        return affine_atom(cls, linear_operator, affine_offset, diag=diag,
-                           lagrange=lagrange, bound=bound, args=args, keywords=keywords)
-    
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
-               bound=None, args=(), keywords={}):
+               bound=None, args=(), keywords={},
+               linear_term=None, offset=None):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
-        return affine_atom(cls, linear_operator, None, diag=diag,
-                           lagrange=lagrange, args=args, keywords=keywords,
-                           bound=bound)
+        l = linear_transform(linear_operator, diag=diag)
+        atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
+                   linear_term=linear_term, offset=offset)
+                   
+        return linear_atom(atom, l)
     
-    @classmethod
-    def shift(cls, affine_offset, lagrange=None, diag=False,
-              bound=None, args=(), keywords={}):
-        """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
-        """
-        return affine_atom(cls, None, affine_offset, diag=diag,
-                           lagrange=lagrange, args=args, keywords=keywords,
-                           bound=bound)
-    
-
 class l1norm(atom):
 
     """
@@ -211,7 +276,7 @@ class l1norm(atom):
         return self.lagrange * np.fabs(x).sum()
 
     def constraint(self, x):
-        inbox = np.fabs(x).sum() <= self.lagrange * (1 + self.tol)
+        inbox = np.fabs(x).sum() <= self.bound * (1 + self.tol)
         if inbox:
             return 0
         else:
@@ -304,7 +369,7 @@ class maxnorm(atom):
         return self.lagrange * np.fabs(x).max()
 
     def constraint(self, x):
-        inbox = np.product(np.less_equal(np.fabs(x), self.lagrange * (1+self.tol)))
+        inbox = np.product(np.less_equal(np.fabs(x), self.bound * (1+self.tol)))
         if inbox:
             return 0
         else:
@@ -371,7 +436,7 @@ class l2norm(atom):
         return self.lagrange * np.linalg.norm(x)
 
     def constraint(self, x):
-        inball = (np.linalg.norm(x) <= self.lagrange * (1 + self.tol))
+        inball = (np.linalg.norm(x) <= self.bound * (1 + self.tol))
         if inball:
             return 0
         else:
@@ -589,7 +654,7 @@ class positive_part(atom):
     
     def seminorm(self, x):
         """
-        The non-negative constraint of x.
+        The sum of the positive parts of x.
         """
         return self.lagrange * np.maximum(x, 0).sum()
 
@@ -631,10 +696,9 @@ class positive_part(atom):
         x = np.asarray(x)
         v = x.copy()
         pos = v > 0
-        v = np.at_least1d(v)
-        v[pos] = np.maximum(v[pos] - lagrange, 0)
+        v = np.atleast_1d(v)
+        v[pos] = np.maximum(v[pos] - lagrange/L, 0)
         return v.reshape(x.shape)
-
 
     def bound_prox(self, x,  L=1, bound=None):
         r"""
@@ -688,7 +752,7 @@ class constrained_positive_part(atom):
         return np.inf
     
     def constraint(self, x):
-        inbox = np.product(np.less_equal(x, self.lagrange) * np.greater_equal(x, 0))
+        inbox = np.product(np.less_equal(x, self.bound) * np.greater_equal(x, 0))
         if inbox:
             return 0
         else:
@@ -724,7 +788,7 @@ class constrained_positive_part(atom):
 
         x = np.asarray(x)
         v = x.copy()
-        v = np.at_least1d(v)
+        v = np.atleast_1d(v)
         pos = v > 0
         v[pos] = np.maximum(v[pos] - lagrange, 0)
         v[~pos] = 0.
@@ -756,7 +820,6 @@ class constrained_positive_part(atom):
         if bound is None:
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
 
-
         x = np.asarray(x)
         v = x.copy()
         v = np.atleast_1d(x)
@@ -765,7 +828,7 @@ class constrained_positive_part(atom):
         v[~neg] = np.minimum(bound, x[~neg])
         return v.reshape(x.shape)
 
-class linear_atom(atom):
+class projection_atom(atom):
 
     """
     An atom representing a linear constraint.
@@ -825,7 +888,7 @@ class linear_atom(atom):
         # XXX being a cone, the two arguments are not needed
         return self.lagrange_prox(x)
 
-class affine_atom(atom):
+class linear_atom(object):
 
     """
     Given a seminorm on :math:`\mathbb{R}^p`, i.e.
@@ -833,56 +896,36 @@ class affine_atom(atom):
     this class creates a new seminorm 
     that evaluates :math:`h_K(D\beta+\alpha)`
 
-    The dual prox is unchanged, though the instance
-    gets a affine_offset which shows up in the
-    gradient of the dual problem for this atom.
-
-    The dual problem is
+    This class does not have a prox, but its
+    dual does. The prox of the dual is
 
     .. math::
 
-       \text{minimize} \frac{1}{2} \|y-D^Tx\|^2_2 + x^T\alpha
+       \text{minimize} \frac{1}{2} \|y-x\|^2_2 + x^T\alpha
        \ \text{s.t.} \ x \in \lambda K
     
     """
 
-    # if smooth_obj is a class, an object is created
-    # smooth_obj(*args, **keywords)
-    # else, it is assumed to be an instance of smooth_function
+    # if atom_obj is a class, an object is created
+    # atom_obj(*args, **keywords)
+    # else, it is assumed to be an instance of atom
  
-    def __init__(self, atom_obj, linear_operator, affine_offset, diag=False, lagrange=None, args=(), keywords={}, bound=None):
-        self.affine_transform = affine_transform(linear_operator, affine_offset, diag)
-        self.primal_shape = self.affine_transform.primal_shape
-        self.dual_shape = self.affine_transform.dual_shape
-
-        # overwrite keyword arguments for bound, lagrange
-        # not quite kosher...
-        keywords = keywords.copy()
-        keywords['lagrange'] = lagrange
-        keywords['bound'] = bound
-
-        if type(atom_obj) == type(type): # it is a class
-            atom_class = atom_obj
-            self.atom = atom_class(self.dual_shape, *args, **keywords)
-        else:
-            self.atom = atom_obj
-        if not isinstance(self.atom, atom):
-            raise ValueError('atom should be an instance of a seminorm_atom, got: %s' % `self.atom`)
-        self.atoms = [self]
+    def __init__(self, atom_obj, ltransform):
+        self.linear_transform = ltransform
+        self.linear_term = self.offset = None
+        self.primal_shape = self.linear_transform.primal_shape
+        self.dual_shape = self.linear_transform.dual_shape
+        self.atom = atom_obj
         
     def __repr__(self):
-        return "affine_atom(%s, %s, %s)" % (`self.atom`,
+        return "linear_atom(%s, %s, %s)" % (`self.atom`,
                                             `self.affine_transform.linear_operator`, 
-                                            `self.affine_transform.affine_offset`)
+                                            `self.offset`)
 
 
     @property
-    def conjugate(self):
-        if not self.constraint:
-            atom = primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, bound=self.lagrange, lagrange=None)
-        else:
-            atom = primal_dual_seminorm_pairs[self.atom.__class__](self.primal_shape, lagrange=self.bound, bound=None)
-        return atom
+    def dual(self):
+        return self.linear_transform, self.atom.conjugate
 
     def _getlagrange(self):
         return self.atom.lagrange
@@ -898,57 +941,106 @@ class affine_atom(atom):
         self.atom.bound = bound
     bound = property(_getbound, _setbound)
 
-    def seminorm(self, x):
+    def nonsmooth(self, x):
         """
-        Return self.atom.seminorm(self.affine_map(x))
+        Return self.atom.seminorm(self.linear_transform.linear_map(x))
         """
-        return self.atom.seminorm(self.affine_map(x))
+        return self.atom.nonsmooth(self.linear_transform.linear_map(x))
 
-    def constraint(self, x):
-        return self.atom.constraint(self.affine_map(x))
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
-        r"""
-        Return (unique) minimizer
+class smoothed_atom(composite):
+
+    def __init__(self, atom, epsilon=0.1,
+                 store_argmin=False):
+        """
+        Given a constraint :math:`\delta_K(\beta+\alpha)=h_K^*(\beta)`,
+        that is, a possibly atom whose linear_operator is None, and
+        whose offset is :math:`\alpha` this
+        class creates a smoothed version
 
         .. math::
 
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 + \lambda h_K(Dv+\alpha)
+            \delta_{K,\varepsilon}(\beta+\alpha) = \sup_{u}u'(\beta+\alpha) - \frac{\epsilon}{2} \|u-u_0\|^2_2 - h_K(u)
 
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        This is just self.atom.lagrange_prox(x + self.affine_offset, L) + self.affine_offset
-        """
-        if self.affine_transform.linear_operator is None:
-            if self.affine_transform.affine_offset is not None:
-                return self.atom.lagrange_prox(x + self.affine_transform.affine_offset, L, lagrange) - self.affine_transform.affine_offset
-            else:
-                return self.atom.lagrange_prox(x, L)
-        else:
-            raise NotImplementedError('when linear_operator is not None, lagrange_prox is not implemented, can be done with FISTA')
-
-    def bound_prox(self, x, L=1, bound=None):
-        r"""
-        Return a minimizer
+        The objective value is given by
 
         .. math::
 
-            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  \|v\|_{\infty} \leq \lambda
+           \delta_{K,\varepsilon}(\beta) = \beta'u_0 + \frac{1}{2\epsilon} \|\beta\|^2_2- \frac{\epsilon}{2} \left(\|P_K(u_0+(\beta+\alpha)/\epsilon)\|^2_2 + h_K\left(u_0+(\beta+\alpha)/\epsilon - P_K(u_0+(\beta+\alpha)/\epsilon)\right)
 
-        where *m*=x.shape[0], :math:`\lambda` = self.lagrange. 
-        This is just truncation: np.clip(x, -self.lagrange/L, self.lagrange/L).
+        and the gradient is given by the maximizer above
+
+        .. math::
+
+           \nabla_{\beta} \delta_{K,\varepsilon}(\beta+\alpha) = u_0+(\beta+\alpha)/\epsilon - P_K(u_0+(\beta+\alpha)/\epsilon)
+
+        If a seminorm has several atoms, then :math:`D` is a
+        `stacked' version and :math:`K` is a product
+        of corresponding convex sets.
+
+        """
+        self.epsilon = epsilon
+        if self.epsilon <= 0:
+            raise ValueError('to smooth, epsilon must be positive')
+        self.primal_shape = atom.primal_shape
+
+        self.dual = atom.dual
+
+        # for TFOCS the argmin corresponds to the 
+        # primal solution 
+
+        self.store_argmin = store_argmin
+
+    def smooth_eval(self, beta, mode='both'):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
         """
 
-        if self.affine_transform.linear_operator is None:
-            if self.affine_transform.affine_offset is not None:
-                return self.atom.bound_prox(x + self.affine_transform.affine_offset, L, bound) - self.affine_transform.affine_offset
-            else:
-                return self.atom.bound_prox(x, L, bound)
-        else:
-            raise NotImplementedError('when linear_operator is not None, bound_prox is not implemented, can be done with FISTA')
+        linear_transform, dual_atom = self.dual
+        _constant_term = dual_atom._constant_term
 
+        u = linear_transform.linear_map(beta)
+        ueps = u / self.epsilon
+        if mode == 'both':
+            argmin, optimal_value = dual_atom.prox_optimum(ueps, self.epsilon)                    
+            objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + _constant_term
+            grad = linear_transform.adjoint_map(argmin)
+            if self.store_argmin:
+                self.argmin = argmin
+            return objective, grad
+        elif mode == 'grad':
+            argmin = dual_atom.prox(ueps, self.epsilon)     
+            grad = linear_transform.adjoint_map(argmin)
+            if self.store_argmin:
+                self.argmin = argmin
+            return grad 
+        elif mode == 'func':
+            _, optimal_value = dual_atom.prox_optimum(ueps, self.epsilon)                    
+            objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + _constant_term
+            return objective
+        else:
+            raise ValueError("mode incorrectly specified")
+
+    def proximal(self, x, g, lipshitz, prox_control=None):
+        """
+        Compute the proximal optimization
+
+        prox_control: If not None, then a dictionary of parameters for the prox procedure
+        """
+        z = x - g / lipshitz
+        
+        if prox_control is None:
+            v = self._prox(z, lipshitz)
+            return v
+        else:
+            return self._prox(z, lipshitz, **prox_control)
+
+    def nonsmooth(self, x):
+        return 0
 
 primal_dual_seminorm_pairs = {}
 for n1, n2 in [(l1norm,maxnorm),

@@ -6,6 +6,19 @@ import regreg.api as R
         
 import pylab
 
+def test_conjugate():
+    z = np.random.standard_normal(10)
+    w = np.random.standard_normal(10)
+    y = np.random.standard_normal(10)
+
+    for atom_c in [R.l1norm, R.l2norm, 
+                   R.positive_part, R.maxnorm,
+                   R.nonnegative, 
+                   R.constrained_positive_part,
+                   R.nonpositive]:
+        atom = atom_c(10, linear_term=w, offset=y, lagrange=2.345)
+        np.testing.assert_almost_equal(atom.conjugate.conjugate.nonsmooth(z), atom.nonsmooth(z))
+
 def fused_example():
 
     x=np.random.standard_normal(500); x[100:150] += 7
