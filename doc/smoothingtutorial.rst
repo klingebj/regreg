@@ -118,12 +118,12 @@ We can then plot solution to see the result of the regression,
    smoothed_penalty = smoothed_seminorm([sparsity, fused], epsilon=0.01)
    problem = smooth_function(loss, smoothed_penalty)
    solver = FISTA(problem)
-   solns = [solver.problem.coefs.copy()]
+   solns = [solver.composite.coefs.copy()]
 
    pylab.plot(solns[0])
    pylab.scatter(np.arange(Y.shape[0]), Y)
    for eps in [.5**i for i in range(15)]:
        smoothed_penalty.epsilon = eps
        solver.fit()
-       solns.append(solver.problem.coefs.copy())
+       solns.append(solver.composite.coefs.copy())
        pylab.plot(solns[-1])

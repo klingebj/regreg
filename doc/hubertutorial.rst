@@ -63,9 +63,9 @@ Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem.problem())
+   solver = FISTA(problem.composite())
    obj_vals = solver.fit(max_its=200, tol=1e-6)
-   solution = solver.problem.coefs
+   solution = solver.composite.coefs
 
 Here max_its represents primal iterations, and tol is the primal tolerance. 
 

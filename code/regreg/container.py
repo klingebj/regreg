@@ -53,7 +53,7 @@ class container(object):
             out += atom.nonsmooth_objective(x)
         return out
     
-    def dual_prox(self, u, lipshitz_D=1.):
+    def dual_proximal(self, u, lipshitz_D=1.):
         """
         Return (unique) minimizer
 
@@ -68,7 +68,7 @@ class container(object):
         :math:`\lambda_i`=self.atoms[i].lagrange
 
         This is used in the ISTA/FISTA solver loop with :math:`u=z-g/L` when finding
-        self.primal_prox, i.e., the signal approximator problem.
+        self.primal_proximal, i.e., the signal approximator problem.
         """
         # XXX dtype manipulations -- would be nice not to have to do this
 
@@ -76,11 +76,11 @@ class container(object):
         u = u.view(self.dual_dtype).reshape(())
         for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
             transform, atom = dual_atom
-            v[segment] = atom.prox(u[segment], lipshitz_D)
+            v[segment] = atom.proximal(u[segment], lipshitz_D)
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
-    def primal_prox(self, y, lipshitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
+    def primal_proximal(self, y, lipshitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
         """
         The proximal function for the primal problem
         """
@@ -154,9 +154,9 @@ class container(object):
 
             # XXX dtype manipulations -- would be nice not to have to do this
             z = z.reshape((1,)).view(np.float)
-            initial = self.dual_prox(z, 1./lipshitz_P)
+            initial = self.dual_proximal(z, 1./lipshitz_P)
         nonsmooth_objective = self.evaluate_dual_atoms
-        prox = self.dual_prox
+        prox = self.dual_proximal
         return composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipshitz_P)
 
     def _dual_smooth_objective(self,v,mode='both'):
@@ -242,7 +242,7 @@ class container(object):
             #If the conjugate of the loss function is not provided use the generic solver
             self.conjugate = conjugate(self.loss)
 
-        prox = self.dual_prox
+        prox = self.dual_proximal
         nonsmooth_objective = self.evaluate_dual_atoms
 
         if initial is None:
@@ -252,7 +252,7 @@ class container(object):
 
             # XXX dtype manipulations -- would be nice not to have to do this
             z = z.reshape((1,)).view(np.float)
-            initial = self.dual_prox(z, 1.)
+            initial = self.dual_proximal(z, 1.)
 
         return composite(self.conjugate_smooth_objective, nonsmooth_objective, prox, initial, smooth_multiplier)
         
@@ -262,7 +262,7 @@ class container(object):
         Create a composite object for solving the general problem with the two-loop algorithm
         """
 
-        prox = self.primal_prox
+        prox = self.primal_proximal
         nonsmooth_objective = self.evaluate_primal_atoms
         if initial is None:
             initial = np.random.standard_normal(self.primal_shape)

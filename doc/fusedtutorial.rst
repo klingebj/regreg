@@ -97,9 +97,9 @@ Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem.problem())
+   solver = FISTA(problem.composite())
    solver.fit(max_its=100, tol=1e-10)
-   solution = solver.problem.coefs
+   solution = solver.composite.coefs
 
 Here max_its represents primal (outer) iterations, and tol is the primal tolerance. 
 
@@ -123,9 +123,9 @@ We can then plot solution to see the result of the regression,
    D = sparse.csr_matrix(D)
    fused = l1norm.linear(D, lagrange=25.5)
    problem = container(loss, sparsity, fused)
-   solver = FISTA(problem.problem())
+   solver = FISTA(problem.composite())
    solver.fit(max_its=100, tol=1e-10)
-   solution = solver.problem.coefs
+   solution = solver.composite.coefs
    pylab.plot(solution, c='g', linewidth=3)	
    pylab.scatter(np.arange(Y.shape[0]), Y)
 

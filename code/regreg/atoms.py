@@ -1016,7 +1016,7 @@ class smoothed_atom(composite):
                 self.argmin = argmin
             return objective, grad
         elif mode == 'grad':
-            argmin = dual_atom.prox(ueps, self.epsilon)     
+            argmin = dual_atom.proximal(ueps, self.epsilon)     
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
                 self.argmin = argmin

@@ -48,7 +48,7 @@ Now we can create the problem object, beginning with the loss function
    Y += alpha
    loss = l2normsq.shift(-Y.copy(), lagrange=0.5)
 
-   shrink_to_alpha = l1norm.shift(-alpha, 3.)
+   shrink_to_alpha = l1norm(Y.shape, offset=-alpha, lagrange=3.)
 
 which creates an affine_atom object with :math:`\lambda_2=3`. That is, it creates the penalty
 
@@ -64,7 +64,7 @@ Next, we create the fused lasso matrix and the associated l1norm object,
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
    D = sparse.csr_matrix(D)
-   fused = l1norm.linear(D, 25.5)
+   fused = l1norm.linear(D, lagrange=25.5)
 
 Here we first created D, converted it a sparse matrix, and then created an l1norm object with the sparse version of D and :math:`\lambda_1 = 25.5`. 
 Finally, we can create the final problem object, and solve it.
@@ -72,10 +72,10 @@ Finally, we can create the final problem object, and solve it.
 .. ipython::
 
    cont = container(loss, shrink_to_alpha, fused)
-   solver = FISTA(cont.problem())
+   solver = FISTA(cont.composite())
    # This problem seems to get stuck restarting
    _ip.magic("time solver.fit(max_its=200, tol=1e-10)")
-   solution = solver.problem.coefs
+   solution = solver.composite.coefs
 
 Since this problem is a signal approximator, we can also solve
 it using blockwise coordinate descent. This is generally faster
@@ -86,8 +86,8 @@ for this problem
    from regreg.blocks import blockwise
    _ip.magic("time block_soln = blockwise([shrink_to_alpha, fused], Y, max_its=500, tol=1.0e-10)")
    np.linalg.norm(block_soln - solution) / np.linalg.norm(solution)
-   problem = cont.problem()
-   problem.obj(block_soln), problem.obj(solution)
+   composite = cont.composite()
+   composite.objective(block_soln), composite.objective(solution)
 
 
 We can then plot solution to see the result of the regression,
@@ -110,22 +110,22 @@ We can then plot solution to see the result of the regression,
    Y += alpha
    loss = l2normsq.shift(-Y.copy(), lagrange=0.5)
 
-   shrink_to_alpha = l1norm.shift(-alpha, 3.)
+   shrink_to_alpha = l1norm(Y.shape, offset=-alpha, lagrange=3.)
 
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D = sparse.csr_matrix(D)
-   fused = l1norm.linear(D, 25.5)
+   fused = l1norm.linear(D, lagrange=25.5)
 
    cont = container(loss, shrink_to_alpha, fused)
-   solver = FISTA(cont.problem())
+   solver = FISTA(cont.composite())
    solver.fit(max_its=200, tol=1e-10)
-   solution = solver.problem.coefs
+   solution = solver.composite.coefs
 
    from regreg.blocks import blockwise
    block_soln = blockwise([shrink_to_alpha, fused], Y, max_its=500, tol=1.0e-10)
    np.linalg.norm(block_soln - solution) / np.linalg.norm(solution)
-   problem = cont.problem()
-   problem.obj(block_soln), problem.obj(solution)
+   composite = cont.composite()
+   composite.objective(block_soln), composite.objective(solution)
 
    pylab.clf()
    pylab.plot(solution, c='g', linewidth=6, label=r'$\hat{Y}$')	
