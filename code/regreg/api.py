@@ -4,9 +4,11 @@ from atoms import (l1norm, l2norm, maxnorm, nonnegative, nonpositive,
                    smoothed_atom)
 
 from affine import identity, selector, affine_transform, normalize
-from smooth import (l2normsq, logistic_loglikelihood, smooth_atom, affine_smooth, smooth_function)
+from smooth import (l2normsq, linear, logistic_loglikelihood, smooth_atom, affine_smooth, smooth_function, signal_approximator)
 from container import container
 from algorithms import FISTA
+from admm import admm_problem
+
 
 from conjugate import conjugate
 from composite import composite

@@ -53,9 +53,9 @@ The code to construct the loss function looks like this
 
    import regreg.api as R
    from regreg.smooth import linear
-   smooth_linf_constraint = R.smoothed_atom(R.maxnorm(1000, bound=1), 
-                                            epsilon=0.01,
-                                            store_argmin=True)
+   smooth_linf_constraint = R.smoothed_constraint(R.maxnorm(1000, bound=1), 
+                                                  epsilon=0.01,
+                                                  store_argmin=True)
    loss = R.affine_smooth(smooth_linf_constraint, -X.T, None)
    smooth_f = R.smooth_function(loss, linear(Y))
 
@@ -74,12 +74,12 @@ decreasing the smoothing.
 .. ipython::
 
    basis_pursuit = R.container(smooth_f, l2_lagrange)
-   solver = R.FISTA(basis_pursuit.composite(initial=np.random.standard_normal(500)))
+   solver = R.FISTA(basis_pursuit.problem(initial=np.random.standard_normal(500)))
    tol = 1.0e-08
 
    for epsilon in [0.6**i for i in range(20)]:
        smooth_linf_constraint.epsilon = epsilon
-       solver.composite.lipshitz = 1.1/epsilon * Xnorm
+       solver.problem.lipshitz = 1.1/epsilon * Xnorm
        h = solver.fit(max_its=2000, tol=tol, min_its=10, backtrack=False)
 
    basis_pursuit_soln = smooth_linf_constraint.argmin
@@ -100,9 +100,9 @@ we obtain the same solution.
    sparsity = R.l1norm(1000, bound=np.fabs(basis_pursuit_soln).sum())
    loss = R.l2normsq.affine(X, -Y)
    lasso = R.container(loss, sparsity)
-   lasso_solver = R.FISTA(lasso.composite())
+   lasso_solver = R.FISTA(lasso.problem())
    h = lasso_solver.fit(max_its=2000, tol=1.0e-10)
-   lasso_soln = lasso_solver.composite.coefs
+   lasso_soln = lasso_solver.problem.coefs
 
    print np.fabs(lasso_soln).sum(), np.fabs(basis_pursuit_soln).sum()
    print np.linalg.norm(Y-np.dot(X, lasso_soln)), np.linalg.norm(Y-np.dot(X, basis_pursuit_soln))
@@ -124,9 +124,9 @@ we obtain the same solution.
 
    import regreg.api as R
    from regreg.smooth import linear
-   smooth_linf_constraint = R.smoothed_atom(R.maxnorm(1000, bound=1),
-                                                      epsilon=0.01,
-                                                      store_argmin=True)
+   smooth_linf_constraint = R.smoothed_constraint(R.maxnorm(1000, bound=1),
+                                                  epsilon=0.01,
+                                                  store_argmin=True)
    loss = R.affine_smooth(smooth_linf_constraint, -X.T, None)
    smooth_f = R.smooth_function(loss, linear(Y))
 
@@ -136,13 +136,13 @@ we obtain the same solution.
    l2_lagrange = R.l2norm(500, lagrange=l2_constraint_value)
 
    basis_pursuit = R.container(smooth_f, l2_lagrange)
-   solver = R.FISTA(basis_pursuit.composite(initial=np.random.standard_normal(500)))
+   solver = R.FISTA(basis_pursuit.problem(initial=np.random.standard_normal(500)))
    tol = 1.0e-08
 
-   solver = R.FISTA(basis_pursuit.composite(initial=np.random.standard_normal(500)))
+   solver = R.FISTA(basis_pursuit.problem(initial=np.random.standard_normal(500)))
    for epsilon in [0.6**i for i in range(20)]:
        smooth_linf_constraint.epsilon = epsilon
-       solver.composite.lipshitz = 1.1/epsilon * Xnorm
+       solver.problem.lipshitz = 1.1/epsilon * Xnorm
        solver.fit(max_its=2000, tol=tol, min_its=10, backtrack=False)
 
    basis_pursuit_soln = smooth_linf_constraint.argmin
@@ -150,9 +150,9 @@ we obtain the same solution.
    sparsity = R.l1norm(1000, bound=np.fabs(basis_pursuit_soln).sum())
    loss = R.l2normsq.affine(X, -Y)
    lasso = R.container(loss, sparsity)
-   lasso_solver = R.FISTA(lasso.composite())
+   lasso_solver = R.FISTA(lasso.problem())
    lasso_solver.fit(max_its=2000, tol=1.0e-10)
-   lasso_soln = lasso_solver.composite.coefs
+   lasso_soln = lasso_solver.problem.coefs
 
    pylab.plot(basis_pursuit_soln, label='Basis pursuit')
    pylab.plot(lasso_soln, label='LASSO')
