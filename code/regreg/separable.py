@@ -5,7 +5,6 @@ regularizer or penalty.
 The penalty is specified by a primal shape, a sequence of atoms and
 a sequence of slicing objects.
 """
-from atoms import seminorm_atom, affine_atom
 from affine import selector
 
 class separable(object):
@@ -31,7 +30,7 @@ class separable(object):
             out += atom.nonsmooth(u[segment])
         return out
 
-    def prox(self, u, lipshitz_D=1.):
+    def proximal(self, u, lipshitz_D=1.):
         """
         Return (unique) minimizer
 

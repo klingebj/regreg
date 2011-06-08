@@ -1,6 +1,6 @@
 import numpy as np
 import container, smooth, algorithms
-from problem import dummy_problem
+from composite import composite
 import pylab
 
 class Block(object):
@@ -48,43 +48,38 @@ class Block(object):
 
     """
 
-    def __init__(self, atom, initial=None, response=None):
+    def __init__(self, dual, initial=None, response=None):
 
-        self.affine_transform = atom.affine_transform
+        self.linear_transform, self.dual_atom = dual
         if response is None:
-            response = np.zeros(atom.primal_shape)
+            response = np.zeros(self.linear_transform.dual_shape)
         if initial is None:
-            initial = np.zeros(atom.dual_shape) 
+            initial = np.zeros(self.linear_transform.dual_shape)
         else:
             initial = initial.copy()
-        if atom.affine_transform.linear_operator is not None:
-            self.loss = smooth.affine_smooth(smooth.l2normsq, atom.affine_transform.linear_operator.T, -response, lagrange=0.5, diag=atom.affine_transform.diagD)
+        if self.linear_transform.linear_operator is not None:
+            self.loss = smooth.affine_smooth(smooth.l2normsq, self.linear_transform.linear_operator.T, -response, lagrange=0.5, diag=self.linear_transform.diagD)
         else:
             self.loss = smooth.l2normsq.shift(-response, lagrange=0.5)
-        if atom.affine_transform.affine_offset is not None:
-            affine_objective = smooth.linear(-atom.affine_transform.affine_offset, lagrange=1)
-            self.objective = smooth.smooth_function(self.loss, affine_objective, lagrange=1)
-        else:
-            self.objective = self.loss
 
-        prox = atom.dual_prox
-        nonsmooth = atom.evaluate_dual_constraint
+        prox = self.dual_atom.prox
+        nonsmooth = self.dual_atom.nonsmooth_objective
         if nonsmooth(initial) == np.inf:
             raise ValueError('initial point is not feasible')
         
-        self.problem = dummy_problem(self.objective.smooth_eval, nonsmooth, prox, initial)
+        self.composite = composite(self.loss.smooth_objective, nonsmooth, prox, initial)
 
     def fit(self, *solver_args, **solver_kw):
         if not hasattr(self, '_solver'):
-            self._solver = algorithms.FISTA(self.problem)
+            self._solver = algorithms.FISTA(self.composite)
         self._solver.fit(*solver_args, **solver_kw)
-        return self.problem.coefs
+        return self.composite.coefs
 
     def set_coefs(self, coefs):
-        self.problem.coefs[:] = coefs
+        self.composite.coefs[:] = coefs
 
     def get_coefs(self):
-        return self.problem.coefs
+        return self.composite.coefs
     coefs = property(get_coefs, set_coefs)
     
     # response is the negative offset in the loss which is (l2normsq / 2.)
@@ -102,7 +97,7 @@ def dual_blocks(atoms, current_resid, initial=None):
     if initial is None:
         initial = [None] * len(atoms)
     for atom, atom_initial in zip(atoms, initial):
-        blocks.append(Block(atom, initial=atom_initial, response=current_resid))
+        blocks.append(Block(atom.dual, initial=atom_initial, response=current_resid))
     return blocks
 
 def blockwise(atoms, response, initial=None, max_its=50, tol=1.0e-06,
@@ -112,7 +107,7 @@ def blockwise(atoms, response, initial=None, max_its=50, tol=1.0e-06,
     blocks = dual_blocks(atoms, current_resid, initial=initial)
     primal_soln = current_resid.copy()
     for block in blocks:
-        current_resid -= block.affine_transform.adjoint_map(block.coefs)
+        current_resid -= block.linear_transform.adjoint_map(block.coefs)
 
     for itercount in range(max_its):
         for block in blocks:
@@ -122,9 +117,9 @@ def blockwise(atoms, response, initial=None, max_its=50, tol=1.0e-06,
             # current resid that should be reset by a scatter
             # before each block updates its coefficients
 
-            block.response = current_resid + block.affine_transform.adjoint_map(block.coefs)
+            block.response = current_resid + block.linear_transform.adjoint_map(block.coefs)
             block.fit(max_its=800,tol=1e-10)
-            current_resid[:] = block.response - block.affine_transform.adjoint_map(block.coefs)
+            current_resid[:] = block.response - block.linear_transform.adjoint_map(block.coefs)
             if np.linalg.norm(primal_soln - current_resid) / np.max([1.,np.linalg.norm(current_resid)]) < tol and itercount >= min_its:
                 return current_resid
             primal_soln = current_resid.copy()
@@ -154,9 +149,9 @@ def test1():
     
     soln1 = blockwise([sparsity, fused], Y)
 
-    solver = FISTA(p.problem())
+    solver = FISTA(p.composite())
     solver.fit(max_its=800,tol=1e-10)
-    soln2 = solver.problem.coefs
+    soln2 = solver.composite.coefs
 
     #plot solution
     pylab.figure(num=1)

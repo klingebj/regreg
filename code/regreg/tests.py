@@ -29,9 +29,9 @@ def fused_example():
 
     loss = R.l2normsq.shift(-x, lagrange=0.5)
     pen = R.container(loss, sparsity,fused)
-    solver = R.FISTA(pen.problem())
+    solver = R.FISTA(pen.composite())
     vals = solver.fit()
-    soln = solver.problem.coefs
+    soln = solver.composite.coefs
     
     # solution
 
@@ -55,10 +55,10 @@ def lasso_example():
     regloss = R.l2normsq.affine(X,-Y, lagrange=0.5)
     sparsity2 = R.l1norm(500, lagrange=l1/2.)
     p=R.container(regloss, sparsity, sparsity2)
-    solver=R.FISTA(p.problem())
+    solver=R.FISTA(p.composite())
     solver.debug = True
     vals = solver.fit(max_its=2000, min_its = 100)
-    soln = solver.problem.coefs
+    soln = solver.composite.coefs
 
     # solution
     pylab.figure(num=1)
@@ -78,9 +78,9 @@ def group_lasso_signal_approx():
     loss = R.l2normsq.shift(-x, lagrange=0.5)
     group_lasso = R.container(loss, **penalties)
     x = np.random.standard_normal(500)
-    solver = R.FISTA(group_lasso.problem())
+    solver = R.FISTA(group_lasso.composite())
     solver.fit()
-    a = solver.problem.coefs
+    a = solver.composite.coefs
     
 def lasso_via_dual_split():
 
@@ -90,8 +90,8 @@ def lasso_via_dual_split():
     x = np.random.standard_normal(500)
     loss = R.l2normsq.shift(-x, lagrange=0.5)
     lasso = R.container(loss,*penalties)
-    solver = R.FISTA(lasso.problem())
-    np.testing.assert_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), solver.problem.coefs)
+    solver = R.FISTA(lasso.composite())
+    np.testing.assert_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), solver.composite.coefs)
     
 def group_lasso_example():
 
@@ -108,10 +108,10 @@ def group_lasso_example():
     loss = R.l2normsq.affine(X, -Y, lagrange=0.5)
     group_lasso = R.container(loss, *penalties)
 
-    solver=R.FISTA(group_lasso.problem())
+    solver=R.FISTA(group_lasso.composite())
     solver.debug = True
     vals = solver.fit(max_its=2000, min_its=20,tol=1e-10)
-    soln = solver.problem.coefs
+    soln = solver.composite.coefs
 
     # solution
 
@@ -146,11 +146,11 @@ def test_group_lasso_sparse(n=100):
     penalties[3].lagrange = 100.
     group_lasso = R.container(loss, *penalties)
 
-    solver=R.FISTA(group_lasso.problem())
+    solver=R.FISTA(group_lasso.composite())
     solver.debug = True
     t1 = time.time()
     vals = solver.fit(max_its=2000, min_its=20,tol=1e-8)
-    soln1 = solver.problem.coefs
+    soln1 = solver.composite.coefs
     t2 = time.time()
     dt1 = t2 - t1
 
@@ -175,10 +175,10 @@ def test_1d_fused_lasso(n=100):
     Y = np.random.standard_normal((2*n,))
     loss = R.l2normsq.affine(X, -Y, lagrange=0.5)
     fused_lasso = R.container(loss, fused)
-    solver=R.FISTA(fused_lasso.problem())
+    solver=R.FISTA(fused_lasso.composite())
     solver.debug = True
     vals1 = solver.fit(max_its=25000, tol=1e-12)
-    soln1 = solver.problem.coefs
+    soln1 = solver.composite.coefs
 
     B = np.array(sparse.tril(np.ones((n,n))).todense())
     X2 = np.dot(X,B)
@@ -186,7 +186,7 @@ def test_1d_fused_lasso(n=100):
 def test_lasso_dual():
 
     """
-    Check that the solution of the lasso signal approximator dual problem is soft-thresholding
+    Check that the solution of the lasso signal approximator dual composite is soft-thresholding
     """
 
     l1 = .1
@@ -194,9 +194,9 @@ def test_lasso_dual():
     x = np.random.normal(0,1,500)
     loss = R.l2normsq.shift(-x, lagrange=0.5)
     pen = R.container(loss, sparsity)
-    solver = R.FISTA(pen.problem())
+    solver = R.FISTA(pen.composite())
     solver.fit()
-    soln = solver.problem.coefs
+    soln = solver.composite.coefs
     st = np.maximum(np.fabs(x)-l1,0) * np.sign(x) 
 
     print soln[range(10)]
@@ -207,7 +207,7 @@ def test_lasso_dual():
 def test_multiple_lasso_dual(n=500):
 
     """
-    Check that the solution of the lasso signal approximator dual problem is soft-thresholding even when specified with multiple seminorms
+    Check that the solution of the lasso signal approximator dual composite is soft-thresholding even when specified with multiple seminorms
     """
 
     l1 = 1
@@ -217,10 +217,10 @@ def test_multiple_lasso_dual(n=500):
     loss = R.l2normsq.shift(-x, lagrange=0.5)
     p = R.container(loss, sparsity1, sparsity2)
     t1 = time.time()
-    solver = R.FISTA(p.problem())
+    solver = R.FISTA(p.composite())
     solver.debug = True
     vals = solver.fit(tol=1.0e-16)
-    soln = solver.problem.coefs
+    soln = solver.composite.coefs
     t2 = time.time()
     print t2-t1
     st = np.maximum(np.fabs(x)-l1,0) * np.sign(x)
@@ -233,7 +233,7 @@ def test_multiple_lasso_dual(n=500):
 def test_lasso_dual_from_primal(l1 = .1, L = 2.):
 
     """
-    Check that the solution of the lasso signal approximator dual problem is soft-thresholding, when call from primal problem object
+    Check that the solution of the lasso signal approximator dual composite is soft-thresholding, when call from primal composite object
     """
 
     sparsity = R.l1norm(500, lagrange=l1)
@@ -265,20 +265,20 @@ def test_lasso(n=100):
     regloss = R.l2normsq.affine(-X,Y)
 
     p=R.container(regloss, sparsity)
-    solver=R.FISTA(p.problem())
+    solver=R.FISTA(p.composite())
     solver.debug = True
     t1 = time.time()
     vals1 = solver.fit(max_its=800,prox_tol=1e-10)
     t2 = time.time()
     dt1 = t2 - t1
-    soln = solver.problem.coefs
+    soln = solver.composite.coefs
 
     time.sleep(5)
 
 
     print soln[range(10)]
 
-    print solver.problem.obj(soln)
+    print solver.composite.objective(soln)
     print "Times", dt1
     
 

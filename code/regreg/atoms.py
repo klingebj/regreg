@@ -1,9 +1,9 @@
 import numpy as np
 from scipy import sparse
-from problem import composite
+from composite import composite
 from affine import linear_transform, identity as identity_transform
 
-class atom(object):
+class atom(composite):
 
     """
     A class that defines the API for support functions.
@@ -106,7 +106,7 @@ class atom(object):
         """
         raise NotImplementedError
 
-    def nonsmooth(self, x):
+    def nonsmooth_objective(self, x):
         if self.offset is not None:
             x_offset = x + self.offset
         else:
@@ -120,7 +120,17 @@ class atom(object):
         else:
             return v + (self.linear_term * x).sum()
         
-    def prox(self, x, L=1):
+    def smooth_objective(self, x):
+        if mode == 'both':
+            return 0., np.zeros(x.shape)
+        elif mode == 'func':
+            return 0.
+        elif mode == 'grad':
+            return np.zeros(x.shape)
+        raise ValueError("Mode not specified correctly")
+
+
+    def proximal(self, x, lipschitz=1):
         r"""
         The proximal operator. If the atom is in
         Lagrange mode, this has the form
@@ -146,7 +156,7 @@ class atom(object):
         else:
             offset = 0
         if self.linear_term is not None:
-            shift = offset - self.linear_term / L
+            shift = offset - self.linear_term / lipschitz
         else:
             shift = offset
 
@@ -156,31 +166,16 @@ class atom(object):
             offset = None
 
         if self.bound is not None:
-            eta = self.bound_prox(x, L=L, bound=self.bound)
+            eta = self.bound_prox(x, lipschitz=lipschitz, bound=self.bound)
         else:
-            eta = self.lagrange_prox(x, L=L, lagrange=self.lagrange)
+            eta = self.lagrange_prox(x, lipschitz=lipschitz, lagrange=self.lagrange)
 
         if offset is None:
             return eta
         else:
             return eta - offset
 
-    def prox_optimum(self, x, L=1):
-        """
-        Returns
-        
-        .. math::
-
-           \inf_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v)
-
-        where *p*=x.shape[0] and :math:`h(v)` = self.seminorm(v).
-
-        """
-        argmin = self.prox(x, L)
-        return argmin, L * np.linalg.norm(x-argmin)**2 / 2. + self.nonsmooth(argmin)
-
-    def lagrange_prox(self, x, L=1, lagrange=None):
+    def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         r"""
         Return (unique) minimizer
 
@@ -197,7 +192,7 @@ class atom(object):
         """
         raise NotImplementedError
     
-    def bound_prox(self, x, L=1, bound=None):
+    def bound_prox(self, x, lipschitz=1, bound=None):
         r"""
         Return unique minimizer
 
@@ -282,7 +277,7 @@ class l1norm(atom):
         else:
             return np.inf
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
         Return (unique) minimizer
 
@@ -302,10 +297,10 @@ class l1norm(atom):
             lagrange = self.lagrange
         if lagrange is None:
             raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
-        return np.sign(x) * np.maximum(np.fabs(x)-lagrange/L, 0)
+        return np.sign(x) * np.maximum(np.fabs(x)-lagrange/lipschitz, 0)
 
 
-    def bound_prox(self, x, L=1, bound=None):
+    def bound_prox(self, x, lipschitz=1, bound=None):
         r"""
         Return a minimizer
 
@@ -325,7 +320,7 @@ class l1norm(atom):
 
         #XXX TO DO, make this efficient
         fabsx = np.fabs(x)
-        l = bound / L
+        l = bound / lipschitz
         upper = fabsx.sum()
         lower = 0.
 
@@ -376,7 +371,7 @@ class maxnorm(atom):
             return np.inf
 
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
         Return (unique) minimizer
 
@@ -399,10 +394,10 @@ class maxnorm(atom):
         if lagrange is None:
             raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
 
-        d = self.conjugate.bound_prox(x,L,bound=lagrange)
+        d = self.conjugate.bound_prox(x,lipschitz,bound=lagrange)
         return x - d
 
-    def bound_prox(self, x, L=1, bound=None):
+    def bound_prox(self, x, lipschitz=1, bound=None):
         r"""
         Return a minimizer
 
@@ -442,7 +437,7 @@ class l2norm(atom):
         else:
             return np.inf
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
         Return (unique) minimizer
 
@@ -464,13 +459,13 @@ class l2norm(atom):
             raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
 
         n = np.linalg.norm(x)
-        if n <= lagrange / L:
+        if n <= lagrange / lipschitz:
             proj = x
         else:
-            proj = (self.lagrange / (L * n)) * x
+            proj = (self.lagrange / (lipschitz * n)) * x
         return x - proj * (1 - l2norm.tol)
 
-    def bound_prox(self, x,  L=1, bound=None):
+    def bound_prox(self, x,  lipschitz=1, bound=None):
         r"""
         Return a minimizer
 
@@ -522,7 +517,7 @@ class nonnegative(atom):
         return self.seminorm(x)
 
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
         Return (unique) minimizer
 
@@ -549,7 +544,7 @@ class nonnegative(atom):
         return np.maximum(x, 0)
 
 
-    def bound_prox(self, x, L=1, bound=None):
+    def bound_prox(self, x, lipschitz=1, bound=None):
         r"""
         Return unique minimizer
 
@@ -570,7 +565,7 @@ class nonnegative(atom):
         if bound is None:
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
 
-        return self.lagrange_prox(x, L, lagrange=bound)
+        return self.lagrange_prox(x, lipschitz, lagrange=bound)
 
 class nonpositive(nonnegative):
 
@@ -596,7 +591,7 @@ class nonpositive(nonnegative):
         """
         return self.seminorm(x)
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
         Return unique minimizer
 
@@ -621,7 +616,7 @@ class nonpositive(nonnegative):
 
         return np.minimum(x, 0)
 
-    def bound_prox(self, x,  L=1, bound=None):
+    def bound_prox(self, x,  lipschitz=1, bound=None):
         r"""
         Return unique minimizer
 
@@ -666,7 +661,7 @@ class positive_part(atom):
         else:
             return np.inf
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
         Return (unique) minimizer
 
@@ -697,10 +692,10 @@ class positive_part(atom):
         v = x.copy()
         pos = v > 0
         v = np.atleast_1d(v)
-        v[pos] = np.maximum(v[pos] - lagrange/L, 0)
+        v[pos] = np.maximum(v[pos] - lagrange/lipschitz, 0)
         return v.reshape(x.shape)
 
-    def bound_prox(self, x,  L=1, bound=None):
+    def bound_prox(self, x,  lipschitz=1, bound=None):
         r"""
         Return a minimizer
 
@@ -759,7 +754,7 @@ class constrained_positive_part(atom):
             return np.inf
 
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
         Return (unique) minimizer
 
@@ -794,7 +789,7 @@ class constrained_positive_part(atom):
         v[~pos] = 0.
         return v.reshape(x.shape)
 
-    def bound_prox(self, x,  L=1, bound=None):
+    def bound_prox(self, x,  lipschitz=1, bound=None):
         r"""
         Return a minimizer
 
@@ -840,7 +835,7 @@ class projection_atom(atom):
     def __init__(self, primal_shape, basis, lagrange=None):
         self.basis = basis
 
-    def lagrange_prox(self, x,  L=1, lagrange=None):
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
         Return (unique) minimizer
 
@@ -863,7 +858,7 @@ class projection_atom(atom):
         coefs = np.dot(self.basis, x)
         return np.dot(coefs, self.basis)
 
-    def bound_prox(self, x,  L=1, bound=None):
+    def bound_prox(self, x,  lipschitz=1, bound=None):
         r"""
 
         Return (unique) minimizer
@@ -941,12 +936,20 @@ class linear_atom(object):
         self.atom.bound = bound
     bound = property(_getbound, _setbound)
 
-    def nonsmooth(self, x):
+    def nonsmooth_objective(self, x):
         """
         Return self.atom.seminorm(self.linear_transform.linear_map(x))
         """
-        return self.atom.nonsmooth(self.linear_transform.linear_map(x))
+        return self.atom.nonsmooth_objective(self.linear_transform.linear_map(x))
 
+    def smooth_objective(self, x):
+        if mode == 'both':
+            return 0., np.zeros(x.shape)
+        elif mode == 'func':
+            return 0.
+        elif mode == 'grad':
+            return np.zeros(x.shape)
+        raise ValueError("Mode not specified correctly")
 
 class smoothed_atom(composite):
 
@@ -991,7 +994,7 @@ class smoothed_atom(composite):
 
         self.store_argmin = store_argmin
 
-    def smooth_eval(self, beta, mode='both'):
+    def smooth_objective(self, beta, mode='both'):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -1006,7 +1009,7 @@ class smoothed_atom(composite):
         u = linear_transform.linear_map(beta)
         ueps = u / self.epsilon
         if mode == 'both':
-            argmin, optimal_value = dual_atom.prox_optimum(ueps, self.epsilon)                    
+            argmin, optimal_value = dual_atom.proximal_optimum(ueps, self.epsilon)                    
             objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + _constant_term
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
@@ -1019,28 +1022,17 @@ class smoothed_atom(composite):
                 self.argmin = argmin
             return grad 
         elif mode == 'func':
-            _, optimal_value = dual_atom.prox_optimum(ueps, self.epsilon)                    
+            _, optimal_value = dual_atom.proximal_optimum(ueps, self.epsilon)                    
             objective = self.epsilon / 2. * np.linalg.norm(ueps)**2 - optimal_value + _constant_term
             return objective
         else:
             raise ValueError("mode incorrectly specified")
 
-    def proximal(self, x, g, lipshitz, prox_control=None):
-        """
-        Compute the proximal optimization
-
-        prox_control: If not None, then a dictionary of parameters for the prox procedure
-        """
-        z = x - g / lipshitz
-        
-        if prox_control is None:
-            v = self._prox(z, lipshitz)
-            return v
-        else:
-            return self._prox(z, lipshitz, **prox_control)
-
-    def nonsmooth(self, x):
+    def nonsmooth_objective(self, x):
         return 0
+
+    def proximal(self, x, lipschitz=1):
+        return x
 
 primal_dual_seminorm_pairs = {}
 for n1, n2 in [(l1norm,maxnorm),

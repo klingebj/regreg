@@ -22,7 +22,7 @@ class conjugate(object):
 
         self.store_argmin = store_argmin
 
-    def smooth_eval(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both'):
         """
         Evaluate the conjugate function and/or its gradient
 
@@ -40,10 +40,10 @@ class conjugate(object):
         if self.store_argmin:
             self.argmin = minimizer
         if mode == 'both':
-            v = self._smooth_function_linear.smooth_eval(minimizer, mode='func')
+            v = self._smooth_function_linear.smooth_objective(minimizer, mode='func')
             return -v, minimizer
         elif mode == 'func':
-            v = self._smooth_function_linear.smooth_eval(minimizer, mode='func')
+            v = self._smooth_function_linear.smooth_objective(minimizer, mode='func')
             return -v
         elif mode == 'grad':
             return minimizer

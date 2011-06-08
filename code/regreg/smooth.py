@@ -1,3 +1,4 @@
+
 import numpy as np
 from scipy import sparse
 from affine import affine_transform
@@ -26,11 +27,15 @@ class smooth_function(object):
             self.atoms.append(atom)
         self.coefs = np.zeros(self.primal_shape)
 
-
-
     #TODO: add addition overload
 
-    def smooth_eval(self, beta, mode='both'):
+    def nonsmooth_objective(self, x):
+        return 0
+
+    def proximal(self, x, lipschitz=1):
+        return x
+
+    def smooth_objective(self, x, mode='both'):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -43,29 +48,29 @@ class smooth_function(object):
             if len(self.atoms) > 1:
                 v = 0.
                 for atom in self.atoms:
-                    v += atom.smooth_eval(beta, mode=mode)
+                    v += atom.smooth_objective(x, mode=mode)
                 return self.scale(v)
             else:
-                return self.scale(self.atoms[0].smooth_eval(beta, mode=mode))
+                return self.scale(self.atoms[0].smooth_objective(x, mode=mode))
         elif mode == 'grad':
             if len(self.atoms) > 1:
                 g = np.zeros(self.primal_shape)
                 for atom in self.atoms:
-                    g += atom.smooth_eval(beta, mode=mode)
+                    g += atom.smooth_objective(x, mode=mode)
                 return self.scale(g)
             else:
-                return self.scale(self.atoms[0].smooth_eval(beta, mode=mode))
+                return self.scale(self.atoms[0].smooth_objective(x, mode=mode))
         elif mode == 'both':
             if len(self.atoms) > 1:
                 v = 0.
                 g = np.zeros(self.primal_shape)
                 for atom in self.atoms:
-                    output = atom.smooth_eval(beta, mode=mode)
+                    output = atom.smooth_objective(x, mode=mode)
                     v += output[0]
                     g += output[1]
                 return self.scale(v), self.scale(g)
             else:
-                v, g = self.atoms[0].smooth_eval(beta, mode=mode)
+                v, g = self.atoms[0].smooth_objective(x, mode=mode)
                 return self.scale(v), self.scale(g)
         else:
             raise ValueError("Mode specified incorrectly")
@@ -89,19 +94,6 @@ class smooth_function(object):
         """
         return 0.
 
-    def add_seminorm(self, seminorm, initial=None, smooth_multiplier=1):
-        """
-        Create a new problem object using the seminorm
-        """
-        # XXX the class now has self.lagrange -- no need form smooth_multiplier
-        if initial is None:
-            return seminorm.primal_problem(self.smooth_eval, 
-                                    smooth_multiplier=smooth_multiplier,
-                                    initial=self.coefs)
-        else:
-            return seminorm.primal_problem(self.smooth_eval, 
-                                    smooth_multiplier=smooth_multiplier,
-                                    initial=initial)
 
 class affine_smooth(smooth_function):
 
@@ -128,18 +120,18 @@ class affine_smooth(smooth_function):
         self.sm_atom.lagrange = lagrange
     l = property(_getl, _setl)
 
-    def smooth_eval(self, beta, mode='both'):
-        eta = self.affine_transform.affine_map(beta)
+    def smooth_objective(self, x, mode='both'):
+        eta = self.affine_transform.affine_map(x)
         if mode == 'both':
-            v, g = self.sm_atom.smooth_eval(eta, mode='both')
+            v, g = self.sm_atom.smooth_objective(eta, mode='both')
             g = self.affine_transform.adjoint_map(g)
             return v, g
         elif mode == 'grad':
-            g = self.sm_atom.smooth_eval(eta, mode='grad')
+            g = self.sm_atom.smooth_objective(eta, mode='grad')
             g = self.affine_transform.adjoint_map(g)
             return g 
         elif mode == 'func':
-            v = self.sm_atom.smooth_eval(eta, mode='func')
+            v = self.sm_atom.smooth_objective(eta, mode='func')
             return v 
 
 
@@ -155,7 +147,7 @@ class smooth_atom(smooth_function):
         self.coefs = np.zeros(self.primal_shape)
         raise NotImplementedError
 
-    def smooth_eval(self):
+    def smooth_objective(self):
         raise NotImplementedError
     
     @classmethod
@@ -211,7 +203,7 @@ class l2normsq(smooth_atom):
             self.primal_shape = primal_shape
         self.lagrange = lagrange
 
-    def smooth_eval(self, beta, mode='both'):
+    def smooth_objective(self, x, mode='both'):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -222,20 +214,20 @@ class l2normsq(smooth_atom):
 
         if self.Q is None:
             if mode == 'both':
-                return self.scale(np.linalg.norm(beta)**2), self.scale(2 * beta)
+                return self.scale(np.linalg.norm(x)**2), self.scale(2 * x)
             elif mode == 'grad':
-                return self.scale(2 * beta)
+                return self.scale(2 * x)
             elif mode == 'func':
-                return self.scale(np.linalg.norm(beta)**2)
+                return self.scale(np.linalg.norm(x)**2)
             else:
                 raise ValueError("mode incorrectly specified")
         else:
             if mode == 'both':
-                return self.scale(np.sum(beta * self.Q_transform.linear_map(beta))), self.scale(2 * self.Q_transform.linear_map(beta))
+                return self.scale(np.sum(x * self.Q_transform.linear_map(x))), self.scale(2 * self.Q_transform.linear_map(x))
             elif mode == 'grad':
-                return self.scale(2 * self.Q_transform.linear_map(beta))
+                return self.scale(2 * self.Q_transform.linear_map(x))
             elif mode == 'func':
-                return self.scale(np.sum(beta * self.Q_transform.linear_map(beta)))
+                return self.scale(np.sum(x * self.Q_transform.linear_map(x)))
             else:
                 raise ValueError("mode incorrectly specified")
             
@@ -247,7 +239,7 @@ class linear(smooth_atom):
         self.lagrange =1
         self.coefs = np.zeros(self.primal_shape)
 
-    def smooth_eval(self, beta, mode='both'):
+    def smooth_objective(self, x, mode='both'):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -257,11 +249,11 @@ class linear(smooth_atom):
         """
 
         if mode == 'both':
-            return np.dot(self.vector, beta), self.vector
+            return np.dot(self.vector, x), self.vector
         elif mode == 'grad':
             return self.vector
         elif mode == 'func':
-            return np.dot(self.vector, beta)
+            return np.dot(self.vector, x)
         else:
             raise ValueError("mode incorrectly specified")
     
@@ -281,7 +273,7 @@ class logistic_loglikelihood(smooth_atom):
         self.primal_shape = self.affine_transform.primal_shape
         self.lagrange = lagrange
 
-    def smooth_eval(self, beta, mode='both'):
+    def smooth_objective(self, x, mode='both'):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -290,7 +282,7 @@ class logistic_loglikelihood(smooth_atom):
         if mode == 'func', return only the function value
         """
         
-        yhat = self.affine_transform.linear_map(beta)
+        yhat = self.affine_transform.linear_map(x)
         exp_yhat = np.exp(yhat)
         if mode == 'both':
             ratio = exp_yhat/(1.+exp_yhat)
@@ -308,7 +300,7 @@ class zero(smooth_function):
     def __init__(self, primal_shape):
         self.primal_shape = primal_shape
 
-    def smooth_eval(self, beta, mode='both'):
+    def smooth_objective(self, x, mode='both'):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -318,9 +310,9 @@ class zero(smooth_function):
         """
         
         if mode == 'both':
-            return 0, 0*beta
+            return 0, np.zeros(x.shape)
         elif mode == 'grad':
-            return 0*beta
+            return np.zeros(x.shape)
         elif mode == 'func':
             return 0
         else:
