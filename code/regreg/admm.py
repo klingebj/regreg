@@ -35,21 +35,34 @@ class admm_problem(object):
         self.node_problems = [node_problem(atom, self.beta, u) for atom, u in zip(self.atoms, self.us)]
         self.rho = 1.
 
+        self.p = len(self.beta)
+        self.total_n = np.sum([len(u) for u in self.us])
+
         self.prob = self.problem()
         self.solver = FISTA(self.prob)
 
     def fit(self, tol = 1e-6, max_its = 500, debug=False):
         coef_change = 1.
         itercount = 0
+        mu = 10.
         while coef_change > tol and itercount <= max_its:
             old_beta = self.beta.copy()
             self.solve_beta()
             self.solve_z()
             self.solve_u()
-            coef_change = np.linalg.norm(self.beta - old_beta) / np.linalg.norm(self.beta)
+            #coef_change = np.linalg.norm(self.beta - old_beta) / np.linalg.norm(self.beta)
+            coef_change = (self.residual_norm/self.p) + (self.dual_residual_norm/self.total_n)
+            if self.residual_norm > mu * self.dual_residual_norm:
+                self.rho *= 2.
+                for u in self.us:
+                    u /= 2.
+            elif self.dual_residual_norm > mu * self.residual_norm:
+                self.rho /= 2.
+                for u in self.us:
+                    u *= 2.
             itercount += 1
             if debug:
-                print itercount, coef_change
+                print itercount, coef_change, self.rho
         
 
     def solve_beta(self, tol=1e-6):
@@ -57,15 +70,19 @@ class admm_problem(object):
         self.beta = self.solver.problem.coefs
 
     def solve_z(self):
+        self.dual_residual_norm = 0.
         for problem, u in zip(self.node_problems, self.us):
             problem.u = u
             problem.beta = self.beta
             problem.fit()
+            self.dual_residual_norm += problem.dual_residual_norm
 
     def solve_u(self):
+        self.residual_norm = 0.
         for u, problem, atom in zip(self.us, self.node_problems, self.atoms):
             u += (problem.coefs - atom.linear_map(self.beta))
-
+            self.residual_norm += np.linalg.norm(problem.coefs - atom.linear_map(self.beta))
+            
     def _get_rho(self):
         return self._rho
     def _set_rho(self, rho):
@@ -154,6 +171,8 @@ class node_problem(object):
     def fit(self, debug=False):
         self.solver.debug = debug
         self.solver.fit()
+        self.dual_residual = self.rho * self.atom.adjoint_map(self.solver.problem.coefs - self.coefs)
+        self.dual_residual_norm = np.linalg.norm(self.dual_residual)
         self.coefs = self.solver.problem.coefs
 
     def smooth_eval(self, x, mode='both'):
