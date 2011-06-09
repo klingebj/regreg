@@ -9,6 +9,7 @@ class atom(nonsmooth):
     """
     A class that defines the API for support functions.
     """
+    tol = 1.0e-05
 
     def __init__(self, primal_shape, lagrange=None, bound=None, 
                  linear_term=None, offset=None):
@@ -252,7 +253,6 @@ class l1norm(atom):
     """
     The l1 norm
     """
-    tol = 1e-5
     prox_tol = 1.0e-10
 
     def seminorm(self, x):
@@ -317,7 +317,6 @@ class maxnorm(atom):
     The :math:`\ell_{\infty}` norm
     """
 
-    tol = 1e-5
     def seminorm(self, x):
         """
         The l-infinity norm of x.
@@ -383,7 +382,6 @@ class l2norm(atom):
     """
     The l2 norm
     """
-    tol = 1e-5
     
     def seminorm(self, x):
         """
@@ -460,7 +458,6 @@ class nonnegative(atom):
     The non-negative cone constraint (which is the support
     function of the non-positive cone constraint).
     """
-    tol = 1e-05
     
     def seminorm(self, x):
         """
@@ -535,7 +532,6 @@ class nonpositive(nonnegative):
     The non-positive cone constraint (which is the support
     function of the non-negative cone constraint).
     """
-    tol = 1e-05
     
     def seminorm(self, x):
         """
@@ -615,9 +611,8 @@ class positive_part(atom):
         """
         return self.lagrange * np.maximum(x, 0).sum()
 
-
     def constraint(self, x):
-        inside = np.product(np.less_equal(x, self.lagrange))
+        inside = np.maximum(x, 0).sum() <= self.bound * (1 + self.tol)
         if inside:
             return 0
         else:
@@ -687,7 +682,8 @@ class positive_part(atom):
         v = x.copy()
         v = np.atleast_1d(v)
         pos = v > 0
-        v[pos] = np.minimum(bound, x[pos])
+        if np.any(pos):
+            v[pos] = projl1(v[pos], bound)
         return v.reshape(x.shape)
 
 class constrained_positive_part(atom):
@@ -697,7 +693,6 @@ class constrained_positive_part(atom):
     function of [-np.inf,l]^p). The value
     is np.inf if any coordinates are negative.
     """
-    tol = 1e-10
     
     def seminorm(self, x):
         """
@@ -709,12 +704,11 @@ class constrained_positive_part(atom):
         return np.inf
     
     def constraint(self, x):
-        inbox = np.product(np.less_equal(x, self.bound) * np.greater_equal(x, 0))
-        if inbox:
-            return 0
-        else:
+        v = np.maximum(x, 0).sum()
+        anyneg = np.any(x < -self.tol)
+        if v >= (1 + self.tol) * self.bound or anyneg:
             return np.inf
-
+        return 0
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
@@ -747,7 +741,7 @@ class constrained_positive_part(atom):
         v = x.copy()
         v = np.atleast_1d(v)
         pos = v > 0
-        v[pos] = np.maximum(v[pos] - lagrange, 0)
+        v[pos] = np.maximum(v[pos] - lagrange/lipschitz, 0)
         v[~pos] = 0.
         return v.reshape(x.shape)
 
@@ -779,10 +773,10 @@ class constrained_positive_part(atom):
 
         x = np.asarray(x)
         v = x.copy()
-        v = np.atleast_1d(x)
-        neg = v < 0
-        v[neg] = 0
-        v[~neg] = np.minimum(bound, x[~neg])
+        v = np.atleast_1d(v)
+        pos = v > 0
+        if np.any(pos):
+            v[pos] = projl1(v[pos], bound)
         return v.reshape(x.shape)
 
 class projection_atom(atom):
