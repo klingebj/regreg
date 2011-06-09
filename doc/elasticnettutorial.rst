@@ -35,9 +35,9 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = squaredloss(X,Y)
-   grouping = l2normsq(1000, coef=1.)
-   sparsity = l1norm(1000, lagrange=5.)
+   loss = R.squaredloss(X,Y)
+   grouping = R.l2normsq(1000, coef=1.)
+   sparsity = R.l1norm(1000, lagrange=5.)
 
 The penalty contains the regularization parameter that can be easily accessed and changed,
 
@@ -53,7 +53,7 @@ Now we can create the final problem object by comining the smooth functions and 
 
 .. ipython::
 
-   problem = container(smooth_function(loss, grouping), sparsity)
+   problem = R.container(R.smooth_function(loss, grouping), sparsity)
 
 The penalty parameters can still be changed by accessing grouping and sparsity directly.
 
@@ -61,8 +61,8 @@ Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem.composite())
-   obj_vals = solver.fit(max_its=100, tol=.l1e-5)
+   solver = R.FISTA(problem.composite())
+   obj_vals = solver.fit(max_its=100, tol=1e-5)
    solution = solver.composite.coefs
 
 Here max_its represents primal iterations, and tol is the primal tolerance. 
