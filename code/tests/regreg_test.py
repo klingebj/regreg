@@ -16,15 +16,15 @@ def test_l1_seminorm():
     p = 1000
     Y = 10 * np.random.normal(0,1,p)
 
-    loss = R.l2normsq.shift(-Y, lagrange=0.5)
+    loss = R.l2normsq.shift(-Y, coef=0.5)
     sparsity = R.l1norm(p, lagrange=5.)
 
     prob = R.container(loss, sparsity)
-    problem = prob.problem()
+    problem = prob.composite()
 
     solver = R.FISTA(problem)
     vals = solver.fit(tol=1e-10, max_its=500)
-    solution = solver.problem.coefs
+    solution = solver.composite.coefs
 
     npt.assert_array_almost_equal(solution, np.maximum(np.fabs(Y) - sparsity.lagrange,0.)*np.sign(Y), 3)
 
@@ -37,15 +37,15 @@ def test_l1_constraint():
     p = 1000
     Y = 10 * np.random.normal(0,1,p)
 
-    loss = R.linear(Y, lagrange=0.5)
+    loss = R.linear(Y, coef=0.5)
     sparsity = R.l1norm(p, bound=5.)
 
     prob = R.container(loss, sparsity)
-    problem = prob.problem()
+    problem = prob.composite()
 
     solver = R.FISTA(problem)
     vals = solver.fit(tol=1e-8, max_its=500)
-    solution = solver.problem.coefs
+    solution = solver.composite.coefs
 
     npt.assert_almost_equal(np.fabs(solution).sum(), sparsity.bound, 3)
 
@@ -60,12 +60,12 @@ def test_lasso_via_dual_split():
     
     penalties = [R.l1norm.linear(selector(500, slice(i*100,(i+1)*100)), lagrange=0.2) for i in range(5)]
     x = np.random.standard_normal(500)
-    loss = R.l2normsq.shift(-x, lagrange=0.5)
+    loss = R.l2normsq.shift(-x, coef=0.5)
     lasso = R.container(loss,*penalties)
-    solver = R.FISTA(lasso.problem())
+    solver = R.FISTA(lasso.composite())
     solver.fit(tol=1e-8)
 
-    npt.assert_array_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), solver.problem.coefs, 3)
+    npt.assert_array_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), solver.composite.coefs, 3)
 
 
 @dec.setastest(True)
@@ -82,11 +82,11 @@ def test_multiple_lasso():
     sparsity1 = R.l1norm(p, lagrange=l1*0.75)
     sparsity2 = R.l1norm(p, lagrange=l1*0.25)
     x = np.random.normal(0,1,p)
-    loss = R.l2normsq.shift(-x, lagrange=0.5)
+    loss = R.l2normsq.shift(-x, coef=0.5)
     p = R.container(loss, sparsity1, sparsity2)
-    solver = R.FISTA(p.problem())
+    solver = R.FISTA(p.composite())
     vals = solver.fit(tol=1.0e-10)
-    soln = solver.problem.coefs
+    soln = solver.composite.coefs
     st = np.maximum(np.fabs(x)-l1,0) * np.sign(x)
     
     npt.assert_array_almost_equal(soln, st, 3)
@@ -112,22 +112,22 @@ def test_1d_fused_lasso():
     
     X = np.random.standard_normal((2*n,n))
     Y = np.random.standard_normal((2*n,))
-    loss = R.l2normsq.affine(X, -Y, lagrange=0.5)
+    loss = R.l2normsq.affine(X, -Y, coef=0.5)
     fused_lasso = R.container(loss, fused)
-    solver=R.FISTA(fused_lasso.problem())
+    solver=R.FISTA(fused_lasso.composite())
     vals1 = solver.fit(max_its=25000, tol=1e-10)
-    soln1 = solver.problem.coefs
+    soln1 = solver.composite.coefs
     
     B = np.array(sparse.tril(np.ones((n,n))).todense())
     X2 = np.dot(X,B)
     
-    loss = R.l2normsq.affine(X2, -Y, lagrange=0.5)
+    loss = R.l2normsq.affine(X2, -Y, coef=0.5)
     sparsity = R.l1norm(n, lagrange=l1)
     lasso = R.container(loss, sparsity)
-    solver = R.FISTA(lasso.problem())
+    solver = R.FISTA(lasso.composite())
     solver.fit(tol=1e-10)
 
-    soln2 = np.dot(B, solver.problem.coefs)
+    soln2 = np.dot(B, solver.composite.coefs)
 
     npt.assert_array_almost_equal(soln1, soln2, 3)
 
@@ -137,16 +137,16 @@ def test_conjugate_solver():
 
     # Solve Lagrange problem 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-    loss = R.l2normsq.shift(-Y, lagrange=0.5)
+    loss = R.l2normsq.shift(-Y, coef=0.5)
 
     sparsity = R.l1norm(len(Y), lagrange = 1.4)
     D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
     fused = R.l1norm.linear(D, lagrange = 25.5)
     problem = R.container(loss, sparsity, fused)
     
-    solver = R.FISTA(problem.problem())
+    solver = R.FISTA(problem.composite())
     solver.fit(max_its=500, tol=1e-10)
-    solution = solver.problem.coefs
+    solution = solver.composite.coefs
 
     # Solve constrained version
     delta1 = np.fabs(D * solution).sum()
@@ -154,9 +154,9 @@ def test_conjugate_solver():
     fused_constraint = R.l1norm.linear(D, bound = delta1)
     sparsity_constraint = R.l1norm(500, bound = delta2)
     constrained_problem = R.container(loss, fused_constraint, sparsity_constraint)
-    constrained_solver = R.FISTA(constrained_problem.problem())
+    constrained_solver = R.FISTA(constrained_problem.composite())
     vals = constrained_solver.fit(max_its=500, tol=1e-10)
-    constrained_solution = constrained_solver.problem.coefs
+    constrained_solution = constrained_solver.composite.coefs
 
     npt.assert_almost_equal(np.fabs(constrained_solution).sum(), delta2, 3)
     npt.assert_almost_equal(np.fabs(D * constrained_solution).sum(), delta1, 3)
@@ -164,21 +164,21 @@ def test_conjugate_solver():
 
     # Solve with (shifted) conjugate function
 
-    loss = R.l2normsq.shift(-Y, lagrange=0.5)
-    true_conjugate = R.l2normsq.shift(Y, lagrange=0.5)
+    loss = R.l2normsq.shift(-Y, coef=0.5)
+    true_conjugate = R.l2normsq.shift(Y, coef=0.5)
     problem = R.container(loss, fused_constraint, sparsity_constraint)
-    solver = R.FISTA(problem.conjugate_problem(true_conjugate))
+    solver = R.FISTA(problem.conjugate_composite(true_conjugate))
     solver.fit(max_its=500, tol=1e-10)
-    conjugate_coefs = problem.conjugate_primal_from_dual(solver.problem.coefs)
+    conjugate_coefs = problem.conjugate_primal_from_dual(solver.composite.coefs)
                       
 
     # Solve with generic conjugate function
 
-    loss = R.l2normsq.shift(-Y, lagrange=0.5)
+    loss = R.l2normsq.shift(-Y, coef=0.5)
     problem = R.container(loss, fused_constraint, sparsity_constraint)
-    solver2 = R.FISTA(problem.conjugate_problem(conjugate_tol=1e-12))
+    solver2 = R.FISTA(problem.conjugate_composite(conjugate_tol=1e-12))
     solver2.fit(max_its=500, tol=1e-10)
-    conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver2.problem.coefs)
+    conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver2.composite.coefs)
 
 
 
