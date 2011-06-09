@@ -84,7 +84,7 @@ By default, the container class will try to solve this problem with the two-loop
    constrained_solution = constrained_solver.composite.coefs
 
 
-We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^*`
+We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^*`:
 
 .. ipython::
 

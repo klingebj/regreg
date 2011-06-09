@@ -234,7 +234,7 @@ class container(object):
             raise ValueError("mode incorrectly specified")
 
 
-    def conjugate_composite(self, conj=None, initial=None, smooth_multiplier=1., conjugate_tol=1.0e-08):
+    def conjugate_composite(self, conj=None, initial=None, smooth_multiplier=1., conjugate_tol=1.0e-08, epsilon=0.):
         """
         Create a composite object for solving the conjugate problem
         """
@@ -243,7 +243,8 @@ class container(object):
             self.conjugate = conj
         if not hasattr(self, 'conjugate'):
             #If the conjugate of the loss function is not provided use the generic solver
-            self.conjugate = conjugate(self.loss, tol=conjugate_tol)
+            self.conjugate = conjugate(self.loss, tol=conjugate_tol,
+                                       epsilon=epsilon)
 
         prox = self.dual_prox
         nonsmooth_objective = self.evaluate_dual_atoms
