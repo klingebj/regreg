@@ -99,7 +99,7 @@ def test_1d_fused_lasso():
     Check the 1d fused lasso solution using an equivalent lasso formulation
     """
 
-    n = 100.
+    n = 100
     l1 = 1.
     
     D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
