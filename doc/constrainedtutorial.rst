@@ -55,7 +55,7 @@ form of the problem
 .. ipython::
  
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-   loss = l2normsq.shift(-Y, lagrange=0.5)
+   loss = l2normsq.shift(-Y, coef=0.5)
 
    sparsity = l1norm(len(Y), 1.4)
    # TODO should make a module to compute typical Ds
@@ -63,9 +63,9 @@ form of the problem
    fused = l1norm.linear(D, 25.5)
    problem = container(loss, sparsity, fused)
    
-   solver = FISTA(problem.problem())
+   solver = FISTA(problem.composite())
    solver.fit(max_its=100, tol=1e-10)
-   solution = solver.problem.coefs
+   solution = solver.composite.coefs
 
 We will now solve this problem in constraint form, using the 
 achieved  values :math:`\delta_1 = \|D\widehat{\beta}\|_1, \delta_2=\|\widehat{\beta}\|_1`.
@@ -78,32 +78,32 @@ By default, the container class will try to solve this problem with the two-loop
    fused_constraint = l1norm.linear(D, bound=delta1)
    sparsity_constraint = l1norm(500, bound=delta2)
    constrained_problem = container(loss, fused_constraint, sparsity_constraint)
-   constrained_solver = FISTA(constrained_problem.problem())
-   constrained_solver.problem.lipshitz = 1.01
+   constrained_solver = FISTA(constrained_problem.composite())
+   constrained_solver.composite.lipshitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
-   constrained_solution = constrained_solver.problem.coefs
+   constrained_solution = constrained_solver.composite.coefs
 
 
 We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^*`
 
 .. ipython::
 
-   loss = l2normsq.shift(-Y, lagrange=0.5)
-   true_conjugate = l2normsq.shift(Y, lagrange=0.5)
+   loss = l2normsq.shift(-Y, coef=0.5)
+   true_conjugate = l2normsq.shift(Y, coef=0.5, constant=-np.linalg.norm(Y)**2/2)
    problem = container(loss, fused_constraint, sparsity_constraint)
-   solver = FISTA(problem.conjugate_problem(true_conjugate))
+   solver = FISTA(problem.conjugate_composite(true_conjugate))
    solver.fit(max_its=200, tol=1e-08)
-   conjugate_coefs = problem.conjugate_primal_from_dual(solver.problem.coefs)
+   conjugate_coefs = problem.conjugate_primal_from_dual(solver.composite.coefs)
 
-Let's also solve this with the generic constraint class, which is called by default when conjugate_problem is called without an argument
+Let's also solve this with the generic constraint class, which is called by default when conjugate_composite is called without an argument
 
 .. ipython::
 
-   loss = l2normsq.shift(-Y, lagrange=0.5)
+   loss = l2normsq.shift(-Y, coef=0.5)
    problem = container(loss, fused_constraint, sparsity_constraint)
-   solver = FISTA(problem.conjugate_problem())
+   solver = FISTA(problem.conjugate_composite())
    solver.fit(max_its=200, tol=1e-08)
-   conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.problem.coefs)
+   conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.composite.coefs)
 
 
    print np.linalg.norm(solution - constrained_solution) / np.linalg.norm(solution)
@@ -123,7 +123,7 @@ Let's also solve this with the generic constraint class, which is called by defa
    from regreg.smooth import l2normsq
  
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-   loss = l2normsq.shift(-Y, lagrange=0.5)
+   loss = l2normsq.shift(-Y, coef=0.5)
 
    sparsity = l1norm(len(Y), 1.4)
    # TODO should make a module to compute typical Ds
@@ -131,9 +131,9 @@ Let's also solve this with the generic constraint class, which is called by defa
    fused = l1norm.linear(D, 25.5)
    problem = container(loss, sparsity, fused)
    
-   solver = FISTA(problem.problem())
+   solver = FISTA(problem.composite())
    solver.fit(max_its=100, tol=1e-10)
-   solution = solver.problem.coefs
+   solution = solver.composite.coefs
 
    delta1 = np.fabs(D * solution).sum()
    delta2 = np.fabs(solution).sum()
@@ -142,29 +142,25 @@ Let's also solve this with the generic constraint class, which is called by defa
    sparsity_constraint = l1norm(500, bound=delta2)
 
    constrained_problem = container(loss, fused_constraint, sparsity_constraint)
-   constrained_solver = FISTA(constrained_problem.problem())
-   constrained_solver.problem.lipshitz = 1.01
+   constrained_solver = FISTA(constrained_problem.composite())
+   constrained_solver.composite.lipshitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
-   constrained_solution = constrained_solver.problem.coefs
+   constrained_solution = constrained_solver.composite.coefs
 
-
-
-   loss = l2normsq.shift(-Y, lagrange=0.5)
-   true_conjugate = l2normsq.shift(Y, lagrange=0.5)
+   loss = l2normsq.shift(-Y, coef=0.5)
+   true_conjugate = l2normsq.shift(Y, coef=0.5)
    problem = container(loss, fused_constraint, sparsity_constraint)
-   solver = FISTA(problem.conjugate_problem(true_conjugate))
+   solver = FISTA(problem.conjugate_composite(true_conjugate))
    solver.fit(max_its=200, tol=1e-08)
-   conjugate_coefs = problem.conjugate_primal_from_dual(solver.problem.coefs)
+   conjugate_coefs = problem.conjugate_primal_from_dual(solver.composite.coefs)
 
    from regreg.conjugate import conjugate
 
-   loss = l2normsq.shift(-Y, lagrange=0.5)
+   loss = l2normsq.shift(-Y, coef=0.5)
    problem = container(loss, fused_constraint, sparsity_constraint)
-   solver = FISTA(problem.conjugate_problem())
+   solver = FISTA(problem.conjugate_composite())
    solver.fit(max_its=200, tol=1e-08)
-   conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.problem.coefs)
-
-
+   conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.composite.coefs)
 
    pylab.scatter(np.arange(Y.shape[0]), Y)
 

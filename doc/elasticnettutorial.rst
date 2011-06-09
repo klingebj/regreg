@@ -18,10 +18,7 @@ and the RegReg classes necessary for this problem,
 
 .. ipython::
 
-   from regreg.algorithms import FISTA
-   from regreg.atoms import l1norm
-   from regreg.container import container
-   from regreg.smooth import squaredloss, smooth_function, l2normsq
+   import regreg.api as R
 
 The l2normsq class is used to represent the :math:`\ell_2` squared norm, the l1norm class is used to represent the :math:`\ell_1` norm and thesquaredloss class represents the loss function. The classes container and smooth_function are containers for combining functions. FISTA is a first-order algorithm and container is a class for combining different seminorm penalties with a loss function.
 
@@ -39,17 +36,17 @@ Now we can create the problem object, beginning with the loss function
 .. ipython::
 
    loss = squaredloss(X,Y)
-   grouping = l2normsq(1000, lagrange=1.)
+   grouping = l2normsq(1000, coef=1.)
    sparsity = l1norm(1000, lagrange=5.)
 
 The penalty contains the regularization parameter that can be easily accessed and changed,
 
 .. ipython::
 
-   grouping.lagrange
-   grouping.lagrange += 1 
-   grouping.lagrange
-   sparsity.lagrange
+   grouping.coef
+   grouping.coef += 1 
+   grouping.coef
+   sparsity.coef
  
 
 Now we can create the final problem object by comining the smooth functions and the :math:`\ell_1` seminorm,
@@ -64,9 +61,9 @@ Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem.problem())
+   solver = FISTA(problem.composite())
    obj_vals = solver.fit(max_its=100, tol=.l1e-5)
-   solution = solver.problem.coefs
+   solution = solver.composite.coefs
 
 Here max_its represents primal iterations, and tol is the primal tolerance. 
 

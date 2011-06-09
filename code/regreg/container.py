@@ -76,7 +76,7 @@ class container(object):
         u = u.view(self.dual_dtype).reshape(())
         for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
             transform, atom = dual_atom
-            v[segment] = atom.prox(u[segment], lipshitz_D)
+            v[segment] = atom.proximal(u[segment], lipshitz_D)
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
@@ -192,14 +192,17 @@ class container(object):
         lterm = 0
         # XXX dtype manipulations -- would be nice not to have to do this
         u = u.view(self.dual_dtype).reshape(())
-        for atom, segment in zip(self.atoms, self.dual_segments):
-            lterm += atom.adjoint_map(u[segment])
+        for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
+            transform, _ = dual_atom
+            lterm += transform.adjoint_map(u[segment])
         return lterm
 
     def conjugate_primal_from_dual(self, u):
         """
         Calculate the primal coefficients from the dual coefficients
         """
+        # XXX has this changed now that atoms "keep" their
+        # own linear terms?
         linear_term = self.conjugate_linear_term(-u)
         return self.conjugate.smooth_objective(linear_term, mode='grad')
 

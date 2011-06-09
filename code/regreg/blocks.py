@@ -58,11 +58,11 @@ class Block(object):
         else:
             initial = initial.copy()
         if self.linear_transform.linear_operator is not None:
-            self.loss = smooth.affine_smooth(smooth.l2normsq, self.linear_transform.linear_operator.T, -response, lagrange=0.5, diag=self.linear_transform.diagD)
+            self.loss = smooth.affine_smooth(smooth.l2normsq, self.linear_transform.linear_operator.T, -response, coef=0.5, diag=self.linear_transform.diagD)
         else:
-            self.loss = smooth.l2normsq.shift(-response, lagrange=0.5)
+            self.loss = smooth.l2normsq.shift(-response, coef=0.5)
 
-        prox = self.dual_atom.prox
+        prox = self.dual_atom.proximal
         nonsmooth = self.dual_atom.nonsmooth_objective
         if nonsmooth(initial) == np.inf:
             raise ValueError('initial point is not feasible')

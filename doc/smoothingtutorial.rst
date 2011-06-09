@@ -26,9 +26,7 @@ we will skip some comments.
    import pylab	
    from scipy import sparse
 
-   from regreg.algorithms import FISTA
-   from regreg.atoms import l1norm
-   from regreg.smooth import smooth_function, l2normsq
+   import regreg.api as R
 
    # generate the data
 
@@ -38,14 +36,14 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = l2normsq.shift(-Y,lagrange=1)
-   sparsity = l1norm(len(Y), 1.8)
+   loss = R.l2normsq.shift(-Y,coef=1)
+   sparsity = R.l1norm(len(Y), lagrange=1.8)
 
    # fused
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
    D = sparse.csr_matrix(D)
-   fused = l1norm.linear(D, 25.5)
+   fused = R.l1norm.linear(D, lagrange=25.5)
 
 
 The penalty can be smoothed to create a 
@@ -53,8 +51,8 @@ smooth_function object which can be solved with FISTA.
 
 .. ipython::
 
-   from regreg.smoothing import smoothed_seminorm
-   smoothed_penalty = smoothed_seminorm([sparsity, fused], epsilon=0.01)
+   smoothed_sparsity = R.smoothed_atom(sparsity, epsilon=0.01)
+   smoothed_fused = R.smoothed_atom(fused, epsilon=0.01)
 
 The smoothing is defined as (Yosida regularization?)
 
@@ -75,8 +73,8 @@ Finally, we can create the final problem object,
 
 .. ipython::
 
-   problem = smooth_function(loss, smoothed_penalty)
-   solver = FISTA(problem)
+   problem = R.smooth_function(loss, smoothed_sparsity, smoothed_fused)
+   solver = R.FISTA(problem)
    _ip.magic('time solver.fit()')
 
 which has both the loss function and the seminorm represented in it. 
@@ -85,7 +83,7 @@ We will estimate :math:`\beta` for various values of :math:`epsilon`
 .. ipython::
 
    for eps in [.5**i for i in range(15)]:
-       smoothed_penalty.epsilon = eps
+       smoothed_fused.epsilon = smoothed_sparsity = eps
        solver.fit()
 
 We can then plot solution to see the result of the regression,
@@ -96,34 +94,30 @@ We can then plot solution to see the result of the regression,
    import pylab	
    from scipy import sparse
 
-   from regreg.algorithms import FISTA
-   from regreg.atoms import l1norm
-   from regreg.smooth import smooth_function, l2normsq
-   from regreg.smoothing import smoothed_seminorm
+   import regreg.api as R
 
    # generate the data
 
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
-   loss = l2normsq.shift(-Y, lagrange=1)
-   sparsity = l1norm(len(Y), 1.8)
+   loss = R.l2normsq.shift(-Y, coef=1)
+   sparsity = R.l1norm(len(Y), lagrange=1.8)
 
    # fused
    D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
    D
    D = sparse.csr_matrix(D)
-   fused = l1norm.linear(D, 25.5)
+   fused = R.l1norm.linear(D, lagrange=25.5)
 
+   smoothed_sparsity = R.smoothed_atom(sparsity, epsilon=0.01)
+   smoothed_fused = R.smoothed_atom(fused, epsilon=0.01)
 
-   smoothed_penalty = smoothed_seminorm([sparsity, fused], epsilon=0.01)
-   problem = smooth_function(loss, smoothed_penalty)
-   solver = FISTA(problem)
-   solns = [solver.composite.coefs.copy()]
+   problem = R.smooth_function(loss, smoothed_sparsity, smoothed_fused)
+   solver = R.FISTA(problem)
 
-   pylab.plot(solns[0])
-   pylab.scatter(np.arange(Y.shape[0]), Y)
+   solns = []
    for eps in [.5**i for i in range(15)]:
-       smoothed_penalty.epsilon = eps
+       smoothed_fused.epsilon = smoothed_sparsity = eps
        solver.fit()
        solns.append(solver.composite.coefs.copy())
        pylab.plot(solns[-1])

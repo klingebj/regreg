@@ -7,7 +7,7 @@ class conjugate(object):
     def __init__(self, smooth_f, epsilon=0.01, store_argmin=True, tol=1e-8):
         self._smooth_function = smooth_f
         self._linear = linear(np.zeros(smooth_f.primal_shape))
-        self._quadratic = l2normsq(smooth_f.primal_shape, lagrange=epsilon/2.)
+        self._quadratic = l2normsq(smooth_f.primal_shape, coef=epsilon/2.)
         self._smooth_function_linear = smooth_function(smooth_f, self._linear, self._quadratic)
         self._solver = FISTA(self._smooth_function_linear)
         self.tol = tol

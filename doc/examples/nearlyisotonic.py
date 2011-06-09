@@ -2,10 +2,7 @@ import numpy as np
 import pylab
 from scipy import sparse
 
-from regreg.algorithms import FISTA
-from regreg.atoms import positive_part
-from regreg.container import container
-from regreg.smooth import l2normsq
+import regreg.api as R
 
 
 n = 100
@@ -13,23 +10,23 @@ Y = np.random.standard_normal(n)
 Y[:-30] += np.arange(n-30) * 0.2
 
 D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
-nisotonic = positive_part.linear(-sparse.csr_matrix(D), lagrange=3)
+nisotonic = R.positive_part.linear(-sparse.csr_matrix(D), lagrange=3)
 
 
-loss = l2normsq.shift(-Y,lagrange=0.5)
-p = container(loss, nisotonic)
-solver=FISTA(p.problem())
+loss = R.l2normsq.shift(-Y,coef=0.5)
+p = R.container(loss, nisotonic)
+solver=R.FISTA(p.composite())
 
 vals = solver.fit(max_its=25000, tol=1e-05)
-soln = solver.problem.coefs.copy()
+soln = solver.composite.coefs.copy()
 
 nisotonic.atoms[0].lagrange = 100.
 solver.fit(max_its=25000, tol=1e-05)
-soln2 = solver.problem.coefs.copy()
+soln2 = solver.composite.coefs.copy()
 
 nisotonic.atoms[0].lagrange = 1000.
 solver.fit(max_its=25000, tol=1e-05)
-soln3 = solver.problem.coefs.copy()
+soln3 = solver.composite.coefs.copy()
 
 X = np.arange(n)
 pylab.clf()

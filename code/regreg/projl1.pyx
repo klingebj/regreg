@@ -15,7 +15,7 @@ ctypedef np.int_t DTYPE_int_t
 #TODO: Add some documentation to this!
 
 def projl1(np.ndarray[DTYPE_float_t, ndim=1]  x, 
-           DTYPE_float_t l=1.):
+           DTYPE_float_t bound=1.):
 
     cdef int p = x.shape[0]
     cdef np.ndarray[DTYPE_int_t, ndim=2] U = np.empty((3,p),dtype=int)
@@ -75,7 +75,7 @@ def projl1(np.ndarray[DTYPE_float_t, ndim=1]  x,
                 U[Lrow, Lcol] = u
                 Lcol += 1
 
-        if (s + ds) - (rho + drho)*xk < l:
+        if (s + ds) - (rho + drho)*xk < bound:
             s += ds
             rho += drho
             Urow = Lrow
@@ -84,14 +84,14 @@ def projl1(np.ndarray[DTYPE_float_t, ndim=1]  x,
             Urow = Grow
             lenU = Gcol
         first = 0
-    eta = (s - l)/rho
+    eta = (s - bound)/rho
     if eta < 0:
         eta = 0.
     return soft_threshold(x, eta)
         
 
 cdef soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
-                    DTYPE_float_t l):
+                    DTYPE_float_t lagrange):
 
     cdef int p = x.shape[0]
     cdef np.ndarray[DTYPE_float_t, ndim=1] y = np.empty(p)
@@ -100,15 +100,15 @@ cdef soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
     for i in range(p):
         xi = x[i]
         if xi > 0:
-            if xi < l:
+            if xi < lagrange:
                 y[i] = 0.
             else:
-                y[i] = xi - l
+                y[i] = xi - lagrange
         else:
-            if xi > -l:
+            if xi > -lagrange:
                 y[i] = 0.
             else:
-                y[i] = xi + l
+                y[i] = xi + lagrange
     return y
 
                 

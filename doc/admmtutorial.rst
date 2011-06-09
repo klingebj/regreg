@@ -112,7 +112,6 @@ We can then plot solution to see the result of the regression,
    import pylab	
    from scipy import sparse
 
-
    import regreg.api as R
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
    loss = R.signal_approximator(Y)
