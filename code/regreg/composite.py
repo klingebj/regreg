@@ -30,7 +30,7 @@ class composite(object):
     def proximal_optimum(self, x, lipschitz=1):
         """
         Returns
-        
+
         .. math::
 
            \inf_{v \in \mathbb{R}^p} \frac{L}{2}
@@ -56,13 +56,14 @@ class composite(object):
         else:
             return self.proximal(z, lipshitz, **prox_control)
 
+
 class nonsmooth(composite):
     """
     A composite subclass that explicitly 0
     as smooth_objective.
     """
 
-    def smooth_objective(self, x):
+    def smooth_objective(self, x, mode='both'):
         if mode == 'both':
             return 0., zeros(x.shape)
         elif mode == 'func':
@@ -70,6 +71,7 @@ class nonsmooth(composite):
         elif mode == 'grad':
             return zeros(x.shape)
         raise ValueError("Mode not specified correctly")
+
 
 class smooth(composite):
 
