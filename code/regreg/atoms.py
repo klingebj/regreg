@@ -35,6 +35,10 @@ class atom(nonsmooth):
             raise ValueError('An atom must be either in Lagrange form or bound form. Only one of the parameters in the constructor can not be None.')
         if self.bound is None and self.lagrange is None:
             raise ValueError('Atom must be in lagrange or bound form, as specified by the choice of one of the keyword arguments.')
+        if self.bound is not None and self.bound < 0:
+            raise ValueError('Bound on the seminorm should be non-negative')
+        if self.lagrange is not None and self.lagrange < 0:
+            raise ValueError('Lagrange multiplier should be non-negative')
         self.atoms = [self]
 
     def __eq__(self, other):
@@ -785,6 +789,132 @@ class constrained_max(atom):
 
         return np.clip(x, 0, bound)
 
+class constrained_positive_part(atom):
+
+    """
+    Support function of (-\infty,0]^p
+    """
+
+    def seminorm(self, x, check_feasibility=False):
+        anyneg = np.any(x < 0 + self.tol)
+        v = np.maximum(x, 0).sum()
+        if not anyneg or not check_feasibility:
+            return v * self.lagrange
+        return np.inf
+
+    def constraint(self, x):
+        anyneg = np.any(x < 0 + self.tol)
+        v = np.maximum(x, 0).sum()
+        if anyneg or v >= self.bound * (1 + self.tol):
+            return np.inf
+        return 0
+
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
+        
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
+
+        x = np.asarray(x)
+        v = np.zeros(x.shape)
+        v = np.atleast_1d(v)
+        pos = x > 0
+        if np.any(pos):
+            v[pos] = np.maximum(x[pos] - lagrange/lipschitz, 0)
+        return v
+
+    def bound_prox(self, x,  lipschitz=1, bound=None):
+        r"""
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  0 \leq v_i \leq \lambda
+
+        where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
+        This is just truncation
+
+        .. math::
+
+            v^{\lambda}(x)_i = \begin{cases}
+            \min(u_i, \lambda) & u_i \geq 0 \\
+            0 & u_i \leq 0.  
+            \end{cases} 
+
+        """
+
+        if bound is None:
+            bound = self.bound
+        if bound is None:
+            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
+
+        x = np.asarray(x)
+        v = np.zeros(x.shape)
+        v = np.atleast_1d(v)
+        pos = x > 0
+        if np.any(pos):
+            v[pos] = projl1(v[pos], bound)
+        return v.reshape(x.shape)
+
+class max_positive_part(atom):
+
+    """
+    support function of the standard simplex
+    """
+    def seminorm(self, x, check_feasibility=False):
+        return np.max(np.maximum(x,0)) * self.lagrange
+
+    def constraint(self, x):
+        v = np.max(np.maximum(x,0))
+        if v >= self.bound * (1 + self.tol):
+            return np.inf
+        return 0
+
+    def bound_prox(self, x, lipschitz=1, bound=None):
+        if bound is None:
+            bound = self.bound
+        if bound is None:
+            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
+
+        return np.clip(x, -np.inf, bound)
+
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
+        r"""
+        Return a minimizer
+
+        .. math::
+
+            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
+            \|u-v\|^2_2 \ \text{s.t.} \  0 \leq v_i \leq \lambda
+
+        where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
+        This is just truncation
+
+        .. math::
+
+            v^{\lambda}(x)_i = \begin{cases}
+            \min(u_i, \lambda) & u_i \geq 0 \\
+            0 & u_i \leq 0.  
+            \end{cases} 
+
+        """
+
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in lagrange mode or a keyword "lagrange" argument must be supplied')
+
+        x = np.asarray(x)
+        v = np.zeros(x.shape)
+        v = np.atleast_1d(v)
+        pos = x > 0
+        if np.any(pos):
+            v[pos] = projl1(v[pos], lagrange / lipschitz)
+        return x-v.reshape(x.shape)
+
+
 class projection_atom(atom):
 
     """
@@ -919,6 +1049,7 @@ primal_dual_seminorm_pairs = {}
 for n1, n2 in [(l1norm,supnorm),
                (l2norm,l2norm),
                (nonnegative,nonpositive),
-               (positive_part, constrained_max)]:
+               (positive_part, constrained_max),
+               (constrained_positive_part, max_positive_part)]:
     primal_dual_seminorm_pairs[n1] = n2
     primal_dual_seminorm_pairs[n2] = n1
