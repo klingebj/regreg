@@ -96,7 +96,7 @@ class atom(nonsmooth):
     def affine_transform(self):
         return self.linear_transform
     
-    def seminorm(self, x):
+    def seminorm(self, x, check_feasibility=False):
         """
         Abstract method. Evaluate the norm of x.
         """
@@ -108,15 +108,18 @@ class atom(nonsmooth):
         """
         raise NotImplementedError
 
-    def nonsmooth_objective(self, x):
+    def nonsmooth_objective(self, x, check_feasibility=False):
         if self.offset is not None:
             x_offset = x + self.offset
         else:
             x_offset = x
         if self.bound is not None:
-            v = self.constraint(x_offset)
+            if check_feasibility:
+                v = self.constraint(x_offset)
+            else:
+                v = 0
         else:
-            v = self.seminorm(x_offset)
+            v = self.seminorm(x_offset, check_feasibility=check_feasibility)
         if self.linear_term is None:
             return v
         else:
@@ -255,7 +258,7 @@ class l1norm(atom):
     """
     prox_tol = 1.0e-10
 
-    def seminorm(self, x):
+    def seminorm(self, x, check_feasibility=False):
         """
         The L1 norm of x.
         """
@@ -317,7 +320,7 @@ class maxnorm(atom):
     The :math:`\ell_{\infty}` norm
     """
 
-    def seminorm(self, x):
+    def seminorm(self, x, check_feasibility=False):
         """
         The l-infinity norm of x.
         """
@@ -383,7 +386,7 @@ class l2norm(atom):
     The l2 norm
     """
     
-    def seminorm(self, x):
+    def seminorm(self, x, check_feasibility=False):
         """
         The L2 norm of x.
         """
@@ -459,7 +462,7 @@ class nonnegative(atom):
     function of the non-positive cone constraint).
     """
     
-    def seminorm(self, x):
+    def seminorm(self, x, check_feasibility=False):
         """
         The non-negative constraint of x.
         """
@@ -533,7 +536,7 @@ class nonpositive(nonnegative):
     function of the non-negative cone constraint).
     """
     
-    def seminorm(self, x):
+    def seminorm(self, x, check_feasibility=False):
         """
         The non-positive constraint of x.
         """
@@ -605,7 +608,7 @@ class positive_part(atom):
     function of [0,l]^p).
     """
     
-    def seminorm(self, x):
+    def seminorm(self, x, check_feasibility=False):
         """
         The sum of the positive parts of x.
         """
@@ -694,15 +697,17 @@ class constrained_positive_part(atom):
     is np.inf if any coordinates are negative.
     """
     
-    def seminorm(self, x):
+    def seminorm(self, x, check_feasibility=False):
         """
         The non-negative constraint of x.
         """
         anyneg = np.any(x < -self.tol)
         if not anyneg:
             return self.lagrange * np.maximum(x, 0).sum()
-        return np.inf
-    
+        if check_feasibility:
+            return np.inf
+        return o
+
     def constraint(self, x):
         v = np.maximum(x, 0).sum()
         anyneg = np.any(x < -self.tol)
@@ -892,13 +897,14 @@ class linear_atom(object):
         self.atom.bound = bound
     bound = property(_getbound, _setbound)
 
-    def nonsmooth_objective(self, x):
+    def nonsmooth_objective(self, x, check_feasibility=False):
         """
         Return self.atom.seminorm(self.linear_transform.linear_map(x))
         """
-        return self.atom.nonsmooth_objective(self.linear_transform.linear_map(x))
+        return self.atom.nonsmooth_objective(self.linear_transform.linear_map(x),
+                                             check_feasibility=check_feasibility)
 
-    def smooth_objective(self, x):
+    def smooth_objective(self, x, check_feasibility=False):
         if mode == 'both':
             return 0., np.zeros(x.shape)
         elif mode == 'func':
