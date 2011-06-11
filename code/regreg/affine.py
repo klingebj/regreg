@@ -123,27 +123,11 @@ class affine_transform(object):
                 return u.copy()
             else:
                 return u
-                                                              
-    def affine_objective(self, u):
-        if self.affine_offset is not None:
-            if self.affineD and self.linear_operator.affine_offset is not None:
-                affine_offset = (self.linear_operator.affine_offset + 
-                                 self.affine_offset)
-                return np.dot(u, affine_offset)
-            else:
-                return np.dot(u, self.affine_offset)
-        else:
-            if self.affineD and self.linear_operator.affine_offset is not None:
-                return np.dot(u, self.linear_operator.affine_offset)
-            return 0
 
 class linear_transform(affine_transform):
 
     def __init__(self, linear_operator, diag=False):
         affine_transform.__init__(self, linear_operator, None, diag=diag)
-
-    def affine_objective(self, u):
-        raise ValueError('linear transforms have no affine part')
 
     def affine_map(self, u):
         raise ValueError('linear transforms have no affine part')
@@ -179,10 +163,6 @@ class selector(object):
             self._output = np.zeros(self.initial_shape)
         self._output[self.index_obj] = self.affine_transform.adjoint_map(u)
         return self._output
-
-    def affine_objective(self, x):
-        x_indexed = x[self.index_obj]
-        return self.affine_transform.affine_objective(x_indexed)
 
 class normalize(object):
 
@@ -252,9 +232,6 @@ class normalize(object):
     def affine_map(self, x):
         return self.linear_map(x)
 
-    def affine_objective(self, x):
-        return 0
-
     def adjoint_map(self, u):
         if self.center:
             u = u - u.mean()
@@ -285,5 +262,3 @@ class identity(object):
     def adjoint_map(self, x, copy=True):
         return self.linear_map(x, copy)
 
-    def affine_objective(self, u):
-        return 0
