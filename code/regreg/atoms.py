@@ -466,6 +466,8 @@ class nonnegative(atom):
         """
         The non-negative constraint of x.
         """
+        if not check_feasibility:
+            return 0
         tol_lim = np.fabs(x).max() * self.tol
         incone = np.all(np.greater_equal(x, -tol_lim))
         if incone:
@@ -540,6 +542,8 @@ class nonpositive(nonnegative):
         """
         The non-positive constraint of x.
         """
+        if not check_feasibility:
+            return 0
         tol_lim = np.fabs(x).max() * self.tol
         incone = np.all(np.less_equal(x, tol_lim))
         if incone:
