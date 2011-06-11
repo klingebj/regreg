@@ -209,7 +209,7 @@ class container(object):
         return self.conjugate.smooth_objective(linear_term, mode='grad')
 
 
-    def conjugate_smooth_objective(self, u, mode='both'):
+    def conjugate_smooth_objective(self, u, mode='both', check_feasibility=False):
         linear_term = self.conjugate_linear_term(u)
         # XXX dtype manipulations -- would be nice not to have to do this
         u = u.view(self.dual_dtype).reshape(())

@@ -133,10 +133,6 @@ class atom(nonsmooth):
             self._linear_transform = identity_transform(self.primal_shape)
         return self._linear_transform
     
-    @property
-    def affine_transform(self):
-        return self.linear_transform
-    
     def seminorm(self, x, check_feasibility=False):
         """
         Abstract method. Evaluate the norm of x.
@@ -245,12 +241,6 @@ class atom(nonsmooth):
         """
         raise NotImplementedError
 
-    def affine_objective(self, x):
-        """
-        Return :math:`\alpha'u`. 
-        """
-        return self.affine_transform.affine_objective(x)
-
     def adjoint_map(self, x, copy=True):
         r"""
         Return :math:`u`
@@ -259,7 +249,7 @@ class atom(nonsmooth):
         affine_transform, but could
         also call FFTs if D is a DFT matrix, in a subclass.
         """
-        return self.affine_transform.adjoint_map(x, copy=copy)
+        return self.linear_transform.adjoint_map(x, copy=copy)
 
     def linear_map(self, x, copy=True):
         r"""
@@ -269,15 +259,8 @@ class atom(nonsmooth):
         as a matrix multiplications, but could
         also call FFTs if D is a DFT matrix, in a subclass.
         """
-        return self.affine_transform.linear_map(x, copy)
+        return self.linear_transform.linear_map(x, copy)
                                                               
-    def affine_map(self, x, copy=True):
-        """
-        Return x + self.offset. If copy: then x is copied if
-        offset is None.
-        """
-        return self.affine_transform.affine_map(x, copy)
-
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
                bound=None, args=(), keywords={},
