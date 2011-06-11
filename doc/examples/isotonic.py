@@ -10,7 +10,6 @@ Y[:-30] += np.arange(n-30) * 0.2
 
 D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
 
-
 isotonic = R.nonnegative.linear(sparse.csr_matrix(D), lagrange=1.)
 loss = R.l2normsq.shift(-Y, coef=0.5)
 p = R.container(loss, isotonic)
