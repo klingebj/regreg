@@ -88,7 +88,11 @@ class affine_smooth(smooth_function):
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
-    def __init__(self, smooth_obj, linear_operator=None, offset=None, diag=False, coef=1, args=(), keywords={}, constant=0):
+    def __init__(self, smooth_obj,
+                 linear_operator=None, offset=None, diag=False,
+                 coef=1, args=(), keywords=None, constant=0):
+        if keywords is None:
+            keywords = {}
         self.affine_transform = affine_transform(linear_operator, offset, diag)
         self.primal_shape = self.affine_transform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
@@ -141,11 +145,13 @@ class smooth_atom(smooth_function):
     @classmethod
     def affine(cls, linear_operator, offset, coef=1, diag=False,
                constant=0,
-               args=(), keywords={}):
+               args=(), keywords=None):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
+        if keywords is None:
+            keywords = {}
         return affine_smooth(cls, linear_operator, offset, diag=diag, coef=coef,
                              constant=constant,
                              args=args, keywords=keywords)
@@ -153,11 +159,13 @@ class smooth_atom(smooth_function):
     @classmethod
     def linear(cls, linear_operator, coef=1, diag=False,
                constant=0,
-               args=(), keywords={}):
+               args=(), keywords=None):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
+        if keywords is None:
+            keywords = {}
         return affine_smooth(cls, linear_operator, None, diag=diag, coef=coef,
                              constant=constant,
                              args=args, keywords=keywords)
@@ -165,11 +173,13 @@ class smooth_atom(smooth_function):
     @classmethod
     def shift(cls, offset, coef=1, diag=False,
               constant=0,
-              args=(), keywords={}):
+              args=(), keywords=None):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
+        if keywords is None:
+            keywords = {}
         return affine_smooth(cls, None, offset, diag=diag, coef=coef,
                              constant=constant,
                              args=args, keywords=keywords)
