@@ -15,8 +15,8 @@ class composite(object):
         self.proximal = proximal
         self.smooth_multiplier = smooth_multiplier
 
-    def smooth_objective(self, x, mode='both'):
-        output = self._smooth_objective(x, mode=mode)
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        output = self._smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
         if mode == 'both':
             return self.smooth_multiplier * output[0], self.smooth_multiplier * output[1]
         elif mode == 'grad' or mode == 'func':
@@ -24,8 +24,8 @@ class composite(object):
         else:
             raise ValueError("Mode incorrectly specified")
 
-    def objective(self, x):
-        return self.smooth_objective(x,mode='func') + self.nonsmooth_objective(x)
+    def objective(self, x, check_feasibility=False):
+        return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
     def proximal_optimum(self, x, lipschitz=1):
         """
@@ -62,7 +62,7 @@ class nonsmooth(composite):
     as smooth_objective.
     """
 
-    def smooth_objective(self, x):
+    def smooth_objective(self, x, check_feasibility=False):
         if mode == 'both':
             return 0., zeros(x.shape)
         elif mode == 'func':
@@ -79,7 +79,7 @@ class smooth(composite):
     is a null-op.
     """
 
-    def nonsmooth_objective(self, x):
+    def nonsmooth_objective(self, x, check_feasibility=False):
         return 0.
 
     def proximal(self, x, L):
@@ -128,7 +128,7 @@ class smoothed(smooth):
 
         self.store_argmin = store_argmin
 
-    def smooth_objective(self, beta, mode='both'):
+    def smooth_objective(self, beta, mode='both', check_feasibility=False):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -162,7 +162,7 @@ class smoothed(smooth):
         else:
             raise ValueError("mode incorrectly specified")
 
-    def nonsmooth_objective(self, x):
+    def nonsmooth_objective(self, x, check_feasibilty=False):
         return 0
 
     def proximal(self, x, lipschitz=1):

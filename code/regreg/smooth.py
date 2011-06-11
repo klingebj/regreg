@@ -34,7 +34,7 @@ class smooth_function(smooth_composite):
             self.atoms.append(atom)
         self.coefs = np.zeros(self.primal_shape)
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -108,7 +108,7 @@ class affine_smooth(smooth_function):
         self.sm_atom.coef = coef
     coef = property(_get_coef, _set_coef)
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         eta = self.affine_transform.affine_map(x)
         if mode == 'both':
             v, g = self.sm_atom.smooth_objective(eta, mode='both')
@@ -135,7 +135,7 @@ class smooth_atom(smooth_function):
         self.coefs = np.zeros(self.primal_shape)
         raise NotImplementedError
 
-    def smooth_objective(self):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         raise NotImplementedError
     
     @classmethod
@@ -199,7 +199,7 @@ class l2normsq(smooth_atom):
             self.primal_shape = primal_shape
         self.coef = coef
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -235,7 +235,7 @@ class linear(smooth_atom):
         self.coef =1
         self.coefs = np.zeros(self.primal_shape)
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -269,7 +269,7 @@ class logistic_loglikelihood(smooth_atom):
         self.primal_shape = self.affine_transform.primal_shape
         self.coef = coef
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -296,7 +296,7 @@ class zero(smooth_function):
     def __init__(self, primal_shape):
         self.primal_shape = primal_shape
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
         Evaluate a smooth function and/or its gradient
 

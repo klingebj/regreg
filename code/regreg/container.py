@@ -38,19 +38,21 @@ class container(object):
                     yield atom
         return container(*atoms())
 
-    def evaluate_dual_atoms(self, u):
+    def evaluate_dual_atoms(self, u, check_feasibility=False):
         out = 0.
         # XXX dtype manipulations -- would be nice not to have to do this
         u = u.view(self.dual_dtype).reshape(())
         for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
             transform, atom = dual_atom
-            out += atom.nonsmooth_objective(u[segment])
+            out += atom.nonsmooth_objective(u[segment],
+                                            check_feasibility=check_feasibility)
         return out
 
-    def evaluate_primal_atoms(self, x):
+    def evaluate_primal_atoms(self, x, check_feasibility=False):
         out = 0.
         for atom in self.atoms:
-            out += atom.nonsmooth_objective(x)
+            out += atom.nonsmooth_objective(x,
+                                            check_feasibility=check_feasibility)
         return out
     
     def dual_prox(self, u, lipshitz_D=1.):
@@ -159,7 +161,7 @@ class container(object):
         prox = self.dual_prox
         return composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipshitz_P)
 
-    def _dual_smooth_objective(self,v,mode='both'):
+    def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
 
         """
         The smooth component and/or gradient of the dual objective        

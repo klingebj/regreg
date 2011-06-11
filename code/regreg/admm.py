@@ -73,7 +73,7 @@ class admm_problem(composite_class):
             problem.rho = rho
     rho = property(_get_rho, _set_rho)
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
 
         if mode == 'both':
             f = 0
@@ -154,7 +154,7 @@ class node_problem(composite_class):
         self.solver.fit()
         self.coefs = self.solver.composite.coefs
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         if mode == 'both':
             return (self.rho/2.) * np.linalg.norm(x - self.affine + self.u)**2, (self.rho)*(x - self.affine + self.u)
         elif mode == 'func':
