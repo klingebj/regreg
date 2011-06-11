@@ -7,8 +7,6 @@ class composite(object):
     """
 
     def __init__(self, smooth_objective, nonsmooth_objective, proximal, initial, smooth_multiplier=1):
-        # Do we need to store this?
-        #self.initial = initial.copy()
         self.coefs = initial.copy()
         self.nonsmooth_objective = nonsmooth_objective
         self._smooth_objective = smooth_objective

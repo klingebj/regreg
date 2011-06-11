@@ -29,17 +29,23 @@ class atom(nonsmooth):
         else:
             self.primal_shape = primal_shape
         self.dual_shape = self.primal_shape
-        self.lagrange = lagrange
-        self.bound = bound
-        if not (self.bound is None or self.lagrange is None):
+
+        if not (bound is None or lagrange is None):
             raise ValueError('An atom must be either in Lagrange form or bound form. Only one of the parameters in the constructor can not be None.')
-        if self.bound is None and self.lagrange is None:
+        if bound is None and lagrange is None:
             raise ValueError('Atom must be in lagrange or bound form, as specified by the choice of one of the keyword arguments.')
-        if self.bound is not None and self.bound < 0:
+        if bound is not None and bound < 0:
             raise ValueError('Bound on the seminorm should be non-negative')
-        if self.lagrange is not None and self.lagrange < 0:
+        if lagrange is not None and lagrange < 0:
             raise ValueError('Lagrange multiplier should be non-negative')
-        self.atoms = [self]
+
+        if lagrange is not None:
+            self._lagrange = lagrange
+            self._bound = None
+        if bound is not None:
+            self._bound = bound
+            self._lagrange = None
+
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -65,34 +71,58 @@ class atom(nonsmooth):
     
     @property
     def conjugate(self):
-        if self.offset is not None:
-            linear_term = -self.offset
-        else:
-            linear_term = None
-        if self.linear_term is not None:
-            offset = -self.linear_term
-        else:
-            offset = None
-        if self.bound is None:
-            atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 
-                                                              bound=self.lagrange, 
-                                                              lagrange=None,
-                                                              linear_term=linear_term,
-                                                              offset=offset)
-        else:
-            atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 
-                                                              lagrange=self.bound, 
-                                                              bound=None,
-                                                              linear_term=linear_term,
-                                                              offset=offset)
+        if not hasattr(self, "_conjugate"):
+            if self.offset is not None:
+                linear_term = -self.offset
+            else:
+                linear_term = None
+            if self.linear_term is not None:
+                offset = -self.linear_term
+            else:
+                offset = None
+            if self.bound is None:
+                atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 
+                                                                  bound=self.lagrange, 
+                                                                  lagrange=None,
+                                                                  linear_term=linear_term,
+                                                                  offset=offset)
+            else:
+                atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 
+                                                                  lagrange=self.bound, 
+                                                                  bound=None,
+                                                                  linear_term=linear_term,
+                                                                  offset=offset)
 
-        if offset is not None and linear_term is not None:
-            _constant_term = (linear_term * offset).sum()
-        else:
-            _constant_term = 0.
-        atom._constant_term = self._constant_term - _constant_term
-        return atom
+            if offset is not None and linear_term is not None:
+                _constant_term = (linear_term * offset).sum()
+            else:
+                _constant_term = 0.
+            atom._constant_term = self._constant_term - _constant_term
+            self._conjugate = atom
+            self._conjugate._conjugate = self
+        return self._conjugate
     
+    def get_lagrange(self):
+        return self._lagrange
+    def set_lagrange(self, lagrange):
+        if self.bound is None:
+            self._lagrange = lagrange
+            self.conjugate._bound = lagrange
+        else:
+            raise AttributeError("atom is in bound mode")
+    lagrange = property(get_lagrange, set_lagrange)
+
+    def get_bound(self):
+        return self._bound
+
+    def set_bound(self, bound):
+        if self.lagrange is None:
+            self._bound = bound
+            self.conjugate._lagrange = bound
+        else:
+            raise AttributeError("atom is in lagrange mode")
+    bound = property(get_bound, set_bound)
+
     @property
     def dual(self):
         return self.linear_transform, self.conjugate
@@ -1009,24 +1039,10 @@ class linear_atom(object):
                                             `self.linear_transform.linear_operator`, 
                                             `self.offset`)
 
-
     @property
     def dual(self):
         return self.linear_transform, self.atom.conjugate
 
-    def _getlagrange(self):
-        return self.atom.lagrange
-
-    def _setlagrange(self, lagrange):
-        self.atom.lagrange = lagrange
-    lagrange = property(_getlagrange, _setlagrange)
-
-    def _getbound(self):
-        return self.atom.bound
-
-    def _setbound(self, bound):
-        self.atom.bound = bound
-    bound = property(_getbound, _setbound)
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         """
@@ -1035,14 +1051,6 @@ class linear_atom(object):
         return self.atom.nonsmooth_objective(self.linear_transform.linear_map(x),
                                              check_feasibility=check_feasibility)
 
-    def smooth_objective(self, x, check_feasibility=False):
-        if mode == 'both':
-            return 0., np.zeros(x.shape)
-        elif mode == 'func':
-            return 0.
-        elif mode == 'grad':
-            return np.zeros(x.shape)
-        raise ValueError("Mode not specified correctly")
 
 
 primal_dual_seminorm_pairs = {}

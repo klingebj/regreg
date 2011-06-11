@@ -268,13 +268,10 @@ class container(object):
         Create a composite object for solving the general problem with the two-loop algorithm
         """
 
+        if initial is None:
+            initial = np.random.standard_normal(self.atoms[0].primal_shape)
         prox = self.primal_prox
         nonsmooth_objective = self.evaluate_primal_atoms
-        if initial is None:
-            initial = np.random.standard_normal(self.primal_shape)
-            initial = initial/np.linalg.norm(initial)
-        if nonsmooth_objective(initial) + self.loss.smooth_objective(initial,mode='func') == np.inf:
-            raise ValueError('initial point is not feasible')
         
         return composite(self.loss.smooth_objective, nonsmooth_objective, prox, initial, smooth_multiplier)
 
