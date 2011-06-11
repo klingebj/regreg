@@ -18,13 +18,13 @@ solver = R.FISTA(p.composite())
 vals = solver.fit(max_its=25000, tol=1e-05)
 soln = solver.composite.coefs.copy()
 
-nisotonic.atom.lagrange = 2.
+nisotonic.atom.lagrange = 10.
 p = R.container(loss, nisotonic)
 solver = R.FISTA(p.composite())
 solver.fit(max_its=25000, tol=1e-05)
 soln2 = solver.composite.coefs.copy()
 
-nisotonic.atom.lagrange = 100.
+nisotonic.atom.lagrange = 1000.
 p = R.container(loss, nisotonic)
 solver = R.FISTA(p.composite())
 solver.fit(max_its=25000, tol=1e-05)
