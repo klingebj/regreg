@@ -37,6 +37,13 @@ class atom(nonsmooth):
             raise ValueError('Atom must be in lagrange or bound form, as specified by the choice of one of the keyword arguments.')
         self.atoms = [self]
 
+    def __eq__(self, other):
+        if self.__class__ == other.__class__:
+            if self.bound is not None:
+                return self.bound == other.bound
+            return self.lagrange == other.lagrange
+        return False
+
     def __repr__(self):
         if self.lagrange is not None:
             return "%s(%s, lagrange=%f, linear_term=%s, offset=%s)" % (self.__class__.__name__,
@@ -314,7 +321,7 @@ class l1norm(atom):
 
         return projl1(x, self.bound)
 
-class maxnorm(atom):
+class supnorm(atom):
 
     """
     The :math:`\ell_{\infty}` norm
@@ -453,7 +460,6 @@ class l2norm(atom):
             return x
         else:
             return (bound / n) * x
-
 
 class nonnegative(atom):
 
@@ -603,7 +609,7 @@ class nonpositive(nonnegative):
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
 
         # XXX  being a cone, the first two arguments are not needed
-        return self.lagrange_prox(x)
+        return self.lagrange_prox(x, lagrange=bound)
 
 class positive_part(atom):
 
@@ -693,31 +699,28 @@ class positive_part(atom):
             v[pos] = projl1(v[pos], bound)
         return v.reshape(x.shape)
 
-class constrained_positive_part(atom):
+class constrained_max(atom):
+    """
+    The seminorm x.max() s.t. x geq 0.
+    """
 
-    """
-    The constrained positive part seminorm (which is the support
-    function of [-np.inf,l]^p). The value
-    is np.inf if any coordinates are negative.
-    """
-    
     def seminorm(self, x, check_feasibility=False):
         """
-        The non-negative constraint of x.
+        The sum of the positive parts of x.
         """
-        anyneg = np.any(x < -self.tol)
-        if not anyneg:
-            return self.lagrange * np.maximum(x, 0).sum()
-        if check_feasibility:
-            return np.inf
-        return o
+        anyneg = np.any(x < 0 + self.tol)
+        v = self.lagrange * np.max(x)
+        if not anyneg or not check_feasibility:
+            return v
+        return np.inf
 
     def constraint(self, x):
-        v = np.maximum(x, 0).sum()
-        anyneg = np.any(x < -self.tol)
-        if v >= (1 + self.tol) * self.bound or anyneg:
+        anyneg = np.any(x < 0 + self.tol)
+        inside = np.max(x) <= self.bound * (1 + self.tol)
+        if inside and not anyneg:
+            return 0
+        else:
             return np.inf
-        return 0
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         r"""
@@ -750,9 +753,9 @@ class constrained_positive_part(atom):
         v = x.copy()
         v = np.atleast_1d(v)
         pos = v > 0
-        v[pos] = np.maximum(v[pos] - lagrange/lipschitz, 0)
-        v[~pos] = 0.
-        return v.reshape(x.shape)
+        if np.any(pos):
+            v[pos] = projl1(v[pos], lagrange/lipschitz)
+        return x-v.reshape(x.shape)
 
     def bound_prox(self, x,  lipschitz=1, bound=None):
         r"""
@@ -780,13 +783,7 @@ class constrained_positive_part(atom):
         if bound is None:
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
 
-        x = np.asarray(x)
-        v = x.copy()
-        v = np.atleast_1d(v)
-        pos = v > 0
-        if np.any(pos):
-            v[pos] = projl1(v[pos], bound)
-        return v.reshape(x.shape)
+        return np.clip(x, 0, bound)
 
 class projection_atom(atom):
 
@@ -919,9 +916,9 @@ class linear_atom(object):
 
 
 primal_dual_seminorm_pairs = {}
-for n1, n2 in [(l1norm,maxnorm),
+for n1, n2 in [(l1norm,supnorm),
                (l2norm,l2norm),
                (nonnegative,nonpositive),
-               (positive_part, constrained_positive_part)]:
+               (positive_part, constrained_max)]:
     primal_dual_seminorm_pairs[n1] = n2
     primal_dual_seminorm_pairs[n2] = n1
