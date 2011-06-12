@@ -6,51 +6,74 @@ The penalty is specified by a primal shape, a sequence of atoms and
 a sequence of slicing objects.
 """
 from affine import selector
+from atoms import atom
+import numpy as np
 
-class separable(object):
+def has_overlap(shape, groups):
+    """
+    Determine whether the groups, viewed as slices of an array
+    with given shape, have any overlap.
 
-    def __init__(self, primal_shape, atoms, groups):
-        self.primal_shape = primal_shape
-        self.atoms = atoms
-        self.dual_atoms = [atom.conjugate for atom in self.atoms]
+    Parameters
+    ----------
+    shape : tuple
+        A potential shape for an array.
+    groups : sequence
+        A sequence of objects that can be viewed as slices of
+        an ndarray with shape==shape.
+
+    Returns
+    -------
+    res : boolean
+        True if the slices overlap, else False.
+
+    >>> has_overlap((4,5), [slice(2,3), slice(4,5)])
+    False
+    >>> has_overlap((4,5), [slice(2,3), [Ellipsis, slice(4,5)]])
+    True
+
+    """
+    indices = np.arange(np.product(shape)).reshape(shape)
+    subsets = []
+    for group in groups:
+        subsets.append(set(list(indices[group].reshape(-1))))
+    subsets = tuple(subsets)
+    for i in range(len(subsets)):
+        for j in range(i):
+            subset1 = subsets[i]
+            subset2 = subsets[j]
+            if subset1 != subset2 and subset1.intersection(subset2):
+                    return True
+    return False
+
+class separable(atom):
+
+    def __init__(self, shape, atoms, groups, test_for_overlap=False):
+        if test_for_overlap and has_overlap(shape, groups):
+            raise ValueError('groups are not separable')
+        self.shape = shape
         self.groups = groups
-        self.selector_atoms = [affine_atom(atom, selector(group, primal_shape))
-                               for atom, group in zip(self.atoms,
-                                                      self.groups)]
+        self.atoms = atoms
 
-        self.dtype = np.dtype([('group_%d' % i, np.float, atom.primal_shape) 
-                               for i, atom in enumerate(self.atoms)])
+    def seminorm(self, x, check_feasibility=False):
+        value = 0.
+        for atom, group in zip(self.atoms, self.groups):
+            value += atom.seminorm(x[group], check_feasibility=check_feasibility)
+        return value
 
-    def nonsmooth(self, u):
-        out = 0.
-        # XXX dtype manipulations -- would be nice not to have to do this
-        u = u.view(self.dtype).reshape(())
+    def constraint(self, x):
+        value = 0.
+        for atom, group in zip(self.atoms, self.groups):
+            value += atom.constraint(x[group])
+        return value
 
-        for atom, group in zip(self.atoms, self.dtype.names):
-            out += atom.nonsmooth(u[segment])
-        return out
+    def nonsmooth_objective(self, x, check_feasibility=False):
+        for atom, group in zip(self.atoms, self.groups):
+            value += atom.nonsmooth_objective(x[group], check_feasibility=check_feasibility)
+        return value
 
-    def proximal(self, u, lipshitz_D=1.):
-        """
-        Return (unique) minimizer
-
-        .. math::
-
-           v^{\lambda}(u) = \text{argmin}_{v \in \real^m} \frac{1}{2}
-           \|v-u\|^2_2  s.t.  h^*_i(v) \leq \infty, 0 \leq i \leq M-1
-
-        where *m*=u.shape[0]=np.sum(self.dual_dims), :math:`M`=self.M
-        and :math:`h^*_i` is the conjugate of 
-        self.atoms[i].lagrange * self.atoms[i].evaluate and 
-        :math:`\lambda_i`=self.atoms[i].lagrange
-
-        This is used in the ISTA/FISTA solver loop with :math:`u=z-g/L` when finding
-        self.primal_prox, i.e., the signal approximator problem.
-        """
-        # XXX dtype manipulations -- would be nice not to have to do this
-
-        v = np.empty((), self.dual_dtype)
-        u = u.view(self.dual_dtype).reshape(())
-        for atom, segment in zip(self.atoms, self.dual_segments):
-            v[segment] = atom.prox(u[segment], lipshitz_D)
-        return v.reshape((1,)).view(np.float)
+    def proximal(self, x, lipschitz=1.):
+        v = x.copy()
+        for atom, group in zip(self.atoms, self.groups):
+            v[group] = atom.proximal(x[group], lipschitz=lipschitz)
+        return v
