@@ -23,7 +23,7 @@ class conjugate(object):
 
         self.store_argmin = store_argmin
 
-    def smooth_objective(self, x, mode='both'):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
         Evaluate the conjugate function and/or its gradient
 
