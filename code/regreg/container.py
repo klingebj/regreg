@@ -82,27 +82,38 @@ class container(object):
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
-    def primal_prox(self, y, lipshitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
+    def primal_prox(self, y, lipshitz_P=1, prox_control=None):
+        #def primal_prox(self, y, lipshitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
         """
         The proximal function for the primal problem
         """
+
+        #Default fitting parameters
+        prox_defaults = {'max_its': 5000,
+                         'min_its': 5,
+                         'return_objective_hist': False,
+                         'tol': 1e-14,
+                         'debug':False}
+        
+        if prox_control is not None:
+            prox_defaults.update(prox_control)
+        prox_control = prox_defaults
+
         yL = lipshitz_P * y
         if not hasattr(self, 'dualopt'):
             self.dualp = self.dual_composite(yL, lipshitz_P=lipshitz_P)
             #Approximate Lipshitz constant
-            self.dual_reference_lipshitz = 1.05*self.power_LD(debug=debug)
+            self.dual_reference_lipshitz = 1.05*self.power_LD(debug=prox_control['debug'])
             self.dualopt = container.default_solver(self.dualp)
-            self.dualopt.debug = debug
+            self.dualopt.debug = prox_control['debug']
 
-        # XXX this is hopefully going to work...
         self.dualopt.composite.smooth_multiplier = 1./lipshitz_P
         self.dualp.lipshitz = self.dual_reference_lipshitz / lipshitz_P
 
         self._dual_prox_center = yL
-        history = self.dualopt.fit(max_its=max_its, min_its=5, tol=tol, backtrack=False)
-        if with_history:
-            return self.primal_from_dual(y, self.dualopt.composite.coefs/lipshitz_P,
-                                         tol=tol), history
+        history = self.dualopt.fit(**prox_control)
+        if prox_control['return_objective_hist']:
+            return self.primal_from_dual(y, self.dualopt.composite.coefs/lipshitz_P), history
         else:
             return self.primal_from_dual(y, self.dualopt.composite.coefs/lipshitz_P)
 

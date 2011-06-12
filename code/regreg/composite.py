@@ -52,7 +52,7 @@ class composite(object):
         if prox_control is None:
             return self.proximal(z, lipshitz)
         else:
-            return self.proximal(z, lipshitz, **prox_control)
+            return self.proximal(z, lipshitz, prox_control=prox_control)
 
 class nonsmooth(composite):
     """
