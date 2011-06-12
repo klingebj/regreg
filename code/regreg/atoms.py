@@ -986,7 +986,70 @@ class projection_atom(atom):
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
 
         # XXX being a cone, the two arguments are not needed
-        return self.lagrange_prox(x)
+        return self.lagrange_prox(x, lipschitz=lipschitz,lagrange=bound)
+
+class zero(atom):
+    """
+    The zero seminorm, support function of :math:\{0\}
+    """
+
+    def seminorm(self, x, check_feasibility=False):
+        return 0.
+
+    def constraint(self, x):
+        return 0.
+
+    def bound_prox(self, x, lipschitz=1, bound=None):
+        if bound is None:
+            bound = self.bound
+        if bound is None:
+            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
+        return x
+
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
+        r"""
+        """
+
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in lagrange mode or a keyword "lagrange" argument must be supplied')
+        return x
+    
+class zero_constraint(atom):
+    """
+    The zero constraint, support function of :math:`\mathbb{R}`^p
+    """
+
+    tol = 1.0e-05
+    def seminorm(self, x, check_feasibility=False):
+        if not check_feasibility:
+            return 0.
+        elif not np.linalg.norm(x) <= self.tol:
+                return np.inf
+        return 0.
+
+    def constraint(self, x):
+        if not np.linalg.norm(x) <= self.tol:
+            return np.inf
+        return 0.
+
+    def bound_prox(self, x, lipschitz=1, bound=None):
+        if bound is None:
+            bound = self.bound
+        if bound is None:
+            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
+        return np.zeros(x.shape)
+
+    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
+        r"""
+        """
+
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in lagrange mode or a keyword "lagrange" argument must be supplied')
+        return np.zeros(x.shape)
 
 class linear_atom(object):
 
@@ -1041,6 +1104,7 @@ for n1, n2 in [(l1norm,supnorm),
                (l2norm,l2norm),
                (nonnegative,nonpositive),
                (positive_part, constrained_max),
-               (constrained_positive_part, max_positive_part)]:
+               (constrained_positive_part, max_positive_part),
+               (zero, zero_constraint)]:
     primal_dual_seminorm_pairs[n1] = n2
     primal_dual_seminorm_pairs[n2] = n1
