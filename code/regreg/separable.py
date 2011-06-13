@@ -17,7 +17,7 @@ def has_overlap(shape, groups):
     Parameters
     ----------
     shape : tuple
-        A potential shape for an array.
+        A tuple of integers representing a shape for an array.
     groups : sequence
         A sequence of objects that can be viewed as slices of
         an ndarray with shape==shape.

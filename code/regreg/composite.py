@@ -41,18 +41,18 @@ class composite(object):
         return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)
 
 
-    def proximal_step(self, x, grad, lipshitz, prox_control=None):
+    def proximal_step(self, x, grad, lipschitz, prox_control=None):
         """
         Compute the proximal optimization
 
         prox_control: If not None, then a dictionary of parameters for the prox procedure
         """
-        z = x - grad / lipshitz
+        z = x - grad / lipschitz
         
         if prox_control is None:
-            return self.proximal(z, lipshitz)
+            return self.proximal(z, lipschitz)
         else:
-            return self.proximal(z, lipshitz, **prox_control)
+            return self.proximal(z, lipschitz, **prox_control)
 
 class nonsmooth(composite):
     """

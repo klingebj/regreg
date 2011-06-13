@@ -35,7 +35,7 @@ class ISTA(algorithm):
             prox_tol = None,
             prox_max_its = None,
             prox_debug = None,
-            prox_lipshitz = None,
+            prox_lipschitz = None,
             prox_backtrack = None,
             prox_min_its = None):
 
@@ -45,7 +45,7 @@ class ISTA(algorithm):
         # This is a bit inconsistent: simple prox functions don't accept tolerance parameters, but when the prox function
         # is an optimization (like primal_prox) then it accepts some control paramters. This checks whether the user
         # gave the parameters before passing them on
-        if (prox_tol is not None) or (prox_max_its is not None) or (prox_debug is not None) or (prox_lipshitz is not None) or (prox_backtrack is not None) or (prox_min_its is not None):
+        if (prox_tol is not None) or (prox_max_its is not None) or (prox_debug is not None) or (prox_lipschitz is not None) or (prox_backtrack is not None) or (prox_min_its is not None):
             set_prox_control = True
             if prox_tol is None:
                 prox_tol = 1e-14
@@ -106,7 +106,7 @@ class ISTA(algorithm):
             else:
                 #Use specified Lipschitz constant
                 grad = self.composite.smooth_objective(self.composite.coefs,mode='grad')
-                self.inv_step = self.composite.lipshitz
+                self.inv_step = self.composite.lipschitz
                 if set_prox_control:
                     beta = self.composite.proximal_step(self.composite.coefs, grad, self.inv_step, prox_control=prox_control)
                 else:
@@ -162,7 +162,7 @@ class FISTA(algorithm):
             prox_max_its = None,
             prox_debug = None,
             monotonicity_restart=True,
-            prox_lipshitz = None,
+            prox_lipschitz = None,
             prox_backtrack = None,
             prox_min_its = None):
 
@@ -171,7 +171,7 @@ class FISTA(algorithm):
         # This is a bit inconsistent: simple prox functions don't accept tolerance parameters, but when the prox function
         # is an optimization (like primal_prox) then it accepts some control paramters. This checks whether the user
         # gave the parameters before passing them on
-        if (prox_tol is not None) or (prox_max_its is not None) or (prox_debug is not None) or (prox_lipshitz is not None) or (prox_backtrack is not None) or (prox_min_its is not None):
+        if (prox_tol is not None) or (prox_max_its is not None) or (prox_debug is not None) or (prox_lipschitz is not None) or (prox_backtrack is not None) or (prox_min_its is not None):
             set_prox_control = True
             if prox_tol is None:
                 prox_tol = 1e-14
@@ -243,7 +243,7 @@ class FISTA(algorithm):
             else:
                 #Use specified Lipschitz constant
                 grad = self.composite.smooth_objective(r,mode='grad')
-                self.inv_step = self.composite.lipshitz
+                self.inv_step = self.composite.lipschitz
                 if set_prox_control:
                     beta = self.composite.proximal_step(r, grad, self.inv_step, prox_control=prox_control)
                 else:
