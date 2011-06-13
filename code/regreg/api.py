@@ -1,8 +1,8 @@
 
 from atoms import (l1norm, l2norm, supnorm, nonnegative, nonpositive,
-                   positive_part, constrained_max, linear_atom)
+                   positive_part, constrained_max, affine_atom as linear_atom)
 
-from affine import identity, selector, affine_transform, normalize
+from affine import (identity, selector, affine_transform, normalize, linear_transform)
 from smooth import (l2normsq, linear, logistic_loglikelihood, smooth_atom, affine_smooth, smooth_function, signal_approximator)
 from container import container
 from algorithms import FISTA

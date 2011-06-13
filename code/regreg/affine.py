@@ -230,9 +230,6 @@ class linear_transform(affine_transform):
             raise AffineError('linear_operator cannot be None')
         affine_transform.__init__(self, linear_operator, None, diag=diag)
 
-    def affine_map(self, u):
-        raise ValueError('linear transforms have no affine part')
-
 
 class selector(object):
 
