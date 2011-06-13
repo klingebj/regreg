@@ -3,6 +3,7 @@ from scipy import sparse
 from composite import composite, nonsmooth
 from affine import linear_transform, identity as identity_transform
 from projl1 import projl1
+from copy import copy
 
 class atom(nonsmooth):
 
@@ -12,11 +13,11 @@ class atom(nonsmooth):
     tol = 1.0e-05
 
     def __init__(self, primal_shape, lagrange=None, bound=None, 
-                 linear_term=None, offset=None):
+                 linear_term=None,
+                 constant_term=0., offset=None):
 
         self.offset = None
-        # A private constant that makes atom.conjugate.conjugate == atom
-        self._constant_term = 0.
+        self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)
 
@@ -47,6 +48,8 @@ class atom(nonsmooth):
             self._lagrange = None
 
 
+    
+
     def __eq__(self, other):
         if self.__class__ == other.__class__:
             if self.bound is not None:
@@ -54,6 +57,13 @@ class atom(nonsmooth):
             return self.lagrange == other.lagrange
         return False
 
+    def __copy__(self):
+        return self.__class__(copy(self.primal_shape),
+                              linear_term=copy(self.linear_term),
+                              constant_term=copy(self.constant_term),
+                              bound=copy(self.bound),
+                              lagrange=copy(self.lagrange))
+    
     def __repr__(self):
         if self.lagrange is not None:
             return "%s(%s, lagrange=%f, linear_term=%s, offset=%s)" % (self.__class__.__name__,
@@ -97,7 +107,7 @@ class atom(nonsmooth):
                 _constant_term = (linear_term * offset).sum()
             else:
                 _constant_term = 0.
-            atom._constant_term = self._constant_term - _constant_term
+            atom.constant_term = self.constant_term - _constant_term
             self._conjugate = atom
             self._conjugate._conjugate = self
         return self._conjugate
@@ -158,9 +168,9 @@ class atom(nonsmooth):
         else:
             v = self.seminorm(x_offset, check_feasibility=check_feasibility)
         if self.linear_term is None:
-            return v
+            return v + self.constant_term
         else:
-            return v + (self.linear_term * x).sum()
+            return v + (self.linear_term * x).sum() + self.constant_term
         
     def proximal(self, x, lipschitz=1):
         r"""
@@ -1074,11 +1084,12 @@ class linear_atom(object):
     # else, it is assumed to be an instance of atom
  
     def __init__(self, atom_obj, ltransform):
+        self.atom = copy(atom_obj)
         self.linear_transform = ltransform
         self.linear_term = self.offset = None
         self.primal_shape = self.linear_transform.primal_shape
         self.dual_shape = self.linear_transform.dual_shape
-        self.atom = atom_obj
+
         
     def __repr__(self):
         return "linear_atom(%s, %s, %s)" % (`self.atom`,

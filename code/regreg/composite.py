@@ -136,13 +136,13 @@ class smoothed(smooth):
         """
 
         linear_transform, dual_atom = self.dual
-        _constant_term = dual_atom._constant_term
+        constant_term = dual_atom.constant_term
 
         u = linear_transform.linear_map(beta)
         ueps = u / self.epsilon
         if mode == 'both':
             argmin, optimal_value = dual_atom.proximal_optimum(ueps, self.epsilon)                    
-            objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + _constant_term
+            objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
                 self.argmin = argmin
@@ -155,7 +155,7 @@ class smoothed(smooth):
             return grad 
         elif mode == 'func':
             _, optimal_value = dual_atom.proximal_optimum(ueps, self.epsilon)                    
-            objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + _constant_term
+            objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             return objective
         else:
             raise ValueError("mode incorrectly specified")

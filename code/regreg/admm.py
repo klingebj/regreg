@@ -173,7 +173,9 @@ class node_problem(composite_class):
         if initial is None:
             initial = self.coefs
 
-        if self.atom.bound is not None:
+            #XXX this needs to be fixed when ADMM is rewritten
+            # as currently implemented, the linear_atom cannot set bound/lagrange parameters
+        if hasattr(self.atom, 'bound') and self.atom.bound is not None:
             return composite_class(self.smooth_objective, self.dual_atom.nonsmooth_objective, self.dual_atom.lagrange_prox, initial, smooth_multiplier)
         else:
             if hasattr(self.atom, 'atom'):
