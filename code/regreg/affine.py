@@ -304,15 +304,18 @@ class normalize(object):
         self.center = center
         self.scale = scale
 
+        # we divide by n instead of n-1 in the scalings
+        # so that np.std is constant
+        
         if self.center:
             col_means = np.mean(M,0)
             if self.scale:
-                self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * value
+                self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * value 
             if not self.sparseD and inplace:
                 self.M -= col_means[np.newaxis,:]
                 self.M /= self.invcol_scalings[np.newaxis,:]
         elif self.scale:
-            self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) # or n-1?
+            self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) 
             if not self.sparseD and inplace:
                 self.M /= self.invcol_scalings[np.newaxis,:]
         self.affine_offset = None
