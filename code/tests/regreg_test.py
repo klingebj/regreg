@@ -191,3 +191,41 @@ def test_conjugate_solver():
     npt.assert_array_less(d3, 0.01)
 
 
+@dec.setastest(True)
+def test_admm_l1_seminorm():
+    """
+    Test ADMM using the l1norm in lagrange form
+    """
+    p = 1000
+    Y = 10 * np.random.normal(0,1,p)
+
+    loss = R.l2normsq.shift(-Y, coef=0.5)
+    sparsity = R.l1norm(p, lagrange=5.)
+
+    prob = R.container(loss, sparsity)
+
+    solver = R.admm_problem(prob)
+    solver.fit(debug=False, tol=1e-12)
+    solution = solver.beta
+
+    npt.assert_array_almost_equal(solution, np.maximum(np.fabs(Y) - sparsity.lagrange,0.)*np.sign(Y), 3)
+
+@dec.setastest(True)
+def test_admm_l1_constraint():
+    """
+    Test ADMM using the l1norm in bound form
+    """
+  
+    p = 1000
+    Y = 10 * np.random.normal(0,1,p)
+
+    loss = R.linear(Y, coef=0.5)
+    sparsity = R.l1norm(p, bound=5.)
+
+    prob = R.container(loss, sparsity)
+
+    solver = R.admm_problem(prob)
+    solver.fit(debug=False, tol=1e-12)
+    solution = solver.beta
+
+    npt.assert_almost_equal(np.fabs(solution).sum(), sparsity.bound, 3)
