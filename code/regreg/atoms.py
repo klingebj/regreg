@@ -14,7 +14,7 @@ class atom(nonsmooth):
 
     def __init__(self, primal_shape, lagrange=None, bound=None, 
                  linear_term=None,
-                 constant_term=None, offset=None):
+                 constant_term=0., offset=None):
 
         self.offset = None
         self.constant_term = constant_term

@@ -72,7 +72,7 @@ class ISTA(algorithm):
             self.inv_step *= 1/alpha
 
         current_f = self.composite.smooth_objective(self.composite.coefs,mode='func')
-        current_obj = current_f + self.composite.nonsmooth_objective(self.composite.coefs)
+        current_obj = current_f + self.composite.nonsmooth_objective(self.composite.coefs, check_feasibility=True)
         
         itercount = 0
         while itercount < max_its:
@@ -116,7 +116,7 @@ class ISTA(algorithm):
             trial_obj = trial_f + self.composite.nonsmooth_objective(beta)
 
             obj_change = np.fabs(trial_obj - current_obj)
-            obj_rel_change = obj_change/current_obj 
+            obj_rel_change = obj_change/np.fabs(max(min(current_obj, trial_obj),0))
 
             if self.debug:
                 print itercount, current_obj, self.inv_step, obj_rel_change, np.linalg.norm(self.composite.coefs - beta) / np.max([1.,np.linalg.norm(beta)]), tol
@@ -201,7 +201,7 @@ class FISTA(algorithm):
         t_old = 1.
         beta = self.composite.coefs
         current_f = self.composite.smooth_objective(r,mode='func')
-        current_obj = current_f + self.composite.nonsmooth_objective(r)
+        current_obj = current_f + self.composite.nonsmooth_objective(self.composite.coefs, check_feasibility=True)
         
         itercount = 0
         badstep = 0
@@ -253,7 +253,7 @@ class FISTA(algorithm):
             trial_obj = trial_f + self.composite.nonsmooth_objective(beta)
 
             obj_change = np.fabs(trial_obj - current_obj)
-            obj_rel_change = obj_change/np.fabs(current_obj)
+            obj_rel_change = obj_change/np.fabs(max(min(current_obj, trial_obj),0))
 
             if self.debug:
                 print itercount, current_obj, self.inv_step, obj_rel_change, np.linalg.norm(self.composite.coefs - beta) / np.max([1.,np.linalg.norm(beta)]), tol
@@ -287,7 +287,7 @@ class FISTA(algorithm):
                 if self.debug:
                     print "\tRestarting", current_obj, trial_obj
                 current_f = self.composite.smooth_objective(self.composite.coefs,mode='func')
-                current_obj = current_f + self.composite.nonsmooth_objective(self.composite.coefs)
+                current_obj = current_f + self.composite.nonsmooth_objective(self.composite.coefs, check_feasibility=True)
 
                 if not set_prox_control and t_old == 1.:
                     #Gradient step didn't decrease objective: tolerance composites or incorrect prox op... time to give up?
