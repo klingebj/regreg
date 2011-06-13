@@ -58,7 +58,7 @@ class atom(nonsmooth):
         return False
 
     def __copy__(self):
-        return self.__class__(self, copy(self.primal_shape),
+        return self.__class__(copy(self.primal_shape),
                               linear_term=copy(self.linear_term),
                               constant_term=copy(self.constant_term),
                               bound=copy(self.bound),
