@@ -184,7 +184,7 @@ class FISTA(algorithm):
                 t_new = 1.
                 r = beta
 
-            if current_obj < trial_obj and obj_rel_change > 1e-12 and current_obj > 1e-12 and monotonicity_restart:
+            if itercount > 1 and current_obj < trial_obj and obj_rel_change > 1e-12 and current_obj > 1e-12 and monotonicity_restart:
                 #Adaptive restarting: restart if monotonicity violated
                 if self.debug:
                     print "\tRestarting", current_obj, trial_obj
