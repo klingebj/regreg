@@ -79,7 +79,7 @@ By default, the container class will try to solve this problem with the two-loop
    sparsity_constraint = l1norm(500, bound=delta2)
    constrained_problem = container(loss, fused_constraint, sparsity_constraint)
    constrained_solver = FISTA(constrained_problem.composite())
-   constrained_solver.composite.lipshitz = 1.01
+   constrained_solver.composite.lipschitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
    constrained_solution = constrained_solver.composite.coefs
 
@@ -89,7 +89,7 @@ We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^
 .. ipython::
 
    loss = l2normsq.shift(-Y, coef=0.5)
-   true_conjugate = l2normsq.shift(Y, coef=0.5, constant=-np.linalg.norm(Y)**2/2)
+   true_conjugate = l2normsq.shift(Y, coef=0.5, constant_term=-np.linalg.norm(Y)**2/2)
    problem = container(loss, fused_constraint, sparsity_constraint)
    solver = FISTA(problem.conjugate_composite(true_conjugate))
    solver.fit(max_its=200, tol=1e-08)

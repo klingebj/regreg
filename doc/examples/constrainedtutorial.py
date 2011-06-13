@@ -28,7 +28,7 @@ sparsity_constraint = l1norm(500, bound=delta2)
 
 constrained_problem = container(loss, fused_constraint, sparsity_constraint)
 constrained_solver = FISTA(constrained_problem.composite())
-constrained_solver.composite.lipshitz = 1.01
+constrained_solver.composite.lipschitz = 1.01
 vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
 constrained_solution = constrained_solver.composite.coefs
 

@@ -5,7 +5,7 @@ regularizer or penalty.
 The penalty is specified by a primal shape, a sequence of atoms and
 a sequence of slicing objects.
 """
-from affine import selector
+from affine import identity
 from atoms import atom
 import numpy as np
 
@@ -17,7 +17,7 @@ def has_overlap(shape, groups):
     Parameters
     ----------
     shape : tuple
-        A potential shape for an array.
+        A tuple of integers representing a shape for an array.
     groups : sequence
         A sequence of objects that can be viewed as slices of
         an ndarray with shape==shape.
@@ -51,7 +51,7 @@ class separable(atom):
     def __init__(self, shape, atoms, groups, test_for_overlap=False):
         if test_for_overlap and has_overlap(shape, groups):
             raise ValueError('groups are not separable')
-        self.shape = shape
+        self.primal_shape = self.dual_shape = shape
         self.groups = groups
         self.atoms = atoms
 
@@ -68,6 +68,7 @@ class separable(atom):
         return value
 
     def nonsmooth_objective(self, x, check_feasibility=False):
+        value = 0
         for atom, group in zip(self.atoms, self.groups):
             value += atom.nonsmooth_objective(x[group], check_feasibility=check_feasibility)
         return value
@@ -77,3 +78,15 @@ class separable(atom):
         for atom, group in zip(self.atoms, self.groups):
             v[group] = atom.proximal(x[group], lipschitz=lipschitz)
         return v
+
+    @property
+    def conjugate(self):
+        penalty = separable(self.primal_shape,
+                            [atom.conjugate for atom in self.atoms],
+                            self.groups)
+        return penalty
+
+    def __repr__(self):
+        return "separable(%s, %s, %s)" % (`self.primal_shape`,
+                                          `self.atoms`,
+                                          `self.groups`)

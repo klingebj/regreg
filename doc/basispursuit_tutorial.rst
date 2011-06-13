@@ -56,7 +56,8 @@ The code to construct the loss function looks like this
    smooth_linf_constraint = R.smoothed_atom(R.supnorm(1000, bound=1), 
                                             epsilon=0.01,
                                             store_argmin=True)
-   loss = R.affine_smooth(smooth_linf_constraint, -X.T, None)
+   transform = R.linear_transform(-X.T)
+   loss = R.affine_smooth(smooth_linf_constraint, transform)
    smooth_f = R.smooth_function(loss, linear(Y))
 
 We store the argmin above in *smoothed_atom* because
@@ -79,7 +80,7 @@ decreasing the smoothing.
 
    for epsilon in [0.6**i for i in range(20)]:
        smooth_linf_constraint.epsilon = epsilon
-       solver.composite.lipshitz = 1.1/epsilon * Xnorm
+       solver.composite.lipschitz = 1.1/epsilon * Xnorm
        h = solver.fit(max_its=2000, tol=tol, min_its=10, backtrack=False)
 
    basis_pursuit_soln = smooth_linf_constraint.argmin
@@ -91,8 +92,7 @@ The solution should explain about 90% of the norm of *Y*
    print 1 - (np.linalg.norm(Y-np.dot(X, basis_pursuit_soln)) / norm_Y)**2
 
 
-
-Now, let's solve the corresponding bound form of the LASSO and verify
+We now solve the corresponding bound form of the LASSO and verify
 we obtain the same solution.
 
 .. ipython::
