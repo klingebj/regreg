@@ -99,7 +99,7 @@ class FISTA(algorithm):
         t_old = 1.
         beta = self.composite.coefs
         current_f = self.composite.smooth_objective(r,mode='func')
-        current_obj = current_f + self.composite.nonsmooth_objective(r)
+        current_obj = current_f + self.composite.nonsmooth_objective(self.composite.coefs, check_feasibility=True)
         
         itercount = 0
         badstep = 0
@@ -151,7 +151,7 @@ class FISTA(algorithm):
             trial_obj = trial_f + self.composite.nonsmooth_objective(beta)
 
             obj_change = np.fabs(trial_obj - current_obj)
-            obj_rel_change = obj_change/np.fabs(current_obj)
+            obj_rel_change = obj_change/np.fabs(max(min(current_obj, trial_obj),0))
             if coef_stop:
                 coef_rel_change = np.linalg.norm(self.composite.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
 
@@ -191,6 +191,8 @@ class FISTA(algorithm):
 
                 if not set_prox_control and t_old == 1.:
                     #Gradient step didn't decrease objective: tolerance composites or incorrect prox op... time to give up?
+                    if self.debug:
+                        print "Badstep: current: %f, proposed %f" % (current_obj, trial_obj)
                     badstep += 1
                     if badstep > 3:
                         warnings.warn('prox is taking bad steps')
