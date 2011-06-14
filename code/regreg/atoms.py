@@ -48,8 +48,6 @@ class atom(nonsmooth):
             self._lagrange = None
 
 
-    
-
     def __eq__(self, other):
         if self.__class__ == other.__class__:
             if self.bound is not None:
@@ -251,26 +249,6 @@ class atom(nonsmooth):
         """
         raise NotImplementedError
 
-    def adjoint_map(self, x, copy=True):
-        r"""
-        Return :math:`u`
-
-        This routine is currently a matrix multiplication in the subclass
-        affine_transform, but could
-        also call FFTs if D is a DFT matrix, in a subclass.
-        """
-        return self.linear_transform.adjoint_map(x, copy=copy)
-
-    def linear_map(self, x, copy=True):
-        r"""
-        Return :math:`x`
-
-        This routine is subclassed in affine_transform
-        as a matrix multiplications, but could
-        also call FFTs if D is a DFT matrix, in a subclass.
-        """
-        return self.linear_transform.linear_map(x, copy)
-                                                              
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
                bound=None, linear_term=None, offset=None):
