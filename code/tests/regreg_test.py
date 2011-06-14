@@ -18,6 +18,7 @@ def test_l1_seminorm():
 
     loss = R.l2normsq.shift(-Y, coef=0.5)
     sparsity = R.l1norm(p, lagrange=5.)
+    sparsity.lagrange *= 1.
 
     prob = R.container(loss, sparsity)
     problem = prob.composite()
@@ -221,6 +222,7 @@ def test_admm_l1_constraint():
 
     loss = R.linear(Y, coef=0.5)
     sparsity = R.l1norm(p, bound=5.)
+    sparsity.bound *= 1.
 
     prob = R.container(loss, sparsity)
 
