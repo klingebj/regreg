@@ -171,7 +171,7 @@ class node_problem(composite_class):
     def fit(self, debug=False):
         self.solver.debug = debug
         self.solver.fit()
-        self.dual_residual = self.rho * self.atom.adjoint_map(self.solver.composite.coefs - self.coefs)
+        self.dual_residual = self.rho * self.linear_transform.adjoint_map(self.solver.composite.coefs - self.coefs)
         self.dual_residual_norm = np.linalg.norm(self.dual_residual)
         self.coefs = self.solver.composite.coefs
 
