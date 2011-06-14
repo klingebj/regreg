@@ -1,15 +1,18 @@
+"""
+This is an example of ADMM's general consensus mode.
+"""
 import numpy as np
 from scipy import sparse
 from algorithms import FISTA
-from composite import composite as composite_class
+from composite import (composite as composite_class,
+                       smooth as smooth_composite_class)
 from conjugate import conjugate
 from container import container
 
 
-
 #TODO: this is only written for linear compositions, need to add affine
 
-class admm_problem(composite_class):
+class admm_problem(object):
 
     """
     A class for solving the generic problem
@@ -25,20 +28,34 @@ class admm_problem(composite_class):
        \mbox{argmin}_\beta \mathcal{L}(\beta) + \sum_i \lambda_i h_{K_i}(z_i) + \sum_i u_i^T(z_i - D_i \beta) + \frac{\rho}{2} \sum_i \|z_i - D_i\beta\|_2^2  
     """
         
-    def __init__(self, container):
+    def __init__(self, container_obj):
 
-        self.smooth = container.smooth_objective
-        self.atoms = container.nonsmooth_atoms
-
-        self.beta = np.zeros(self.atoms[0].primal_shape)
-        self.us = [np.zeros(atom.dual_shape) for atom in self.atoms]
-        self.node_problems = [node_problem(atom, self.beta, u) for atom, u in zip(self.atoms, self.us)]
+        self.container = container_obj
+        self.beta = np.zeros(self.container.coefs.shape)
+        self.us = [np.zeros(atom.dual_shape) for atom in
+                   self.container.nonsmooth_atoms]
+        self.node_problems = [node_problem(atom, self.beta, u) for
+                              atom, u in zip(self.container.nonsmooth_atoms, self.us)]
         self.rho = 1.
 
         self.p = len(self.beta)
         self.total_n = np.sum([len(u) for u in self.us])
 
-        self.solver = FISTA(self.composite())
+        def _smooth_objective(x, mode='both', check_feasibility=False):
+            sc = self.container.smooth_objective(x, mode=mode, 
+                                                 check_feasibility=check_feasibility)
+
+            s = self.smooth_objective(x, mode=mode,
+                                      check_feasibility=check_feasibility)
+            if mode == 'both':
+                return sc[0]+s[0], sc[1]+s[1]
+            elif mode == 'func' or mode == 'grad':
+                return sc+s
+                raise ValueError("Mode not specified correctly")
+
+        comp = smooth_composite_class(_smooth_objective,
+                                      self.container.coefs)
+        self.beta_solver = FISTA(comp)
 
     def fit(self, tol = 1e-6, max_its = 500, debug=False):
         coef_change = 1.
@@ -63,11 +80,9 @@ class admm_problem(composite_class):
             if debug:
                 print itercount, coef_change, self.rho
 
-        
-
     def solve_beta(self, tol=1e-6):
-        self.solver.fit(tol=tol)
-        self.beta = self.solver.composite.coefs
+        self.beta_solver.fit(tol=tol)
+        self.beta[:] = self.beta_solver.composite.coefs
 
     def solve_z(self):
         self.dual_residual_norm = 0.
@@ -117,21 +132,21 @@ class admm_problem(composite_class):
         else:
             raise ValueError("Mode not specified correctly")
 
-    def composite(self, smooth_multiplier=1., initial=None):
-        """
-        Create a problem object
-        """
+    ## def composite(self, initial=None):
+    ##     """
+    ##     Create a problem object
+    ##     """
 
-        if initial is None:
-            initial = self.beta.copy()
+    ##     if initial is None:
+    ##         initial = self.beta.copy()
 
-        def identity(x):
-            return x
+    ##     def identity(x):
+    ##         return x
 
-        def zero(x):
-            return 0.
+    ##     def zero(x):
+    ##         return 0.
 
-        return container(self.smooth, hold_smooth(self.smooth_objective,self.smooth.primal_shape))
+    ##     return container(self.smooth, hold_smooth(self.smooth_objective,self.primal_shape))
 
            
 class node_problem(composite_class):
@@ -142,7 +157,9 @@ class node_problem(composite_class):
     def __init__(self, atom, beta, u,  rho=1., initial = None):
 
         self.atom = atom
-        self.linear_transform, self.dual_atom = atom.dual
+        self.linear_transform, dual_atom = atom.dual
+        self.atom = dual_atom.conjugate
+        print self.atom, self.linear_transform
         self.beta = beta
         self._u = u
         self.rho = rho
@@ -151,8 +168,16 @@ class node_problem(composite_class):
         else:
             self.coefs = initial
 
-        self.solver = FISTA(self.composite())
+        print ('coefs', self.coefs.shape, self.atom.primal_shape,
+               self.atom.dual_shape, self.atom)
         
+        self.solver = FISTA(composite_class(self.smooth_objective,
+                                            self.atom.nonsmooth_objective,
+                                            self.atom.proximal,
+                                            self.coefs))
+        
+    def proximal(self, x, lipschitz=1):
+        return self.atom.proximal(x, lipschitz)
 
     def _get_beta(self):
         return self._beta
@@ -166,7 +191,6 @@ class node_problem(composite_class):
     def _set_u(self, u):
         self._u = u
     u = property(_get_u, _set_u)
-
 
     def fit(self, debug=False):
         self.solver.debug = debug
@@ -185,35 +209,5 @@ class node_problem(composite_class):
         else:
             raise ValueError("Mode specified incorrectly")
 
-
-
     
-    def composite(self, smooth_multiplier=1., initial=None):
-        """
-        Create a problem object
-        """
-
-        if initial is None:
-            initial = self.coefs
-
-
-        if self.atom.bound is not None:
-            return composite_class(self.smooth_objective, self.atom.nonsmooth_objective, self.atom.bound_prox, initial, smooth_multiplier)
-            #XXX this needs to be fixed when ADMM is rewritten
-            # as currently implemented, the linear_atom cannot set bound/lagrange parameters
-            #if hasattr(self.atom, 'bound') and self.atom.bound is not None:
-            #return composite_class(self.smooth_objective, self.dual_atom.nonsmooth_objective, self.dual_atom.lagrange_prox, initial, smooth_multiplier)
-        else:
-            if hasattr(self.atom, 'atom'):
-                return composite_class(self.smooth_objective, self.atom.atom.nonsmooth_objective, self.atom.atom.lagrange_prox, initial, smooth_multiplier)
-            else:
-                return composite_class(self.smooth_objective, self.atom.nonsmooth_objective, self.atom.lagrange_prox, initial, smooth_multiplier) 
             
-#This is a lazy, temporary fix, to embed a smooth_objective into a container object with primal_shape, etc. We should probably have the zero function seminorm atom.
-class hold_smooth(object):
-
-    def __init__(self, smooth, primal_shape, lagrange=1.):
-
-        self.primal_shape = primal_shape
-        self.smooth_objective = smooth
-        self.lagrange = 1.

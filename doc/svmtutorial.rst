@@ -60,7 +60,7 @@ Now, let's solve it
 
    problem = rr.container(quadratic, hinge_loss)
    solver = rr.FISTA(problem)
-   solver.fit()
+   vals = solver.fit()
    solver.composite.coefs
 
 This determines a line in the plane, specified as :math:`\beta_1 \cdot x + \beta_2 \cdot y + \gamma = 0` and the classifications are determined by which
@@ -105,8 +105,9 @@ The hinge loss is defined similarly, and we only need to add a sparsity penalty
    hinge = rr.positive_part(N, lagrange=C)
    hinge_loss = rr.linear_atom(hinge, transform)
 
-   sparsity = rr.l1norm(P+1, lagrange=0.2)
-   quadratic = rr.l2normsq.linear(rr.selector(slice(0,P), (P+1,)), coef=0.5)
+   s = rr.selector(slice(0,P), (P+1,))
+   sparsity = rr.l1norm.linear(s, lagrange=0.2)
+   quadratic = rr.l2normsq.linear(s, coef=0.5)
 
 .. ipython::
 
@@ -145,8 +146,10 @@ The hinge loss is defined similarly, and we only need to add a sparsity penalty
    hinge_loss = rr.linear_atom(hinge, transform)
    smoothed_hinge_loss = rr.smoothed_atom(hinge_loss)
 
-   sparsity = rr.l1norm(P+1, lagrange=0.2)
-   quadratic = rr.l2normsq.linear(rr.selector(slice(0,P), (P+1,)), coef=0.5)
+
+   s = rr.selector(slice(0,P), (P+1,))
+   sparsity = rr.l1norm.linear(s, lagrange=0.2)
+   quadratic = rr.l2normsq.linear(s, coef=0.5)
 
 Now, let's fit it. For this problem, we can use a known bound for the Lipschitz
 constant. We'll first get a bound on the largest squared singular value of X
@@ -168,7 +171,7 @@ Now, we can solve the problem without having to backtrack.
                           smoothed_hinge_loss, sparsity)
    solver = rr.FISTA(problem)
    solver.composite.lipschitz = lipschitz
-   solver.fit(backtrack=False)
+   vals = solver.fit(backtrack=False)
    solver.composite.coefs
 
 In high dimensions, it becomes easier to separate

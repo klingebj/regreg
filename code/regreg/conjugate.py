@@ -1,6 +1,7 @@
 import numpy as np
 from algorithms import FISTA
-from smooth import smooth_function, linear, l2normsq
+from smooth import linear, l2normsq
+
 
 class conjugate(object):
 
@@ -8,7 +9,7 @@ class conjugate(object):
         self._smooth_function = smooth_f
         self._linear = linear(np.zeros(smooth_f.primal_shape))
         self._quadratic = l2normsq(smooth_f.primal_shape, coef=epsilon/2.)
-        self._smooth_function_linear = smooth_function(smooth_f, self._linear, self._quadratic)
+        self._smooth_function_linear = container(smooth_f, self._linear, self._quadratic)
         self._solver = FISTA(self._smooth_function_linear)
         self.tol = tol
         #XXX we need a better way to pass around the Lipschitz constant

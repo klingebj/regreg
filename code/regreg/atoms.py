@@ -260,7 +260,10 @@ class atom(nonsmooth):
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
                bound=None, linear_term=None, offset=None):
-        l = linear_transform(linear_operator, diag=diag)
+        if not isinstance(linear_operator, affine_transform):
+            l = linear_transform(linear_operator, diag=diag)
+        else:
+            l = linear_operator
         atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)
         return affine_atom(atom, l)
@@ -811,7 +814,9 @@ class affine_atom(object):
 
     @property
     def dual(self):
-        return self.linear_transform, self.atom.conjugate
+        tmpatom = copy(self.atom)
+        tmpatom.primal_shape = tmpatom.dual_shape = self.dual_shape
+        return self.linear_transform, tmpatom.conjugate
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         """

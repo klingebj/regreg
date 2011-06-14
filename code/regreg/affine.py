@@ -231,7 +231,7 @@ class linear_transform(affine_transform):
         affine_transform.__init__(self, linear_operator, None, diag=diag)
 
 
-class selector(object):
+class selector(linear_transform):
 
     """
     Apply an affine transform after applying an

@@ -17,14 +17,14 @@ C = 0.2
 hinge = rr.positive_part(N, lagrange=C)
 hinge_loss = rr.linear_atom(hinge, transform)
 
-sparsity = rr.l1norm(P+1, lagrange=0.2)
-quadratic = rr.l2normsq.linear(rr.selector(slice(0,P), (P+1,)), coef=0.5)
+s = rr.selector(slice(0,P), (P+1,))
+sparsity = rr.l1norm.linear(s, lagrange=0.2)
+quadratic = rr.l2normsq.linear(s, coef=0.5)
 problem = rr.container(quadratic, hinge_loss, sparsity)
 solver = rr.FISTA(problem)
 solver.debug = True
 solver.fit()
 solver.composite.coefs
-
 
 
 fits = np.dot(X_1, problem.coefs)

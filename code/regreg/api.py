@@ -7,7 +7,7 @@ from cones import (nonnegative, nonpositive,
                    zero, zero_constraint, affine_cone as linear_cone)
 
 from affine import (identity, selector, affine_transform, normalize, linear_transform)
-from smooth import (l2normsq, linear, logistic_loglikelihood, smooth_atom, affine_smooth, smooth_function, signal_approximator)
+from smooth import (l2normsq, linear, logistic_loglikelihood, smooth_atom, affine_smooth, signal_approximator)
 
 from separable import separable
 from container import container

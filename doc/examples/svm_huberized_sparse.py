@@ -18,8 +18,9 @@ hinge = rr.positive_part(N, lagrange=C)
 hinge_loss = rr.linear_atom(hinge, transform)
 smoothed_hinge_loss = rr.smoothed_atom(hinge_loss, epsilon=0.04)
 
-sparsity = rr.l1norm(P+1, lagrange=0.2)
-quadratic = rr.l2normsq.linear(rr.selector(slice(0,P), (P+1,)), coef=0.5)
+s = rr.selector(slice(0,P), (P+1,))
+sparsity = rr.l1norm.linear(s, lagrange=2.)
+quadratic = rr.l2normsq.linear(s, coef=0.5)
 
 
 from regreg.affine import power_L
@@ -32,7 +33,7 @@ lipschitz = 1.05 * singular_value_sq + 1
 
 
 problem = rr.container(quadratic, 
-                      smoothed_hinge_loss, sparsity)
+                       smoothed_hinge_loss, sparsity)
 solver = rr.FISTA(problem)
 solver.composite.lipschitz = lipschitz
 solver.debug = True

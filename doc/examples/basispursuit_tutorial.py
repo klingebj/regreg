@@ -18,14 +18,13 @@ smooth_linf_constraint = R.smoothed_atom(R.supnorm(1000, bound=1),
                                         store_argmin=True)
 transform = R.linear_transform(-X.T)
 loss = R.affine_smooth(smooth_linf_constraint, transform)
-smooth_f = R.container(loss, linear(Y))
 
 
 norm_Y = np.linalg.norm(Y)
 l2_constraint_value = np.sqrt(0.1) * norm_Y
 l2_lagrange = R.l2norm(500, lagrange=l2_constraint_value)
 
-basis_pursuit = R.container(smooth_f, l2_lagrange)
+basis_pursuit = R.container(loss, linear(Y), l2_lagrange)
 solver = R.FISTA(basis_pursuit)
 tol = 1.0e-08
 

@@ -69,14 +69,17 @@ class nonsmooth(composite):
     as smooth_objective.
     """
 
-    def smooth_objective(self, x, mode='both', check_feasibility=False):
-        if mode == 'both':
-            return 0., zeros(x.shape)
-        elif mode == 'func':
-            return 0.
-        elif mode == 'grad':
-            return zeros(x.shape)
-        raise ValueError("Mode not specified correctly")
+    def __init__(self, nonsmooth, proximal, initial, smooth_multiplier=1, lipschitz=None):
+        def _smooth_objective(self, x, mode='both', check_feasibility=False):
+            if mode == 'both':
+                return 0., zeros(x.shape)
+            elif mode == 'func':
+                return 0.
+            elif mode == 'grad':
+                return zeros(x.shape)
+            raise ValueError("Mode not specified correctly")
+
+        composite.__init__(self, _smooth_objective, nonsmooth, proximal, initial, smooth_multiplier=smooth_multiplier, lipschitz=lipschitz)
 
 
 class smooth(composite):
@@ -87,11 +90,16 @@ class smooth(composite):
     is a null-op.
     """
 
-    def nonsmooth_objective(self, x, check_feasibility=False):
-        return 0.
+    def __init__(self, smooth_objective, initial, smooth_multiplier=1, lipschitz=None):
+        def zero_func(x, check_feasibility=False):
+            return 0
+        def zero_proximal(x, lipschitz):
+            return x
+        composite.__init__(self, smooth_objective, zero_func, zero_proximal,
+                           initial,
+                           smooth_multiplier=smooth_multiplier,
+                           lipschitz=lipschitz)
 
-    def proximal(self, x, L):
-        return x
 
 class smoothed(smooth):
 
