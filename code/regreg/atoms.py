@@ -60,22 +60,27 @@ class atom(nonsmooth):
                               linear_term=copy(self.linear_term),
                               constant_term=copy(self.constant_term),
                               bound=copy(self.bound),
-                              lagrange=copy(self.lagrange))
+                              lagrange=copy(self.lagrange),
+                              offset=copy(self.offset))
     
     def __repr__(self):
         if self.lagrange is not None:
-            return "%s(%s, lagrange=%f, linear_term=%s, offset=%s)" % (self.__class__.__name__,
-                                                                       `self.primal_shape`, 
-                                                                       self.lagrange,
-                                                                       str(self.linear_term),
-                                                                       str(self.offset))
+            return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
+                (self.__class__.__name__,
+                 `self.primal_shape`, 
+                 self.lagrange,
+                 str(self.linear_term),
+                 str(self.offset),
+                 self.constant_term)
 
         else:
-            return "%s(%s, bound=%f, linear_term=%s, offset=%s)" % (self.__class__.__name__,
-                                                         `self.primal_shape`, 
-                                                         self.bound,
-                                                         str(self.linear_term),
-                                                         str(self.offset))
+            return "%s(%s, bound=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
+                (self.__class__.__name__,
+                 `self.primal_shape`, 
+                 self.bound,
+                 str(self.linear_term),
+                 str(self.offset),
+                 self.constant_term)
     
     @property
     def conjugate(self):
@@ -89,17 +94,19 @@ class atom(nonsmooth):
             else:
                 offset = None
             if self.bound is None:
-                atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 
-                                                                  bound=self.lagrange, 
-                                                                  lagrange=None,
-                                                                  linear_term=linear_term,
-                                                                  offset=offset)
+                cls = conjugate_seminorm_pairs[self.__class__]
+                atom = cls(self.primal_shape, 
+                           bound=self.lagrange, 
+                           lagrange=None,
+                           linear_term=linear_term,
+                           offset=offset)
             else:
-                atom = primal_dual_seminorm_pairs[self.__class__](self.primal_shape, 
-                                                                  lagrange=self.bound, 
-                                                                  bound=None,
-                                                                  linear_term=linear_term,
-                                                                  offset=offset)
+                cls = conjugate_seminorm_pairs[self.__class__]
+                atom = cls(self.primal_shape, 
+                           lagrange=self.bound, 
+                           bound=None,
+                           linear_term=linear_term,
+                           offset=offset)
 
             if offset is not None and linear_term is not None:
                 _constant_term = (linear_term * offset).sum()
@@ -252,10 +259,6 @@ class atom(nonsmooth):
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
                bound=None, linear_term=None, offset=None):
-        """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
-        """
         l = linear_transform(linear_operator, diag=diag)
         atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)
@@ -464,155 +467,6 @@ class l2norm(atom):
         else:
             return (bound / n) * x
 
-class nonnegative(atom):
-
-    """
-    The non-negative cone constraint (which is the support
-    function of the non-positive cone constraint).
-    """
-    
-    def seminorm(self, x, check_feasibility=False):
-        """
-        The non-negative constraint of x.
-        """
-        if not check_feasibility:
-            return 0
-        tol_lim = np.fabs(x).max() * self.tol
-        incone = np.all(np.greater_equal(x, -tol_lim))
-        if incone:
-            return 0
-        return np.inf
-
-    def constraint(self, x):
-        """
-        The non-negative constraint of u.
-        """
-        return self.seminorm(x)
-
-
-    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  (v)_i \geq 0.
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-        This is just a element-wise
-        np.maximum(x, 0)
-
-        .. math::
-
-            v^{\lambda}(x)_i = \max(x_i, 0)
-
-        """
-
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
-
-        return np.maximum(x, 0)
-
-
-    def bound_prox(self, x, lipschitz=1, bound=None):
-        r"""
-        Return unique minimizer
-
-        .. math::
-
-            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 \ \text{s.t.} \  v_i \geq 0
-
-        where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
-
-        .. math::
-
-            v^{\lambda}(x)_i = \max(u_i, 0)
-        """
-
-        if bound is None:
-            bound = self.bound
-        if bound is None:
-            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
-
-        return self.lagrange_prox(x, lipschitz, lagrange=bound)
-
-class nonpositive(nonnegative):
-
-    """
-    The non-positive cone constraint (which is the support
-    function of the non-negative cone constraint).
-    """
-    
-    def seminorm(self, x, check_feasibility=False):
-        """
-        The non-positive constraint of x.
-        """
-        if not check_feasibility:
-            return 0
-        tol_lim = np.fabs(x).max() * self.tol
-        incone = np.all(np.less_equal(x, tol_lim))
-        if incone:
-            return 0
-        return np.inf
-
-    def constraint(self, x):
-        """
-        The non-positive constraint of u.
-        """
-        return self.seminorm(x)
-
-    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
-        r"""
-        Return unique minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v_i \leq 0.
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-        This is just a element-wise
-        np.maximum(x, 0)
-
-        .. math::
-
-            v^{\lambda}(x)_i = \min(x_i, 0)
-
-        """
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
-
-        return np.minimum(x, 0)
-
-    def bound_prox(self, x,  lipschitz=1, bound=None):
-        r"""
-        Return unique minimizer
-
-        .. math::
-
-            v^{\lambda}(x) \in \text{argmin}_{v \in \mathbb{R}^m} \frac{L}{2}
-            \|u-v\|^2_2 \ \text{s.t.} \  v_i \leq 0
-
-        where *m*=u.shape[0], :math:`\lambda` = self.lagrange. 
-
-        .. math::
-
-            v^{\lambda}(x)_i = \min(u_i, 0)
-        """
-
-        if bound is None:
-            bound = self.bound
-        if bound is None:
-            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
-
-        # XXX  being a cone, the first two arguments are not needed
-        return self.lagrange_prox(x, lagrange=bound)
 
 class positive_part(atom):
 
@@ -914,129 +768,6 @@ class max_positive_part(atom):
         return x-v.reshape(x.shape)
 
 
-class projection_atom(atom):
-
-    """
-    An atom representing a linear constraint.
-    It is specified via a matrix that is assumed
-    to be an set of row vectors spanning the space.
-    """
-
-    #XXX this is broken currently
-    def __init__(self, primal_shape, basis, lagrange=None):
-        self.basis = basis
-
-    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2  \; \text{ s.t.} \; x \in \text{row}(L)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange 
-        and :math:`L` = self.basis.
-
-        This is just projection onto :math:`\text{row}(L)`.
-
-        """
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
-
-        coefs = np.dot(self.basis, x)
-        return np.dot(coefs, self.basis)
-
-    def bound_prox(self, x,  lipschitz=1, bound=None):
-        r"""
-
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2  \; \text{ s.t.} \; x \in \text{row}(L)^{\perp}
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange 
-        and :math:`L` = self.basis.
-
-        This is just projection onto :math:`\text{row}(L)^{\perp}`.
-
-        """
-
-        if bound is None:
-            bound = self.bound
-        if bound is None:
-            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
-
-        # XXX being a cone, the two arguments are not needed
-        return self.lagrange_prox(x, lipschitz=lipschitz,lagrange=bound)
-
-class zero(atom):
-    """
-    The zero seminorm, support function of :math:\{0\}
-    """
-
-    def seminorm(self, x, check_feasibility=False):
-        return 0.
-
-    def constraint(self, x):
-        return 0.
-
-    def bound_prox(self, x, lipschitz=1, bound=None):
-        if bound is None:
-            bound = self.bound
-        if bound is None:
-            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
-        return x
-
-    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
-        r"""
-        """
-
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in lagrange mode or a keyword "lagrange" argument must be supplied')
-        return x
-    
-class zero_constraint(atom):
-    """
-    The zero constraint, support function of :math:`\mathbb{R}`^p
-    """
-
-    tol = 1.0e-05
-    def seminorm(self, x, check_feasibility=False):
-        if not check_feasibility:
-            return 0.
-        elif not np.linalg.norm(x) <= self.tol:
-                return np.inf
-        return 0.
-
-    def constraint(self, x):
-        if not np.linalg.norm(x) <= self.tol:
-            return np.inf
-        return 0.
-
-    def bound_prox(self, x, lipschitz=1, bound=None):
-        if bound is None:
-            bound = self.bound
-        if bound is None:
-            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
-        return np.zeros(x.shape)
-
-    def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
-        r"""
-        """
-
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in lagrange mode or a keyword "lagrange" argument must be supplied')
-        return np.zeros(x.shape)
-
 class affine_atom(object):
 
     """
@@ -1055,13 +786,8 @@ class affine_atom(object):
     
     """
 
-    # if atom_obj is a class, an object is created
-    # atom_obj(*args, **keywords)
-    # else, it is assumed to be an instance of atom
- 
     def __init__(self, atom_obj, atransform):
         self.atom = copy(atom_obj)
-        # self.linear_term = self.offset = None
         # if the affine transform has an offset, put it into
         # the atom. in this way, the affine_transform is actually
         # always linear
@@ -1111,12 +837,10 @@ class affine_atom(object):
             raise AttributeError("atom is in lagrange mode")
     bound = property(get_bound, set_bound)
 
-primal_dual_seminorm_pairs = {}
+conjugate_seminorm_pairs = {}
 for n1, n2 in [(l1norm,supnorm),
                (l2norm,l2norm),
-               (nonnegative,nonpositive),
                (positive_part, constrained_max),
-               (constrained_positive_part, max_positive_part),
-               (zero, zero_constraint)]:
-    primal_dual_seminorm_pairs[n1] = n2
-    primal_dual_seminorm_pairs[n2] = n1
+               (constrained_positive_part, max_positive_part)]:
+    conjugate_seminorm_pairs[n1] = n2
+    conjugate_seminorm_pairs[n2] = n1

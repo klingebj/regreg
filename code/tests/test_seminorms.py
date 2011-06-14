@@ -14,7 +14,7 @@ def test_proximal_maps():
 
     Z = np.random.standard_normal(shape)
     for L in [0.5,1,0.1]:
-        for primal, dual in A.primal_dual_seminorm_pairs.items():
+        for primal, dual in A.conjugate_seminorm_pairs.items():
             p = primal(shape, lagrange=lagrange)
             d = p.conjugate
             yield nt.assert_equal, d, dual(shape, bound=lagrange)
@@ -67,7 +67,7 @@ def test_linear_term_proximal():
 
     Z = np.random.standard_normal(shape)
     W = 0.02 * np.random.standard_normal(shape)
-    for primal, dual in A.primal_dual_seminorm_pairs.items():
+    for primal, dual in A.conjugate_seminorm_pairs.items():
         for L in [0.5,1]:
             p = primal(shape, lagrange=lagrange, linear_term=W)
             d = p.conjugate
@@ -105,7 +105,7 @@ def test_offset_proximal():
 
     Z = np.random.standard_normal(shape)
     W = 0.02 * np.random.standard_normal(shape)
-    for primal, dual in A.primal_dual_seminorm_pairs.items():
+    for primal, dual in A.conjugate_seminorm_pairs.items():
         p = primal(shape, lagrange=lagrange, offset=W)
         d = p.conjugate
         print p, d
@@ -127,7 +127,7 @@ def test_offset_and_linear_term_proximal():
     Z = np.random.standard_normal(shape)
     W = 0.02 * np.random.standard_normal(shape)
     U = 0.02 * np.random.standard_normal(shape)
-    for primal, dual in A.primal_dual_seminorm_pairs.items():
+    for primal, dual in A.conjugate_seminorm_pairs.items():
         p = primal(shape, lagrange=lagrange, offset=W, linear_term=U)
         d = p.conjugate
         print p, d

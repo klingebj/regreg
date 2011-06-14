@@ -62,10 +62,8 @@ class cone(nonsmooth):
             else:
                 offset = None
 
-            cls = primal_dual_cone_pairs[self.__class__]
+            cls = conjugate_cone_pairs[self.__class__]
             atom = cls(self.primal_shape, 
-                       bound=self.lagrange, 
-                       lagrange=None,
                        linear_term=linear_term,
                        offset=offset)
 
@@ -121,8 +119,6 @@ class cone(nonsmooth):
         where :math:`\alpha` is the offset of self.affine_transform and
         :math:`\eta` is self.linear_term.
 
-        If the atom is in bound mode, then this has the form
-        
         .. math::
 
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
@@ -167,12 +163,12 @@ class cone(nonsmooth):
         raise NotImplementedError
 
     @classmethod
-    def linear(cls, linear_operator, lagrange=None, diag=False,
-               bound=None, linear_term=None, offset=None):
+    def linear(cls, linear_operator, diag=False,
+               linear_term=None, offset=None):
         l = linear_transform(linear_operator, diag=diag)
-        cone = cls(l.primal_shape, lagrange=lagrange, bound=bound,
+        cone = cls(l.primal_shape, 
                    linear_term=linear_term, offset=offset)
-        return affine_atom(cone, l)
+        return affine_cone(cone, l)
 
 class affine_cone(object):
 
@@ -234,8 +230,6 @@ class nonnegative(cone):
         """
         The non-negative constraint of x.
         """
-        if not check_feasibility:
-            return 0
         tol_lim = np.fabs(x).max() * self.tol
         incone = np.all(np.greater_equal(x, -tol_lim))
         if incone:
@@ -275,8 +269,6 @@ class nonpositive(nonnegative):
         """
         The non-positive constraint of x.
         """
-        if not check_feasibility:
-            return 0
         tol_lim = np.fabs(x).max() * self.tol
         incone = np.all(np.less_equal(x, tol_lim))
         if incone:
@@ -301,11 +293,6 @@ class nonpositive(nonnegative):
             v^{\lambda}(x)_i = \min(x_i, 0)
 
         """
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
-
         return np.minimum(x, 0)
 
 
@@ -393,10 +380,10 @@ class zero_constraint(cone):
         return np.zeros(np.asarray(x).shape)
 
 
-primal_dual_cone_pairs = {}
+conjugate_cone_pairs = {}
 for n1, n2 in [(nonnegative,nonpositive),
                (zero, zero_constraint),
                #(projection, projection_complement),
                ]:
-    primal_dual_cone_pairs[n1] = n2
-    primal_dual_cone_pairs[n2] = n1
+    conjugate_cone_pairs[n1] = n2
+    conjugate_cone_pairs[n2] = n1
