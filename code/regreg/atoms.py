@@ -1111,8 +1111,6 @@ class affine_atom(object):
             raise AttributeError("atom is in lagrange mode")
     bound = property(get_bound, set_bound)
 
-
-
 primal_dual_seminorm_pairs = {}
 for n1, n2 in [(l1norm,supnorm),
                (l2norm,l2norm),

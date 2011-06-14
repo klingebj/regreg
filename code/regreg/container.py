@@ -2,6 +2,8 @@ import numpy as np
 from scipy import sparse
 from algorithms import FISTA
 from composite import composite
+from affine import stack as afstack, identity as afidentity
+from separable import separable
 from conjugate import conjugate
 
 class container(object):
@@ -29,14 +31,18 @@ class container(object):
                                     for i, shape in enumerate(self.dual_shapes)])
         self.dual_segments = self.dual_dtype.names 
 
-    def __add__(self,y):
-        #Combine two seminorms
-        raise NotImplementedError
-        def atoms():
-            for obj in [self, y]:
-                for atom in obj.atoms:
-                    yield atom
-        return container(*atoms())
+    @property
+    def dual(self):
+        transforms = []
+        dual_atoms = []
+        for atom in self.atoms:
+            t, a = atom.dual
+            transforms.append(t)
+            dual_atoms.append(a)
+        transform = afstack(transforms)
+        nonsm = separable(transform.dual_shape, dual_atoms,
+                          transform.dual_slices)
+        return transform, nonsm
 
     def evaluate_dual_atoms(self, u, check_feasibility=False):
         out = 0.
@@ -103,7 +109,7 @@ class container(object):
         if not hasattr(self, 'dualopt'):
             self.dualp = self.dual_composite(yL, lipschitz_P=lipschitz_P)
             #Approximate Lipschitz constant
-            self.dual_reference_lipschitz = 1.05*self.power_LD(debug=prox_control['debug'])
+            self.dual_reference_lipschitz = 1.05*power_LD(blah, debug=prox_control['debug'])
             self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = prox_control['debug']
 
@@ -116,32 +122,6 @@ class container(object):
             return self.primal_from_dual(y, self.dualopt.composite.coefs/lipschitz_P), history
         else:
             return self.primal_from_dual(y, self.dualopt.composite.coefs/lipschitz_P)
-
-    def power_LD(self,max_its=500,tol=1e-8, debug=False):
-        """
-        Approximate the Lipschitz constant for the dual problem using power iterations
-        """
-        v = np.random.standard_normal(self.primal_shape)
-        z = np.zeros((), self.dual_dtype)
-        old_norm = 0.
-        norm = 1.
-        itercount = 0
-        while np.fabs(norm-old_norm)/norm > tol and itercount < max_its:
-            z = np.zeros(z.shape, z.dtype)
-            for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
-                transform, _ = dual_atom
-                z[segment] += transform.linear_map(v)
-            v *= 0.
-            for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
-                transform, _ = dual_atom
-                v += transform.adjoint_map(z[segment])
-            old_norm = norm
-            norm = np.linalg.norm(v)
-            v /= norm
-            if debug:
-                print "L", norm
-            itercount += 1
-        return norm
 
     def primal_from_dual(self, y, u):
         """
@@ -161,7 +141,7 @@ class container(object):
         """
         self._dual_prox_center = y
         if initial is None:
-            z = np.zeros((), self.dual_dtype)
+            z = np.random.standard_normal(self.dual_dtype)
             for segment in self.dual_segments:
                 z[segment] += np.random.standard_normal(z[segment].shape)
 

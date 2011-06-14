@@ -393,3 +393,71 @@ class identity(object):
     def adjoint_map(self, x, copy=True):
         return self.linear_map(x, copy)
 
+class stack(object):
+    """
+    Stack several affine transforms together though
+    not necessarily as a big matrix.
+   
+    """
+
+    def __init__(self, transforms):
+        self.primal_shape = -1
+        self.dual_shapes = []
+        self.transforms = []
+        self.dual_slices = []
+        total_dual = 0
+        for transform in transforms:
+            if self.primal_shape == -1:
+                self.primal_shape = transform.primal_shape
+            else:
+                if transform.primal_shape != self.primal_shape:
+                    raise ValueError("primal dimensions don't agree")
+            self.transforms.append(transform)
+            self.dual_shapes.append(transform.dual_shape)
+            increment = np.product(transform.dual_shape)
+            self.dual_slices.append(slice(total_dual, total_dual + increment))
+            total_dual += increment
+
+        self.dual_shape = (total_dual,)
+        self.group_dtype = np.dtype([('group_%d' % i, np.float, shape) 
+                                     for i, shape in enumerate(self.dual_shapes)])
+        self.dual_groups = self.group_dtype.names 
+
+    def linear_map(self, x):
+        result = np.empty(self.total_dual)
+        for g, t in zip(self.dual_slices, self.transforms):
+            result[g] = t.linear_map(x).reshape
+        return result
+
+    def affine_map(self, x):
+        result = np.empty(self.total_dual)
+        for g, t in zip(self.dual_slices, self.transforms):
+            result[g] = t.affine_map(x)
+        return result
+
+    def adjoint_map(self, u):
+        result = np.zeros(self.primal_shape)
+        for g, t, s in zip(self.dual_groups, self.transforms,
+                        self.dual_shapes):
+            result += t.adjoint_map(u[g].reshape(s))
+        return result
+
+def power_LD(transform, max_its=500,tol=1e-8, debug=False):
+    """
+    Approximate the largest singular value (squared) of the linear part of
+    a transform using power iterations
+    """
+
+    v = np.random.standard_normal(transform.primal_shape)
+    old_norm = 0.
+    norm = 1.
+    itercount = 0
+    while np.fabs(norm-old_norm)/norm > tol and itercount < max_its:
+        v = transform.adjoint_map(transform.linear_map(v))
+        old_norm = norm
+        norm = np.linalg.norm(v)
+        v /= norm
+        if debug:
+            print "L", norm
+        itercount += 1
+    return norm
