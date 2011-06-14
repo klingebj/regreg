@@ -58,7 +58,6 @@ The code to construct the loss function looks like this
                                             store_argmin=True)
    transform = R.linear_transform(-X.T)
    loss = R.affine_smooth(smooth_linf_constraint, transform)
-   smooth_f = R.smooth_function(loss, linear(Y))
 
 We store the argmin above in *smoothed_atom* because
 it will actually be our primal solution. The penalty is specified as
@@ -74,7 +73,7 @@ decreasing the smoothing.
 
 .. ipython::
 
-   basis_pursuit = R.container(smooth_f, l2_lagrange)
+   basis_pursuit = R.container(loss, linear(Y), l2_lagrange)
    solver = R.FISTA(basis_pursuit)
    tol = 1.0e-08
 

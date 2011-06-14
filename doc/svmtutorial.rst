@@ -28,6 +28,7 @@ Let's generate some data appropriate for this problem.
 .. ipython::
 
    import numpy as np
+
    np.random.seed(400) # for reproducibility
    N = 500
    P = 2
@@ -60,7 +61,7 @@ Now, let's solve it
    problem = rr.container(quadratic, hinge_loss)
    solver = rr.FISTA(problem)
    solver.fit()
-   solver.problem.coefs
+   solver.composite.coefs
 
 This determines a line in the plane, specified as :math:`\beta_1 \cdot x + \beta_2 \cdot y + \gamma = 0` and the classifications are determined by which
 side of the line a point is on.
@@ -72,7 +73,7 @@ side of the line a point is on.
    accuracy = (1 - np.fabs(Y-labels).sum() / (2. * N))
    accuracy
 
-.. plot:: ./doc/examples/svm.py
+.. plot:: ./examples/svm.py
 
 Sparse SVM
 ~~~~~~~~~~
@@ -104,14 +105,25 @@ The hinge loss is defined similarly, and we only need to add a sparsity penalty
    hinge = rr.positive_part(N, lagrange=C)
    hinge_loss = rr.linear_atom(hinge, transform)
 
-   sparsity = rr.l1norm(P, lagrange=2)
+   sparsity = rr.l1norm(P+1, lagrange=0.2)
+   quadratic = rr.l2normsq.linear(rr.selector(slice(0,P), (P+1,)), coef=0.5)
 
 .. ipython::
 
    problem = rr.container(quadratic, hinge_loss, sparsity)
    solver = rr.FISTA(problem)
    solver.fit()
-   solver.problem.coefs
+   solver.composite.coefs
+
+In high dimensions, it becomes easier to separate
+points.
+
+.. ipython::
+
+   fits = np.dot(X_1, problem.coefs)
+   labels = 2 * (fits > 0) - 1
+   accuracy = (1 - np.fabs(Y-labels).sum() / (2. * N))
+   accuracy
 
 
 Sparse Huberized SVM
@@ -133,15 +145,38 @@ The hinge loss is defined similarly, and we only need to add a sparsity penalty
    hinge_loss = rr.linear_atom(hinge, transform)
    smoothed_hinge_loss = rr.smoothed_atom(hinge_loss)
 
-   sparsity = rr.l1norm(P, lagrange=2)
+   sparsity = rr.l1norm(P+1, lagrange=0.2)
+   quadratic = rr.l2normsq.linear(rr.selector(slice(0,P), (P+1,)), coef=0.5)
 
-Now, let's fit it.
+Now, let's fit it. For this problem, we can use a known bound for the Lipschitz
+constant. We'll first get a bound on the largest squared singular value of X
 
 .. ipython::
 
-   problem = rr.container(rr.smooth_function(quadratic, 
-                          smoothed_hinge_loss), sparsity)
-   solver = rr.FISTA(problem)
-   solver.fit()
-   solver.problem.coefs
+   from regreg.affine import power_L
+   singular_value_sq = power_L(X)
+   # the other smooth piece is a quadratic with identity
+   # for quadratic form, so its lipschitz constant is 1
 
+   lipschitz = 1.05 * singular_value_sq + 1
+
+Now, we can solve the problem without having to backtrack.
+
+.. ipython::
+
+   problem = rr.container(quadratic, 
+                          smoothed_hinge_loss, sparsity)
+   solver = rr.FISTA(problem)
+   solver.composite.lipschitz = lipschitz
+   solver.fit(backtrack=False)
+   solver.composite.coefs
+
+In high dimensions, it becomes easier to separate
+points.
+
+.. ipython::
+
+   fits = np.dot(X_1, problem.coefs)
+   labels = 2 * (fits > 0) - 1
+   accuracy = (1 - np.fabs(Y-labels).sum() / (2. * N))
+   accuracy

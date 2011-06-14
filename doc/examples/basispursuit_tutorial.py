@@ -18,7 +18,7 @@ smooth_linf_constraint = R.smoothed_atom(R.supnorm(1000, bound=1),
                                         store_argmin=True)
 transform = R.linear_transform(-X.T)
 loss = R.affine_smooth(smooth_linf_constraint, transform)
-smooth_f = R.smooth_function(loss, linear(Y))
+smooth_f = R.container(loss, linear(Y))
 
 
 norm_Y = np.linalg.norm(Y)

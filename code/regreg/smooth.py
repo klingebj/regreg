@@ -74,15 +74,8 @@ class smooth_function(smooth_composite):
         else:
             raise ValueError("Mode specified incorrectly")
 
-    def scale(self, obj, copy=False):
-        if self.coef != 1:
-            return obj * self.coef
-        if copy:
-            return obj.copy()
-        return obj
-    
 
-class smooth_atom(smooth_function):
+class smooth_atom(smooth_composite):
 
     """
     A class for representing a smooth function and its gradient
@@ -134,6 +127,13 @@ class smooth_atom(smooth_function):
         atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term)
         return affine_smooth(atom, atransform)
 
+    def scale(self, obj, copy=False):
+        if self.coef != 1:
+            return obj * self.coef
+        if copy:
+            return obj.copy()
+        return obj
+    
 class affine_smooth(smooth_atom):
 
     # if smooth_obj is a class, an object is created

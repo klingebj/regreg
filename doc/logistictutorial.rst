@@ -18,10 +18,7 @@ and the RegReg classes necessary for this problem,
 
 .. ipython::
 
-   from regreg.algorithms import FISTA
-   from regreg.smooth import logistic_loglikelihood, smooth_function, l2normsq
-
-The l2normsq class is used to represent the :math:`\ell_2` squared norm, the logistic_loglikelihood class represents the loss function and smooth_function is a container class for combining smooth functions. FISTA is a first-order algorithm and seminorm is a class for combining different seminorm penalties. 
+   import regreg.api as rr
 
 The only code needed to add logistic regression is a class
 with one method which computes the objective and its gradient.
@@ -43,8 +40,8 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = logistic_loglikelihood(X,Y)
-   penalty = l2normsq(1000, coef=1.)
+   loss = rr.logistic_loglikelihood(X,Y)
+   penalty = rr.l2normsq(1000, coef=1.)
 
 The penalty contains the regularization parameter that can be easily accessed and changed,
 
@@ -54,13 +51,13 @@ The penalty contains the regularization parameter that can be easily accessed an
 
 .. ipython::
 
-   problem = smooth_function(loss, penalty)
+   problem = rr.container(loss, penalty)
 
 Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem)
+   solver = rr.FISTA(problem)
    obj_vals = solver.fit(max_its=100, tol=1e-5)
    solution = solver.composite.coefs
 

@@ -3,7 +3,7 @@ from scipy import sparse
 from algorithms import FISTA
 from composite import composite as composite_class
 from conjugate import conjugate
-from smooth import smooth_function
+from container import container
 
 
 
@@ -27,8 +27,8 @@ class admm_problem(composite_class):
         
     def __init__(self, container):
 
-        self.smooth = container.loss
-        self.atoms = container.atoms
+        self.smooth = container.smooth_objective
+        self.atoms = container.nonsmooth_atoms
 
         self.beta = np.zeros(self.atoms[0].primal_shape)
         self.us = [np.zeros(atom.dual_shape) for atom in self.atoms]
@@ -131,7 +131,7 @@ class admm_problem(composite_class):
         def zero(x):
             return 0.
 
-        return smooth_function(self.smooth, hold_smooth(self.smooth_objective,self.smooth.primal_shape))
+        return container(self.smooth, hold_smooth(self.smooth_objective,self.smooth.primal_shape))
 
            
 class node_problem(composite_class):
@@ -209,7 +209,7 @@ class node_problem(composite_class):
             else:
                 return composite_class(self.smooth_objective, self.atom.nonsmooth_objective, self.atom.lagrange_prox, initial, smooth_multiplier) 
             
-#This is a lazy, temporary fix, to embed a smooth_objective into a smooth_function object with primal_shape, etc. We should probably have the zero function seminorm atom.
+#This is a lazy, temporary fix, to embed a smooth_objective into a container object with primal_shape, etc. We should probably have the zero function seminorm atom.
 class hold_smooth(object):
 
     def __init__(self, smooth, primal_shape, lagrange=1.):

@@ -18,9 +18,7 @@ and the RegReg classes necessary for this problem,
 
 .. ipython::
 
-   import regreg.api as R
-
-The l2normsq class is used to represent the :math:`\ell_2` squared norm, the l1norm class is used to represent the :math:`\ell_1` norm and thesquaredloss class represents the loss function. The classes container and smooth_function are containers for combining functions. FISTA is a first-order algorithm and container is a class for combining different seminorm penalties with a loss function.
+   import regreg.api as rr
 
 [TODO: Add some real or more interesting data.]
 
@@ -35,9 +33,9 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = R.l2normsq.affine(X,-Y, coef=0.5)
-   grouping = R.l2normsq(1000, coef=1.)
-   sparsity = R.l1norm(1000, lagrange=5.)
+   loss = rr.l2normsq.affine(X,-Y, coef=0.5)
+   grouping = rr.l2normsq(1000, coef=1.)
+   sparsity = rr.l1norm(1000, lagrange=5.)
 
 The penalty contains the regularization parameter that can be easily accessed and changed,
 
@@ -53,7 +51,7 @@ Now we can create the final problem object by comining the smooth functions and 
 
 .. ipython::
 
-   problem = R.container(R.smooth_function(loss, grouping), sparsity)
+   problem = rr.container(loss, grouping, sparsity)
 
 The penalty parameters can still be changed by accessing grouping and sparsity directly.
 
@@ -61,7 +59,7 @@ Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = R.FISTA(problem)
+   solver = rr.FISTA(problem)
    obj_vals = solver.fit(max_its=100, tol=1e-5)
    solution = solver.composite.coefs
 

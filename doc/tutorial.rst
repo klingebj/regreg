@@ -50,6 +50,11 @@ RegReg tutorials
 
   * A "robust" objective function with an :math:`\ell_1` penalty   
 
+* :ref:`svmtutorial`
+
+  * Sparse and Huberized support vector machines.
+
+
 * :ref:`basispursuit_tutorial`
 
   * Strategy used is that of the TFOCS paper.

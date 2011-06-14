@@ -47,14 +47,14 @@ Now we can create the problem object, beginning with the loss function
 
 
 The penalty can be smoothed to create a 
-smooth_function object which can be solved with FISTA.
+smooth function object which can be solved with FISTA.
 
 .. ipython::
 
    smoothed_sparsity = R.smoothed_atom(sparsity, epsilon=0.01)
    smoothed_fused = R.smoothed_atom(fused, epsilon=0.01)
 
-The smoothing is defined as (Yosida regularization?)
+The smoothing is defined by
 
 .. math::
 
@@ -73,7 +73,7 @@ Finally, we can create the final problem object,
 
 .. ipython::
 
-   problem = R.smooth_function(loss, smoothed_sparsity, smoothed_fused)
+   problem = R.container(loss, smoothed_sparsity, smoothed_fused)
    solver = R.FISTA(problem)
    _ip.magic('time solver.fit()')
 

@@ -20,7 +20,7 @@ fused = R.l1norm.linear(D, lagrange=25.5)
 smoothed_sparsity = R.smoothed_atom(sparsity, epsilon=0.01)
 smoothed_fused = R.smoothed_atom(fused, epsilon=0.01)
 
-problem = R.smooth_function(loss, smoothed_sparsity, smoothed_fused)
+problem = R.container(loss, smoothed_sparsity, smoothed_fused)
 solver = R.FISTA(problem)
 
 solns = []
