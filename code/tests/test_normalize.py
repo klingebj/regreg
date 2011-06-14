@@ -108,8 +108,6 @@ def test_scaling_and_centering():
         u2 = np.dot(scaling_matrix, np.dot(X.T, y2))
         np.testing.assert_almost_equal(u1, u2)
 
-
-@np.testing.decorators.knownfailureif(True, msg='the intercept coefficient is off here')
 def test_centering_fit(debug=False):
 
     # N - number of data points
@@ -120,7 +118,7 @@ def test_centering_fit(debug=False):
 
     # design - with ones as last column
     X = np.ones((N,P))
-    X[:,:-1] = np.random.normal(size=(N,P-1)) + offset
+    X = np.random.normal(size=(N,P)) + offset
     X2 = X - X.mean(axis=0)[np.newaxis,:]
 
     # the normalizer
@@ -142,10 +140,11 @@ def test_centering_fit(debug=False):
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
+    initial = np.random.standard_normal(P)
     composite_form = rr.composite(loss.smooth_objective,
                                   penalty.nonsmooth_objective,
                                   penalty.proximal,
-                                  np.random.standard_normal(P))
+                                  initial)
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -154,10 +153,11 @@ def test_centering_fit(debug=False):
     # Solve the problem with X2
     loss2 = rr.l2normsq.affine(X2, -Y, coef=coef)
 
+    initial2 = np.random.standard_normal(P)
     composite_form2 = rr.composite(loss2.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  np.random.standard_normal(P))
+                                   penalty.nonsmooth_objective,
+                                   penalty.proximal,
+                                   initial2)
 
     for _ in range(10):
         beta = np.random.standard_normal(P)
@@ -168,15 +168,20 @@ def test_centering_fit(debug=False):
         b2 = penalty.proximal(beta - g2)
         np.testing.assert_almost_equal(b1, b2)
 
+        f1 = composite_form.objective(beta)
+        f2 = composite_form2.objective(beta)
+        np.testing.assert_almost_equal(f1, f2)
+
     solver2 = rr.FISTA(composite_form2)
     solver2.debug = debug
     solver2.fit(tol=1.0e-12, min_its=200)
     coefs2 = solver2.composite.coefs
 
-    print np.linalg.norm(coefs - coefs2) / np.linalg.norm(coefs)
+    np.testing.assert_almost_equal(composite_form.objective(coefs), composite_form.objective(coefs2))
+    np.testing.assert_almost_equal(composite_form2.objective(coefs), composite_form2.objective(coefs2))
+
     nt.assert_true(np.linalg.norm(coefs - coefs2) / max(np.linalg.norm(coefs),1) < 1.0e-04)
 
-@np.testing.decorators.knownfailureif(True, msg='the scaling is off, even though the previous tests pass')
 def test_scaling_fit(debug=False):
 
     # N - number of data points
@@ -188,10 +193,8 @@ def test_scaling_fit(debug=False):
     # design - with ones as last column
     X = np.ones((N,P))
     X[:,:-1] = np.random.normal(size=(N,P-1)) + offset
-    X2 = X / np.sqrt((X**2).sum(0) / N)[np.newaxis,0]
-
+    X2 = X / (np.sqrt((X**2).sum(0) / N))[np.newaxis,:]
     L = rr.normalize(X, center=False, scale=True)
-    # coef for loss
 
     # data
     Y = np.random.normal(size=(N,)) + offset
@@ -209,10 +212,11 @@ def test_scaling_fit(debug=False):
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
+    initial = np.random.standard_normal(P)
     composite_form = rr.composite(loss.smooth_objective,
                                   penalty.nonsmooth_objective,
                                   penalty.proximal,
-                                  np.random.standard_normal(P))
+                                  initial)
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -221,6 +225,15 @@ def test_scaling_fit(debug=False):
     # Solve the problem with X2
     loss2 = rr.l2normsq.affine(X2, -Y, coef=coef)
 
+    initial2 = np.random.standard_normal(P)
+    composite_form2 = rr.composite(loss2.smooth_objective,
+                                  penalty.nonsmooth_objective,
+                                  penalty.proximal,
+                                  initial2)
+    solver2 = rr.FISTA(composite_form2)
+    solver2.debug = debug
+    solver2.fit(tol=1.0e-12, min_its=200)
+    coefs2 = solver2.composite.coefs
 
     for _ in range(10):
         beta = np.random.standard_normal(P)
@@ -231,19 +244,17 @@ def test_scaling_fit(debug=False):
         b2 = penalty.proximal(beta - g2)
         np.testing.assert_almost_equal(b1, b2)
 
-    composite_form2 = rr.composite(loss2.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  np.random.standard_normal(P))
-    solver2 = rr.FISTA(composite_form2)
-    solver2.debug = debug
-    solver2.fit(tol=1.0e-12, min_its=200)
-    coefs2 = solver2.composite.coefs
+        f1 = composite_form.objective(beta)
+        f2 = composite_form2.objective(beta)
+        np.testing.assert_almost_equal(f1, f2)
 
-    print np.linalg.norm(coefs - coefs2) / np.linalg.norm(coefs)
+
+    np.testing.assert_almost_equal(composite_form.objective(coefs), composite_form.objective(coefs2))
+    np.testing.assert_almost_equal(composite_form2.objective(coefs), composite_form2.objective(coefs2))
+
     nt.assert_true(np.linalg.norm(coefs - coefs2) / max(np.linalg.norm(coefs),1) < 1.0e-04)
 
-@np.testing.decorators.knownfailureif(True, msg='the scaling and centering are off, even though the previous tests pass')
+#@np.testing.decorators.knownfailureif(True, msg='the scaling and centering are off, even though the previous tests pass')
 def test_scaling_and_centering_fit(debug=False):
 
     # N - number of data points
@@ -254,8 +265,8 @@ def test_scaling_and_centering_fit(debug=False):
 
     # design - with ones as last column
     X = np.random.normal(size=(N,P)) + offset
-    X2 = X - X.mean(0)[np.newaxis,0]
-    X2 = X2 / np.std(X2)
+    X2 = X - X.mean(0)[np.newaxis,:]
+    X2 = X2 / np.std(X2,0)[np.newaxis,:]
 
     L = rr.normalize(X, center=True, scale=True)
     # data
@@ -274,10 +285,12 @@ def test_scaling_and_centering_fit(debug=False):
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
+
+    initial = np.random.standard_normal(P)
     composite_form = rr.composite(loss.smooth_objective,
                                   penalty.nonsmooth_objective,
                                   penalty.proximal,
-                                  np.random.standard_normal(P))
+                                  initial)
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -285,6 +298,16 @@ def test_scaling_and_centering_fit(debug=False):
 
     # Solve the problem with X2
     loss2 = rr.l2normsq.affine(X2, -Y, coef=coef)
+
+    initial2 = np.random.standard_normal(P)
+    composite_form2 = rr.composite(loss2.smooth_objective,
+                                   penalty.nonsmooth_objective,
+                                   penalty.proximal,
+                                   initial2)
+    solver2 = rr.FISTA(composite_form2)
+    solver2.debug = debug
+    solver2.fit(tol=1.0e-12, min_its=200)
+    coefs2 = solver2.composite.coefs
 
     for _ in range(10):
         beta = np.random.standard_normal(P)
@@ -295,15 +318,12 @@ def test_scaling_and_centering_fit(debug=False):
         b2 = penalty.proximal(beta - g2)
         np.testing.assert_almost_equal(b1, b2)
 
-    composite_form2 = rr.composite(loss2.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  np.random.standard_normal(P))
-    solver2 = rr.FISTA(composite_form2)
-    solver2.debug = debug
-    solver2.fit(tol=1.0e-12, min_its=200)
-    coefs2 = solver2.composite.coefs
+        f1 = composite_form.objective(beta)
+        f2 = composite_form2.objective(beta)
+        np.testing.assert_almost_equal(f1, f2)
 
-    print np.linalg.norm(coefs - coefs2) / np.linalg.norm(coefs)
+    np.testing.assert_almost_equal(composite_form.objective(coefs), composite_form.objective(coefs2))
+    np.testing.assert_almost_equal(composite_form2.objective(coefs), composite_form2.objective(coefs2))
+
     nt.assert_true(np.linalg.norm(coefs - coefs2) / max(np.linalg.norm(coefs),1) < 1.0e-04)
 
