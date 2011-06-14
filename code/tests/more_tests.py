@@ -13,10 +13,13 @@ def test_conjugate():
 
     for atom_c in [R.l1norm, R.l2norm, 
                    R.positive_part, R.supnorm,
-                   R.nonnegative, 
-                   R.constrained_positive_part,
-                   R.nonpositive]:
+                   R.constrained_positive_part]:
         atom = atom_c(10, linear_term=w, offset=y, lagrange=2.345)
+        np.testing.assert_almost_equal(atom.conjugate.conjugate.nonsmooth_objective(z), atom.nonsmooth_objective(z), decimal=3)
+
+    for atom_c in [R.nonnegative,
+                   R.nonpositive]:
+        atom = atom_c(10, linear_term=w, offset=y)
         np.testing.assert_almost_equal(atom.conjugate.conjugate.nonsmooth_objective(z), atom.nonsmooth_objective(z), decimal=3)
 
 def fused_example():
@@ -246,7 +249,7 @@ def test_lasso_dual_from_primal(l1 = .1, L = 2.):
     p= R.container(regloss, sparsity)
 
     z = x - y/L
-    soln = p.primal_prox(z,L,with_history=False)
+    soln = p.proximal(z,L)
     st = np.maximum(np.fabs(z)-l1/L,0) * np.sign(z)
 
     print x[range(10)]
@@ -268,7 +271,7 @@ def test_lasso(n=100):
     solver=R.FISTA(p)
     solver.debug = True
     t1 = time.time()
-    vals1 = solver.fit(max_its=800,prox_tol=1e-10)
+    vals1 = solver.fit(max_its=800)
     t2 = time.time()
     dt1 = t2 - t1
     soln = solver.composite.coefs
