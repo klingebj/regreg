@@ -113,7 +113,7 @@ def test_nonnegative_positive_part(debug=False):
     # nonnegative
     weights = np.ones(P) * lagrange
     weights[-5:] = 0
-    penalty = rr.nonnegative(P, lagrange=1, linear_term=weights)
+    penalty = rr.nonnegative(P, linear_term=weights)
 
     # Solution
     problem = rr.container(loss, penalty)
@@ -128,7 +128,7 @@ def test_nonnegative_positive_part(debug=False):
     # 25 coefficients with constrained_positive_part
 
     penalties_s = [rr.constrained_positive_part(25, lagrange=lagrange),
-                   rr.nonnegative(5, lagrange=1)]
+                   rr.nonnegative(5)]
     groups_s = [slice(0,25), slice(25,30)]
     penalty_s = rr.separable((P,), penalties_s,
                              groups_s)
