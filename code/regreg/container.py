@@ -83,7 +83,7 @@ class container(object):
 
     default_solver = FISTA
     def primal_prox(self, y, lipschitz_P=1, prox_control=None):
-        #def primal_prox(self, y, lipshitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
+        #def primal_prox(self, y, lipschitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
         """
         The proximal function for the primal problem
         """
@@ -102,7 +102,7 @@ class container(object):
         yL = lipschitz_P * y
         if not hasattr(self, 'dualopt'):
             self.dualp = self.dual_composite(yL, lipschitz_P=lipschitz_P)
-            #Approximate Lipshitz constant
+            #Approximate Lipschitz constant
             self.dual_reference_lipschitz = 1.05*self.power_LD(debug=prox_control['debug'])
             self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = prox_control['debug']

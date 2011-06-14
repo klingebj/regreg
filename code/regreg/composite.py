@@ -52,7 +52,7 @@ class composite(object):
         if prox_control is None:
             return self.proximal(z, lipschitz)
         else:
-            return self.proximal(z, lipshitz, prox_control=prox_control)
+            return self.proximal(z, lipschitz, prox_control=prox_control)
 
 class nonsmooth(composite):
     """
@@ -60,7 +60,7 @@ class nonsmooth(composite):
     as smooth_objective.
     """
 
-    def smooth_objective(self, x, mode='both',check_feasibility=False):
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         if mode == 'both':
             return 0., zeros(x.shape)
         elif mode == 'func':

@@ -273,18 +273,14 @@ class atom(nonsmooth):
                                                               
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
-               bound=None, args=(), keywords=None,
-               linear_term=None, offset=None):
+               bound=None, linear_term=None, offset=None):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
         """
-        if keywords is None:
-            keywords = {}
         l = linear_transform(linear_operator, diag=diag)
         atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)
-                   
         return affine_atom(atom, l)
     
 class l1norm(atom):
