@@ -55,7 +55,7 @@ class container(object):
                                             check_feasibility=check_feasibility)
         return out
     
-    def dual_prox(self, u, lipshitz_D=1.):
+    def dual_prox(self, u, lipschitz_D=1.):
         """
         Return (unique) minimizer
 
@@ -78,10 +78,11 @@ class container(object):
         u = u.view(self.dual_dtype).reshape(())
         for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
             transform, atom = dual_atom
-            v[segment] = atom.proximal(u[segment], lipshitz_D)
+            v[segment] = atom.proximal(u[segment], lipschitz_D)
         return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
+<<<<<<< HEAD
     def primal_prox(self, y, lipshitz_P=1, prox_control=None):
         #def primal_prox(self, y, lipshitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
         """
@@ -115,11 +116,11 @@ class container(object):
         if prox_control['return_objective_hist']:
             return self.primal_from_dual(y, self.dualopt.composite.coefs/lipshitz_P), history
         else:
-            return self.primal_from_dual(y, self.dualopt.composite.coefs/lipshitz_P)
+            return self.primal_from_dual(y, self.dualopt.composite.coefs/lipschitz_P)
 
     def power_LD(self,max_its=500,tol=1e-8, debug=False):
         """
-        Approximate the Lipshitz constant for the dual problem using power iterations
+        Approximate the Lipschitz constant for the dual problem using power iterations
         """
         v = np.random.standard_normal(self.primal_shape)
         z = np.zeros((), self.dual_dtype)
@@ -154,7 +155,7 @@ class container(object):
             x -= transform.adjoint_map(u[segment])
         return x
 
-    def dual_composite(self, y, lipshitz_P=1, initial=None):
+    def dual_composite(self, y, lipschitz_P=1, initial=None):
         """
         Return a problem instance of the dual
         prox problem with a given y value.
@@ -167,10 +168,10 @@ class container(object):
 
             # XXX dtype manipulations -- would be nice not to have to do this
             z = z.reshape((1,)).view(np.float)
-            initial = self.dual_prox(z, 1./lipshitz_P)
+            initial = self.dual_prox(z, 1./lipschitz_P)
         nonsmooth_objective = self.evaluate_dual_atoms
         prox = self.dual_prox
-        return composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipshitz_P)
+        return composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipschitz_P)
 
     def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
 

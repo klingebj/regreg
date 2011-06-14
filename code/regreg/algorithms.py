@@ -141,7 +141,7 @@ class FISTA(algorithm):
             else:
                 #Use specified Lipschitz constant
                 grad = self.composite.smooth_objective(r,mode='grad')
-                self.inv_step = self.composite.lipshitz
+                self.inv_step = self.composite.lipschitz
                 if set_prox_control:
                     beta = self.composite.proximal_step(r, grad, self.inv_step, prox_control=prox_control)
                 else:

@@ -273,8 +273,7 @@ class atom(nonsmooth):
                                                               
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
-               bound=None, args=(), keywords=None,
-               linear_term=None, offset=None):
+               bound=None, linear_term=None, offset=None):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
@@ -285,7 +284,7 @@ class atom(nonsmooth):
         atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)
                    
-        return linear_atom(atom, l)
+        return affine_atom(atom, l)
     
 class l1norm(atom):
 
@@ -1063,7 +1062,7 @@ class zero_constraint(atom):
             raise ValueError('either atom must be in lagrange mode or a keyword "lagrange" argument must be supplied')
         return np.zeros(x.shape)
 
-class linear_atom(object):
+class affine_atom(object):
 
     """
     Given a seminorm on :math:`\mathbb{R}^p`, i.e.
@@ -1085,23 +1084,29 @@ class linear_atom(object):
     # atom_obj(*args, **keywords)
     # else, it is assumed to be an instance of atom
  
-    def __init__(self, atom_obj, ltransform):
+    def __init__(self, atom_obj, atransform):
         self.atom = copy(atom_obj)
+        # self.linear_term = self.offset = None
+        # if the affine transform has an offset, put it into
+        # the atom. in this way, the affine_transform is actually
+        # always linear
+        if atransform.affine_offset is not None:
+            self.atom.offset += atransform.affine_offset
+            ltransform = affine_transform(atransform.linear_operator, None,
+                                          diag=atransform.diag)
+        else:
+            ltransform = atransform
         self.linear_transform = ltransform
-        self.linear_term = self.offset = None
         self.primal_shape = self.linear_transform.primal_shape
         self.dual_shape = self.linear_transform.dual_shape
 
-        
     def __repr__(self):
-        return "linear_atom(%s, %s, %s)" % (`self.atom`,
-                                            `self.linear_transform.linear_operator`, 
-                                            `self.offset`)
+        return "affine_atom(%s, %s)" % (`self.atom`,
+                                        `self.linear_transform.linear_operator`)
 
     @property
     def dual(self):
         return self.linear_transform, self.atom.conjugate
-
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         """
@@ -1109,6 +1114,27 @@ class linear_atom(object):
         """
         return self.atom.nonsmooth_objective(self.linear_transform.linear_map(x),
                                              check_feasibility=check_feasibility)
+
+    def get_lagrange(self):
+        return self.atom._lagrange
+    def set_lagrange(self, lagrange):
+        if self.bound is None:
+            self.atom._lagrange = lagrange
+            self.atom.conjugate._bound = lagrange
+        else:
+            raise AttributeError("atom is in bound mode")
+    lagrange = property(get_lagrange, set_lagrange)
+
+    def get_bound(self):
+        return self.atom._bound
+
+    def set_bound(self, bound):
+        if self.lagrange is None:
+            self.atom._bound = bound
+            self.atom.conjugate._lagrange = bound
+        else:
+            raise AttributeError("atom is in lagrange mode")
+    bound = property(get_bound, set_bound)
 
 
 

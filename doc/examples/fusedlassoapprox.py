@@ -12,7 +12,9 @@ D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
 D = sparse.csr_matrix(D)
 fused = R.l1norm.linear(D, lagrange=25.5)
 
-loss = R.signal_approximator(Y)
+
+loss = R.l2normsq.shift(-Y)
+
 
 problem = R.container(loss, sparsity, fused)
 solver = R.FISTA(problem.composite())

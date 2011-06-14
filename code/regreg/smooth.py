@@ -12,16 +12,16 @@ class smooth_function(smooth_composite):
     # TODO? use a list for atoms instead of *atoms?
     def __init__(self, *atoms, **keywords):
         # why do we have this -- XXX
-        if not set(keywords.keys()).issubset(['coef', 'constant']):
+        if not set(keywords.keys()).issubset(['coef', 'constant_term']):
             warnings.warn('only keyword argument should be multiplier, "coef" and "constant", got %s' % `keywords`)
 
         self.coef = 1
         if keywords.has_key('coef'):
             self.coef = keywords['coef']
 
-        self.constant = 0
-        if keywords.has_key('constant'):
-            self.constant = keywords['constant']
+        self.constant_term = 0
+        if keywords.has_key('constant_term'):
+            self.constant_term = keywords['constant_term']
 
         self.atoms = []
         self.primal_shape = -1
@@ -48,9 +48,9 @@ class smooth_function(smooth_composite):
                 v = 0.
                 for atom in self.atoms:
                     v += atom.smooth_objective(x, mode=mode)
-                return self.scale(v) + self.constant
+                return self.scale(v) + self.constant_term
             else:
-                return self.scale(self.atoms[0].smooth_objective(x, mode=mode)) + self.constant
+                return self.scale(self.atoms[0].smooth_objective(x, mode=mode)) + self.constant_term
         elif mode == 'grad':
             if len(self.atoms) > 1:
                 g = np.zeros(self.primal_shape)
@@ -67,10 +67,10 @@ class smooth_function(smooth_composite):
                     output = atom.smooth_objective(x, mode=mode)
                     v += output[0]
                     g += output[1]
-                return self.scale(v) + self.constant, self.scale(g)
+                return self.scale(v) + self.constant_term, self.scale(g)
             else:
                 v, g = self.atoms[0].smooth_objective(x, mode=mode)
-                return self.scale(v) + self.constant, self.scale(g)
+                return self.scale(v) + self.constant_term, self.scale(g)
         else:
             raise ValueError("Mode specified incorrectly")
 
@@ -82,28 +82,69 @@ class smooth_function(smooth_composite):
         return obj
     
 
-class affine_smooth(smooth_function):
+class smooth_atom(smooth_function):
+
+    """
+    A class for representing a smooth function and its gradient
+    """
+
+    def __init__(self, primal_shape, coef=1, constant_term=0):
+        self.constant_term = constant_term
+        self.primal_shape = primal_shape
+        self.coef = coef
+        self.coefs = np.zeros(self.primal_shape)
+        raise NotImplementedError
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        raise NotImplementedError
+    
+    @classmethod
+    def affine(cls, linear_operator, offset, coef=1, diag=False,
+               constant_term=0):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        atransform = affine_transform(linear_operator, offset, diag=diag)
+        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term)
+        
+        return affine_smooth(atom, atransform)
+
+    @classmethod
+    def linear(cls, linear_operator, coef=1, diag=False,
+               constant_term=0):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        atransform = affine_transform(linear_operator, None, diag=diag)
+        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term)
+        
+        return affine_smooth(atom, atransform)
+
+    @classmethod
+    def shift(cls, offset, coef=1, 
+              constant_term=0,
+              args=(), keywords={}):
+        """
+        Args and keywords passed to cls constructor along with
+        l and primal_shape
+        """
+        atransform = affine_transform(None, offset)
+        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term)
+        return affine_smooth(atom, atransform)
+
+class affine_smooth(smooth_atom):
 
     # if smooth_obj is a class, an object is created
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
-    def __init__(self, smooth_obj,
-                 linear_operator=None, offset=None, diag=False,
-                 coef=1, args=(), keywords=None, constant=0):
-        if keywords is None:
-            keywords = {}
-        self.affine_transform = affine_transform(linear_operator, offset, diag)
+    def __init__(self, smooth_atom, atransform):
+        self.sm_atom = smooth_atom
+        self.affine_transform = atransform
         self.primal_shape = self.affine_transform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
-        keywords = keywords.copy(); keywords['coef'] = coef
-        keywords['constant'] = constant
-        if type(smooth_obj) == type(type): # a class object
-            smooth_class = smooth_obj
-            self.sm_atom = smooth_class(self.primal_shape, *args, **keywords)
-        else:
-            self.sm_atom = smooth_obj
-        self.atoms = [self]
 
     def _get_coef(self):
         return self.sm_atom.coef
@@ -126,65 +167,6 @@ class affine_smooth(smooth_function):
             v = self.sm_atom.smooth_objective(eta, mode='func')
             return v 
 
-
-class smooth_atom(smooth_function):
-
-    """
-    A class for representing a smooth function and its gradient
-    """
-
-    def __init__(self, primal_shape, coef=1):
-        self.primal_shape = primal_shape
-        self.coef = coef
-        self.coefs = np.zeros(self.primal_shape)
-        raise NotImplementedError
-
-    def smooth_objective(self, x, mode='both', check_feasibility=False):
-        raise NotImplementedError
-    
-    @classmethod
-    def affine(cls, linear_operator, offset, coef=1, diag=False,
-               constant=0,
-               args=(), keywords=None):
-        """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
-        """
-        if keywords is None:
-            keywords = {}
-        return affine_smooth(cls, linear_operator, offset, diag=diag, coef=coef,
-                             constant=constant,
-                             args=args, keywords=keywords)
-
-    @classmethod
-    def linear(cls, linear_operator, coef=1, diag=False,
-               constant=0,
-               args=(), keywords=None):
-        """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
-        """
-        if keywords is None:
-            keywords = {}
-        return affine_smooth(cls, linear_operator, None, diag=diag, coef=coef,
-                             constant=constant,
-                             args=args, keywords=keywords)
-
-    @classmethod
-    def shift(cls, offset, coef=1, diag=False,
-              constant=0,
-              args=(), keywords=None):
-        """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
-        """
-        if keywords is None:
-            keywords = {}
-        return affine_smooth(cls, None, offset, diag=diag, coef=coef,
-                             constant=constant,
-                             args=args, keywords=keywords)
-
-
 def squaredloss(linear_operator, offset, coef=1):
     # the affine method gets rid of the need for the squaredloss class
     # as previously written squared loss had a factor of 2
@@ -198,8 +180,8 @@ class l2normsq(smooth_atom):
     """
 
     def __init__(self, primal_shape, coef=None, Q=None, Qdiag=False,
-                 constant=0):
-        self.constant = constant
+                 constant_term=0):
+        self.constant_term = constant_term
         self.Q = Q
         if self.Q is not None:
             self.Q_transform = affine_transform(Q, 0, Qdiag)
@@ -220,20 +202,20 @@ class l2normsq(smooth_atom):
 
         if self.Q is None:
             if mode == 'both':
-                return self.scale(np.linalg.norm(x)**2) + self.constant, self.scale(2 * x)
+                return self.scale(np.linalg.norm(x)**2) + self.constant_term, self.scale(2 * x)
             elif mode == 'grad':
                 return self.scale(2 * x)
             elif mode == 'func':
-                return self.scale(np.linalg.norm(x)**2) + self.constant
+                return self.scale(np.linalg.norm(x)**2) + self.constant_term
             else:
                 raise ValueError("mode incorrectly specified")
         else:
             if mode == 'both':
-                return self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant, self.scale(2 * self.Q_transform.linear_map(x))
+                return self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant_term, self.scale(2 * self.Q_transform.linear_map(x))
             elif mode == 'grad':
                 return self.scale(2 * self.Q_transform.linear_map(x))
             elif mode == 'func':
-                return self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant
+                return self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant_term
             else:
                 raise ValueError("mode incorrectly specified")
             

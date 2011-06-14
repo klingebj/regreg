@@ -13,10 +13,11 @@ Xnorm = scipy.linalg.eigvalsh(np.dot(X.T,X), eigvals=(998,999)).max()
 
 import regreg.api as R
 from regreg.smooth import linear
-smooth_linf_constraint = R.smoothed_atom(R.maxnorm(1000, bound=1),
+smooth_linf_constraint = R.smoothed_atom(R.supnorm(1000, bound=1),
                                         epsilon=0.01,
                                         store_argmin=True)
-loss = R.affine_smooth(smooth_linf_constraint, -X.T, None)
+transform = R.linear_transform(-X.T)
+loss = R.affine_smooth(smooth_linf_constraint, transform)
 smooth_f = R.smooth_function(loss, linear(Y))
 
 
@@ -30,7 +31,7 @@ tol = 1.0e-08
 
 for epsilon in [0.6**i for i in range(20)]:
    smooth_linf_constraint.epsilon = epsilon
-   solver.composite.lipshitz = 1.1/epsilon * Xnorm
+   solver.composite.lipschitz = 1.1/epsilon * Xnorm
    solver.fit(max_its=2000, tol=tol, min_its=10, backtrack=False)
 
 basis_pursuit_soln = smooth_linf_constraint.argmin
