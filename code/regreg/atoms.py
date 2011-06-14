@@ -1,7 +1,8 @@
 import numpy as np
 from scipy import sparse
 from composite import composite, nonsmooth
-from affine import linear_transform, identity as identity_transform
+from affine import (linear_transform, identity as identity_transform, 
+                    affine_transform)
 from projl1 import projl1
 from copy import copy
 
@@ -792,9 +793,12 @@ class affine_atom(object):
         # the atom. in this way, the affine_transform is actually
         # always linear
         if atransform.affine_offset is not None:
-            self.atom.offset += atransform.affine_offset
+            if self.atom.offset is not None:
+                self.atom.offset += atransform.affine_offset
+            else:
+                self.atom.offset = atransform.affine_offset
             ltransform = affine_transform(atransform.linear_operator, None,
-                                          diag=atransform.diag)
+                                          diag=atransform.diagD)
         else:
             ltransform = atransform
         self.linear_transform = ltransform
