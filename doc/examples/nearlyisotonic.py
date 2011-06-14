@@ -13,7 +13,7 @@ nisotonic = R.positive_part.linear(-sparse.csr_matrix(D), lagrange=1)
 
 loss = R.l2normsq.shift(-Y,coef=0.5)
 p = R.container(loss, nisotonic)
-solver = R.FISTA(p.composite())
+solver = R.FISTA(p)
 
 vals = solver.fit(max_its=25000, tol=1e-05)
 soln = solver.composite.coefs.copy()

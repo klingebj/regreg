@@ -38,7 +38,7 @@ def test_proximal_maps():
             yield ac, p.proximal(Z, lipschitz=L), solver.composite.coefs
 
             loss = rr.l2normsq.shift(-Z, coef=0.5*L)
-            problem = rr.container(loss, p).composite()
+            problem = rr.container(loss, p)
             solver = rr.FISTA(problem)
             solver.fit(tol=1.0e-12)
 

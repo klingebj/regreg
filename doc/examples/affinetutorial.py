@@ -18,15 +18,14 @@ D = sparse.csr_matrix(D)
 fused = R.l1norm.linear(D, lagrange=25.5)
 
 cont = R.container(loss, shrink_to_alpha, fused)
-solver = R.FISTA(cont.composite())
+solver = R.FISTA(cont)
 solver.debug = True
 solver.fit(max_its=200, tol=1e-10)
 solution = solver.composite.coefs
 
 block_soln = R.blockwise([shrink_to_alpha, fused], Y, max_its=500, tol=1.0e-10)
 np.linalg.norm(block_soln - solution) / np.linalg.norm(solution)
-composite = cont.composite()
-composite.objective(block_soln), composite.objective(solution)
+cont.objective(block_soln), cont.objective(solution)
 
 pylab.clf()
 pylab.plot(solution, c='g', linewidth=6, label=r'$\hat{Y}$')	

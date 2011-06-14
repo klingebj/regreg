@@ -20,7 +20,7 @@ def test_lasso_separable():
     # solve using separable
     
     loss = rr.l2normsq.affine(X, -Y, coef=0.5)
-    problem = rr.container(loss, penalty).composite()
+    problem = rr.container(loss, penalty)
     solver = rr.FISTA(problem)
     solver.fit(min_its=200, tol=1.0e-12)
     coefs = solver.composite.coefs
@@ -28,7 +28,7 @@ def test_lasso_separable():
     # solve using the usual composite
 
     penalty_all = rr.l1norm(20, lagrange=.2)
-    problem_all = rr.container(loss, penalty_all).composite()
+    problem_all = rr.container(loss, penalty_all)
     solver_all = rr.FISTA(problem_all)
     solver_all.fit(min_its=200, tol=1.0e-12)
 
@@ -38,7 +38,7 @@ def test_lasso_separable():
 
     penalty_s = [rr.linear_atom(p, rr.selector(g, (20,))) for p, g in
                  zip(penalty.atoms, penalty.groups)]
-    problem_s = rr.container(loss, *penalty_s).composite()
+    problem_s = rr.container(loss, *penalty_s)
     solver_s = rr.FISTA(problem_s)
     solver_s.fit(min_its=200, tol=1.0e-12)
     coefs_s = solver_s.composite.coefs
@@ -65,7 +65,7 @@ def test_group_lasso_separable():
     # solve using separable
     
     loss = rr.l2normsq.affine(X, -Y, coef=0.5)
-    problem = rr.container(loss, penalty).composite()
+    problem = rr.container(loss, penalty)
     solver = rr.FISTA(problem)
     solver.fit(min_its=200, tol=1.0e-12)
     coefs = solver.composite.coefs
@@ -74,7 +74,7 @@ def test_group_lasso_separable():
 
     penalty_s = [rr.linear_atom(p, rr.selector(g, (20,))) for p, g in
                  zip(penalty.atoms, penalty.groups)]
-    problem_s = rr.container(loss, *penalty_s).composite()
+    problem_s = rr.container(loss, *penalty_s)
     solver_s = rr.FISTA(problem_s)
     solver_s.fit(min_its=200, tol=1.0e-12)
     coefs_s = solver_s.composite.coefs

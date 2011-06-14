@@ -191,15 +191,15 @@ class container(composite):
         return composite(self.conjugate_smooth_objective, nonsmooth_objective, prox, initial, smooth_multiplier)
         
 
-    def composite(self, smooth_multiplier=1., initial=None):
-        """
-        Create a composite object for solving the general problem with the two-loop algorithm
-        """
+    # def composite(self, smooth_multiplier=1., initial=None):
+    #     """
+    #     Create a composite object for solving the general problem with the two-loop algorithm
+    #     """
 
-        if initial is None:
-            initial = np.random.standard_normal(self.atoms[0].primal_shape)
-        prox = self.proximal
-        nonsmooth_objective = self.nonsmooth_objective
+    #     if initial is None:
+    #         initial = np.random.standard_normal(self.atoms[0].primal_shape)
+    #     prox = self.proximal
+    #     nonsmooth_objective = self.nonsmooth_objective
         
-        return composite(self.loss.smooth_objective, nonsmooth_objective, prox, initial, smooth_multiplier)
+    #     return composite(self.loss.smooth_objective, nonsmooth_objective, prox, initial, smooth_multiplier)
 

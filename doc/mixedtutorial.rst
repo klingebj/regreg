@@ -39,7 +39,7 @@ Next, let's generate an example signal, and solve the Lagrange form of the probl
    fused = R.l1norm.linear(D, lagrange=25.5)
    problem = R.container(loss, sparsity, fused)
    
-   solver = R.FISTA(problem.composite())
+   solver = R.FISTA(problem)
    solver.fit(max_its=100, tol=1e-10)
    solution = solver.composite.coefs
 
@@ -53,7 +53,7 @@ By default, the container class will try to solve this problem with the two-loop
    sparsity = R.l1norm(len(Y), lagrange=1.4)
    fused_constraint = R.l1norm.linear(D, bound=delta)
    constrained_problem = R.container(loss, fused_constraint, sparsity)
-   constrained_solver = R.FISTA(constrained_problem.composite())
+   constrained_solver = R.FISTA(constrained_problem)
    constrained_solver.composite.lipschitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
    constrained_solution = constrained_solver.composite.coefs

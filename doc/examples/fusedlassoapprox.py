@@ -17,7 +17,7 @@ loss = R.l2normsq.shift(-Y)
 
 
 problem = R.container(loss, sparsity, fused)
-solver = R.FISTA(problem.composite())
+solver = R.FISTA(problem)
 solver.fit(max_its=800,tol=1e-10)
 soln = solver.composite.coefs
 

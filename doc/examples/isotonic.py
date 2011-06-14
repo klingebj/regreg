@@ -13,7 +13,7 @@ D = (np.identity(n) - np.diag(np.ones(n-1),-1))[1:]
 isotonic = R.nonnegative.linear(sparse.csr_matrix(D))
 loss = R.l2normsq.shift(-Y, coef=0.5)
 p = R.container(loss, isotonic)
-solver=R.FISTA(p.composite(initial=np.zeros(n)))
+solver=R.FISTA(p)
 solver.debug=True
 
 vals = solver.fit(max_its=25000, tol=1e-08, backtrack=True)

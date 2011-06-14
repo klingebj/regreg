@@ -21,7 +21,7 @@ def test_l1_seminorm():
     sparsity.lagrange *= 1.
 
     prob = R.container(loss, sparsity)
-    problem = prob.composite()
+    problem = prob
 
     solver = R.FISTA(problem)
     vals = solver.fit(tol=1e-10, max_its=500)
@@ -42,7 +42,7 @@ def test_l1_constraint():
     sparsity = R.l1norm(p, bound=5.)
 
     prob = R.container(loss, sparsity)
-    problem = prob.composite()
+    problem = prob
 
     solver = R.FISTA(problem)
     vals = solver.fit(tol=1e-8, max_its=500)
@@ -63,7 +63,7 @@ def test_lasso_via_dual_split():
     x = np.random.standard_normal(500)
     loss = R.l2normsq.shift(-x, coef=0.5)
     lasso = R.container(loss,*penalties)
-    solver = R.FISTA(lasso.composite())
+    solver = R.FISTA(lasso)
     solver.fit(tol=1e-8)
 
     npt.assert_array_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), solver.composite.coefs, 3)
@@ -85,7 +85,7 @@ def test_multiple_lasso():
     x = np.random.normal(0,1,p)
     loss = R.l2normsq.shift(-x, coef=0.5)
     p = R.container(loss, sparsity1, sparsity2)
-    solver = R.FISTA(p.composite())
+    solver = R.FISTA(p)
     vals = solver.fit(tol=1.0e-10)
     soln = solver.composite.coefs
     st = np.maximum(np.fabs(x)-l1,0) * np.sign(x)
@@ -115,7 +115,7 @@ def test_1d_fused_lasso():
     Y = np.random.standard_normal((2*n,))
     loss = R.l2normsq.affine(X, -Y, coef=0.5)
     fused_lasso = R.container(loss, fused)
-    solver=R.FISTA(fused_lasso.composite())
+    solver=R.FISTA(fused_lasso)
     vals1 = solver.fit(max_its=25000, tol=1e-10)
     soln1 = solver.composite.coefs
     
@@ -125,7 +125,7 @@ def test_1d_fused_lasso():
     loss = R.l2normsq.affine(X2, -Y, coef=0.5)
     sparsity = R.l1norm(n, lagrange=l1)
     lasso = R.container(loss, sparsity)
-    solver = R.FISTA(lasso.composite())
+    solver = R.FISTA(lasso)
     solver.fit(tol=1e-10)
 
     soln2 = np.dot(B, solver.composite.coefs)
@@ -145,7 +145,7 @@ def test_conjugate_solver():
     fused = R.l1norm.linear(D, lagrange = 25.5)
     problem = R.container(loss, sparsity, fused)
     
-    solver = R.FISTA(problem.composite())
+    solver = R.FISTA(problem)
     solver.fit(max_its=500, tol=1e-10)
     solution = solver.composite.coefs
 
@@ -155,7 +155,7 @@ def test_conjugate_solver():
     fused_constraint = R.l1norm.linear(D, bound = delta1)
     sparsity_constraint = R.l1norm(500, bound = delta2)
     constrained_problem = R.container(loss, fused_constraint, sparsity_constraint)
-    constrained_solver = R.FISTA(constrained_problem.composite())
+    constrained_solver = R.FISTA(constrained_problem)
     vals = constrained_solver.fit(max_its=500, tol=1e-10)
     constrained_solution = constrained_solver.composite.coefs
 

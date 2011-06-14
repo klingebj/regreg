@@ -29,7 +29,7 @@ def fused_example():
 
     loss = R.l2normsq.shift(-x, coef=0.5)
     pen = R.container(loss, sparsity,fused)
-    solver = R.FISTA(pen.composite())
+    solver = R.FISTA(pen)
     vals = solver.fit()
     soln = solver.composite.coefs
     
@@ -55,7 +55,7 @@ def lasso_example():
     regloss = R.l2normsq.affine(X,-Y, coef=0.5)
     sparsity2 = R.l1norm(500, lagrange=l1/2.)
     p=R.container(regloss, sparsity, sparsity2)
-    solver=R.FISTA(p.composite())
+    solver=R.FISTA(p)
     solver.debug = True
     vals = solver.fit(max_its=2000, min_its = 100)
     soln = solver.composite.coefs
@@ -78,7 +78,7 @@ def group_lasso_signal_approx():
     loss = R.l2normsq.shift(-x, coef=0.5)
     group_lasso = R.container(loss, **penalties)
     x = np.random.standard_normal(500)
-    solver = R.FISTA(group_lasso.composite())
+    solver = R.FISTA(group_lasso)
     solver.fit()
     a = solver.composite.coefs
     
@@ -90,7 +90,7 @@ def lasso_via_dual_split():
     x = np.random.standard_normal(500)
     loss = R.l2normsq.shift(-x, coef=0.5)
     lasso = R.container(loss,*penalties)
-    solver = R.FISTA(lasso.composite())
+    solver = R.FISTA(lasso)
     np.testing.assert_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), solver.composite.coefs, decimal=3)
     
 def group_lasso_example():
@@ -108,7 +108,7 @@ def group_lasso_example():
     loss = R.l2normsq.affine(X, -Y, coef=0.5)
     group_lasso = R.container(loss, *penalties)
 
-    solver=R.FISTA(group_lasso.composite())
+    solver=R.FISTA(group_lasso)
     solver.debug = True
     vals = solver.fit(max_its=2000, min_its=20,tol=1e-10)
     soln = solver.composite.coefs
@@ -146,7 +146,7 @@ def test_group_lasso_sparse(n=100):
     penalties[3].lagrange = 100.
     group_lasso = R.container(loss, *penalties)
 
-    solver=R.FISTA(group_lasso.composite())
+    solver=R.FISTA(group_lasso)
     solver.debug = True
     t1 = time.time()
     vals = solver.fit(max_its=2000, min_its=20,tol=1e-8)
@@ -175,7 +175,7 @@ def test_1d_fused_lasso(n=100):
     Y = np.random.standard_normal((2*n,))
     loss = R.l2normsq.affine(X, -Y, coef=0.5)
     fused_lasso = R.container(loss, fused)
-    solver=R.FISTA(fused_lasso.composite())
+    solver=R.FISTA(fused_lasso)
     solver.debug = True
     vals1 = solver.fit(max_its=25000, tol=1e-12)
     soln1 = solver.composite.coefs
@@ -194,7 +194,7 @@ def test_lasso_dual():
     x = np.random.normal(0,1,500)
     loss = R.l2normsq.shift(-x, coef=0.5)
     pen = R.container(loss, sparsity)
-    solver = R.FISTA(pen.composite())
+    solver = R.FISTA(pen)
     solver.fit()
     soln = solver.composite.coefs
     st = np.maximum(np.fabs(x)-l1,0) * np.sign(x) 
@@ -217,7 +217,7 @@ def test_multiple_lasso_dual(n=500):
     loss = R.l2normsq.shift(-x, coef=0.5)
     p = R.container(loss, sparsity1, sparsity2)
     t1 = time.time()
-    solver = R.FISTA(p.composite())
+    solver = R.FISTA(p)
     solver.debug = True
     vals = solver.fit(tol=1.0e-16)
     soln = solver.composite.coefs
@@ -265,7 +265,7 @@ def test_lasso(n=100):
     regloss = R.l2normsq.affine(-X,Y)
 
     p=R.container(regloss, sparsity)
-    solver=R.FISTA(p.composite())
+    solver=R.FISTA(p)
     solver.debug = True
     t1 = time.time()
     vals1 = solver.fit(max_its=800,prox_tol=1e-10)

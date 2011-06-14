@@ -15,9 +15,9 @@ D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
 D = sparse.csr_matrix(D)
 fused = l1norm.linear(D, lagrange=25.5)
 problem = container(loss, sparsity, fused)
-solver = FISTA(problem.composite())
+solver = FISTA(problem)
 solver.fit(max_its=100, tol=1e-10)
-solution = solver.composite.coefs
+solution = problem.coefs
 pylab.plot(solution, c='g', linewidth=3)	
 pylab.scatter(np.arange(Y.shape[0]), Y)
 

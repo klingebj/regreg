@@ -63,9 +63,9 @@ form of the problem
    fused = l1norm.linear(D, 25.5)
    problem = container(loss, sparsity, fused)
    
-   solver = FISTA(problem.composite())
+   solver = FISTA(problem)
    solver.fit(max_its=100, tol=1e-10)
-   solution = solver.composite.coefs
+   solution = problem.coefs
 
 We will now solve this problem in constraint form, using the 
 achieved  values :math:`\delta_1 = \|D\widehat{\beta}\|_1, \delta_2=\|\widehat{\beta}\|_1`.
@@ -78,7 +78,7 @@ By default, the container class will try to solve this problem with the two-loop
    fused_constraint = l1norm.linear(D, bound=delta1)
    sparsity_constraint = l1norm(500, bound=delta2)
    constrained_problem = container(loss, fused_constraint, sparsity_constraint)
-   constrained_solver = FISTA(constrained_problem.composite())
+   constrained_solver = FISTA(constrained_problem)
    constrained_solver.composite.lipschitz = 1.01
    vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
    constrained_solution = constrained_solver.composite.coefs

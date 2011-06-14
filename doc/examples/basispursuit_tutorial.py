@@ -26,7 +26,7 @@ l2_constraint_value = np.sqrt(0.1) * norm_Y
 l2_lagrange = R.l2norm(500, lagrange=l2_constraint_value)
 
 basis_pursuit = R.container(smooth_f, l2_lagrange)
-solver = R.FISTA(basis_pursuit.composite(initial=np.random.standard_normal(500)))
+solver = R.FISTA(basis_pursuit)
 tol = 1.0e-08
 
 for epsilon in [0.6**i for i in range(20)]:
@@ -39,9 +39,9 @@ basis_pursuit_soln = smooth_linf_constraint.argmin
 sparsity = R.l1norm(1000, bound=np.fabs(basis_pursuit_soln).sum())
 loss = R.l2normsq.affine(X, -Y)
 lasso = R.container(loss, sparsity)
-lasso_solver = R.FISTA(lasso.composite())
+lasso_solver = R.FISTA(lasso)
 lasso_solver.fit(max_its=2000, tol=1.0e-10)
-lasso_soln = lasso_solver.composite.coefs
+lasso_soln = lasso.coefs
 
 pylab.plot(basis_pursuit_soln, label='Basis pursuit')
 pylab.plot(lasso_soln, label='LASSO')

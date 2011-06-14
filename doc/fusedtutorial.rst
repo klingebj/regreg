@@ -97,9 +97,9 @@ Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem.composite())
+   solver = FISTA(problem)
    solver.fit(max_its=100, tol=1e-10)
-   solution = solver.composite.coefs
+   solution = problem.coefs
 
 Here max_its represents primal (outer) iterations, and tol is the primal tolerance. 
 

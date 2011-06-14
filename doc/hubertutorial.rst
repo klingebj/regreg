@@ -63,7 +63,7 @@ Next, we can select our algorithm of choice and use it solve the problem,
 
 .. ipython::
 
-   solver = FISTA(problem.composite())
+   solver = FISTA(problem)
    obj_vals = solver.fit(max_its=200, tol=1e-6)
    solution = solver.composite.coefs
 

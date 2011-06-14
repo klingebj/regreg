@@ -16,7 +16,7 @@ D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
 fused = l1norm.linear(D, 25.5)
 problem = container(loss, sparsity, fused)
 
-solver = FISTA(problem.composite())
+solver = FISTA(problem)
 solver.fit(max_its=100, tol=1e-10)
 solution = solver.composite.coefs
 
@@ -27,7 +27,7 @@ fused_constraint = l1norm.linear(D, bound=delta1)
 sparsity_constraint = l1norm(500, bound=delta2)
 
 constrained_problem = container(loss, fused_constraint, sparsity_constraint)
-constrained_solver = FISTA(constrained_problem.composite())
+constrained_solver = FISTA(constrained_problem)
 constrained_solver.composite.lipschitz = 1.01
 vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
 constrained_solution = constrained_solver.composite.coefs

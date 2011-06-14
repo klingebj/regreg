@@ -69,10 +69,10 @@ Finally, we can create the final problem object, and solve it.
 .. ipython::
 
    cont = R.container(loss, shrink_to_alpha, fused)
-   solver = R.FISTA(cont.composite())
+   solver = R.FISTA(cont)
    # This problem seems to get stuck restarting
    _ip.magic("time solver.fit(max_its=200, tol=1e-10)")
-   solution = solver.composite.coefs
+   solution = cont.coefs
 
 Since this problem is a signal approximator, we can also solve
 it using blockwise coordinate descent. This is generally faster
@@ -82,8 +82,7 @@ for this problem
 
    _ip.magic("time block_soln = R.blockwise([shrink_to_alpha, fused], Y, max_its=500, tol=1.0e-10)")
    np.linalg.norm(block_soln - solution) / np.linalg.norm(solution)
-   composite = cont.composite()
-   composite.objective(block_soln), composite.objective(solution)
+   cont.objective(block_soln), cont.objective(solution)
 
 
 We can then plot solution to see the result of the regression,

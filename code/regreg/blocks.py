@@ -149,7 +149,7 @@ def test1():
     
     soln1 = blockwise([sparsity, fused], Y)
 
-    solver = FISTA(p.composite())
+    solver = FISTA(p)
     solver.fit(max_its=800,tol=1e-10)
     soln2 = solver.composite.coefs
 

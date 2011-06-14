@@ -6,12 +6,13 @@ class composite(object):
     A generic way to specify a problem in composite form.
     """
 
-    def __init__(self, smooth_objective, nonsmooth_objective, proximal, initial, smooth_multiplier=1):
+    def __init__(self, smooth_objective, nonsmooth_objective, proximal, initial, smooth_multiplier=1, lipschitz=None):
         self.coefs = initial.copy()
         self.nonsmooth_objective = nonsmooth_objective
         self._smooth_objective = smooth_objective
         self.proximal = proximal
         self.smooth_multiplier = smooth_multiplier
+        self._lipschitz = lipschitz
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         output = self._smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
@@ -53,6 +54,14 @@ class composite(object):
             return self.proximal(z, lipschitz)
         else:
             return self.proximal(z, lipschitz, prox_control=prox_control)
+
+    def get_lipschitz(self):
+        return self._lipschitz
+    def set_lipschitz(self, value):
+        if value < 0:
+            raise ValueError('Lipschitz constant must be non-negative')
+        self._lipschitz = value
+    lipschitz = property(get_lipschitz, set_lipschitz)
 
 class nonsmooth(composite):
     """
