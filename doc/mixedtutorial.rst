@@ -44,7 +44,7 @@ Next, let's generate an example signal, and solve the Lagrange form of the probl
    solution = solver.composite.coefs
 
 We will now solve this problem in constraint form, using the 
-achieved  value :math:`\delta = \|D\widehat{\beta}\|_1.
+achieved  value :math:`\delta = \|D\widehat{\beta}\|_1`.
 By default, the container class will try to solve this problem with the two-loop strategy.
 
 .. ipython::

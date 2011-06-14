@@ -82,7 +82,6 @@ class smooth_function(smooth_composite):
         return obj
     
 
-
 class smooth_atom(smooth_function):
 
     """

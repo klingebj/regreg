@@ -35,20 +35,34 @@ class admm_problem(composite_class):
         self.node_problems = [node_problem(atom, self.beta, u) for atom, u in zip(self.atoms, self.us)]
         self.rho = 1.
 
+        self.p = len(self.beta)
+        self.total_n = np.sum([len(u) for u in self.us])
+
         self.solver = FISTA(self.composite())
 
     def fit(self, tol = 1e-6, max_its = 500, debug=False):
         coef_change = 1.
         itercount = 0
+        mu = 10.
         while coef_change > tol and itercount <= max_its:
             old_beta = self.beta.copy()
             self.solve_beta()
             self.solve_z()
             self.solve_u()
-            coef_change = np.linalg.norm(self.beta - old_beta) / np.linalg.norm(self.beta)
+            #coef_change = np.linalg.norm(self.beta - old_beta) / np.linalg.norm(self.beta)
+            coef_change = (self.residual_norm/self.p) + (self.dual_residual_norm/self.total_n)
+            if self.residual_norm > mu * self.dual_residual_norm:
+                self.rho *= 2.
+                for u in self.us:
+                    u /= 2.
+            elif self.dual_residual_norm > mu * self.residual_norm:
+                self.rho /= 2.
+                for u in self.us:
+                    u *= 2.
             itercount += 1
             if debug:
-                print itercount, coef_change
+                print itercount, coef_change, self.rho
+
         
 
     def solve_beta(self, tol=1e-6):
@@ -56,15 +70,20 @@ class admm_problem(composite_class):
         self.beta = self.solver.composite.coefs
 
     def solve_z(self):
+        self.dual_residual_norm = 0.
         for problem, u in zip(self.node_problems, self.us):
             problem.u = u
             problem.beta = self.beta
             problem.fit()
+            self.dual_residual_norm += problem.dual_residual_norm
 
     def solve_u(self):
+        self.residual_norm = 0.
         for u, problem in zip(self.us, self.node_problems):
             u += (problem.coefs - problem.linear_transform.linear_map(self.beta))
+            self.residual_norm += np.linalg.norm(problem.coefs - problem.linear_transform.linear_map(self.beta))
 
+            
     def _get_rho(self):
         return self._rho
     def _set_rho(self, rho):
@@ -73,7 +92,7 @@ class admm_problem(composite_class):
             problem.rho = rho
     rho = property(_get_rho, _set_rho)
 
-    def smooth_objective(self, x, mode='both', check_feasibility=False):
+    def smooth_objective(self, x, mode='both',check_feasibility=False):
 
         if mode == 'both':
             f = 0
@@ -152,9 +171,11 @@ class node_problem(composite_class):
     def fit(self, debug=False):
         self.solver.debug = debug
         self.solver.fit()
+        self.dual_residual = self.rho * self.atom.adjoint_map(self.solver.composite.coefs - self.coefs)
+        self.dual_residual_norm = np.linalg.norm(self.dual_residual)
         self.coefs = self.solver.composite.coefs
 
-    def smooth_objective(self, x, mode='both', check_feasibility=False):
+    def smooth_objective(self, x, mode='both',check_feasibility=False):
         if mode == 'both':
             return (self.rho/2.) * np.linalg.norm(x - self.affine + self.u)**2, (self.rho)*(x - self.affine + self.u)
         elif mode == 'func':
@@ -163,6 +184,8 @@ class node_problem(composite_class):
             return  (self.rho)*(x - self.affine + self.u)
         else:
             raise ValueError("Mode specified incorrectly")
+
+
 
     
     def composite(self, smooth_multiplier=1., initial=None):
@@ -173,10 +196,13 @@ class node_problem(composite_class):
         if initial is None:
             initial = self.coefs
 
+
+        if self.atom.bound is not None:
+            return composite_class(self.smooth_objective, self.atom.nonsmooth_objective, self.atom.bound_prox, initial, smooth_multiplier)
             #XXX this needs to be fixed when ADMM is rewritten
             # as currently implemented, the linear_atom cannot set bound/lagrange parameters
-        if hasattr(self.atom, 'bound') and self.atom.bound is not None:
-            return composite_class(self.smooth_objective, self.dual_atom.nonsmooth_objective, self.dual_atom.lagrange_prox, initial, smooth_multiplier)
+            #if hasattr(self.atom, 'bound') and self.atom.bound is not None:
+            #return composite_class(self.smooth_objective, self.dual_atom.nonsmooth_objective, self.dual_atom.lagrange_prox, initial, smooth_multiplier)
         else:
             if hasattr(self.atom, 'atom'):
                 return composite_class(self.smooth_objective, self.atom.atom.nonsmooth_objective, self.atom.atom.lagrange_prox, initial, smooth_multiplier)
