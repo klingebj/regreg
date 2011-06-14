@@ -6,7 +6,7 @@ from affine import stack as afstack, identity as afidentity, power_L
 from separable import separable
 from conjugate import conjugate
 
-class container(object):
+class container(composite):
     """
     A container class for storing/combining seminorm_atom classes
     """
@@ -30,6 +30,7 @@ class container(object):
         self.dual_dtype = np.dtype([('dual_%d' % i, np.float, shape) 
                                     for i, shape in enumerate(self.dual_shapes)])
         self.dual_segments = self.dual_dtype.names 
+        self.coefs = np.zeros(self.primal_shape)
 
     @property
     def dual(self):
@@ -46,6 +47,10 @@ class container(object):
             self._dual = transform, nonsm
         return self._dual
 
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        return self.loss.smooth_objective(x, mode=mode, 
+                                     check_feasibility=check_feasibility)
+
     def nonsmooth_objective(self, x, check_feasibility=False):
         out = 0.
         for atom in self.atoms:
@@ -54,7 +59,7 @@ class container(object):
         return out
 
     default_solver = FISTA
-    def proximal(self, y, lipschitz_P=1, prox_control=None):
+    def proximal(self, y, lipschitz=1, prox_control=None):
         """
         The proximal function for the primal problem
         """
@@ -70,7 +75,7 @@ class container(object):
             prox_defaults.update(prox_control)
         prox_control = prox_defaults
 
-        yL = lipschitz_P * y
+        yL = lipschitz * y
         if not hasattr(self, 'dualopt'):
 
             self._dual_response = yL
@@ -78,22 +83,22 @@ class container(object):
             initial = np.random.standard_normal(transform.dual_shape)
             nonsmooth_objective = separable_atom.nonsmooth_objective
             prox = separable_atom.proximal
-            self.dualp = composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipschitz_P)
+            self.dualp = composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipschitz)
 
             #Approximate Lipschitz constant
             self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
             self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = prox_control['debug']
 
-        self.dualopt.composite.smooth_multiplier = 1./lipschitz_P
-        self.dualp.lipschitz = self.dual_reference_lipschitz / lipschitz_P
+        self.dualopt.composite.smooth_multiplier = 1./lipschitz
+        self.dualp.lipschitz = self.dual_reference_lipschitz / lipschitz
 
         self._dual_response = yL
         history = self.dualopt.fit(**prox_control)
         if prox_control['return_objective_hist']:
-            return self.primal_from_dual(y, self.dualopt.composite.coefs/lipschitz_P), history
+            return self.primal_from_dual(y, self.dualopt.composite.coefs/lipschitz), history
         else:
-            return self.primal_from_dual(y, self.dualopt.composite.coefs/lipschitz_P)
+            return self.primal_from_dual(y, self.dualopt.composite.coefs/lipschitz)
 
     def primal_from_dual(self, y, u):
         """
