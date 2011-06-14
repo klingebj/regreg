@@ -12,7 +12,7 @@ def test_conjugate():
     y = np.random.standard_normal(10)
 
     for atom_c in [R.l1norm, R.l2norm, 
-                   R.positive_part, R.maxnorm,
+                   R.positive_part, R.supnorm,
                    R.nonnegative, 
                    R.constrained_positive_part,
                    R.nonpositive]:

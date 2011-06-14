@@ -236,7 +236,29 @@ class selector(object):
     """
     Apply an affine transform after applying an
     indexing operation to the array.
+
+    >>> X = np.arange(30).reshape((6,5))
+    >>> offset = np.arange(6)
+    >>> transform = affine_transform(X, offset)
+    >>> apply_to_first5 = selector(slice(0,5), (20,), transform)
+    >>> apply_to_first5.linear_map(np.arange(20))
+    array([ 30,  80, 130, 180, 230, 280])
+    >>> np.dot(X, np.arange(5))
+    array([ 30,  80, 130, 180, 230, 280])
+
+    >>> apply_to_first5.affine_map(np.arange(20))
+    array([ 30,  81, 132, 183, 234, 285])
+    >>> np.dot(X, np.arange(5)) + offset
+    array([ 30,  81, 132, 183, 234, 285])
+
+    >>> apply_to_first5.adjoint_map(np.arange(6))
+
+    array([ 275.,  290.,  305.,  320.,  335.,    0.,    0.,    0.,    0.,
+              0.,    0.,    0.,    0.,    0.,    0.,    0.,    0.,    0.,
+              0.,    0.])
+
     """
+
     def __init__(self, index_obj, initial_shape, affine_transform=None):
         self.index_obj = index_obj
         self.initial_shape = initial_shape
@@ -313,11 +335,18 @@ class normalize(object):
                 self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * value 
             if not self.sparseD and inplace:
                 self.M -= col_means[np.newaxis,:]
-                self.M /= self.invcol_scalings[np.newaxis,:]
+                if self.scale:
+                    self.M /= self.invcol_scalings[np.newaxis,:]
+                    # if scaling has been applied in place, 
+                    # no need to do it again
+                    self.scale = False
         elif self.scale:
             self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) 
             if not self.sparseD and inplace:
                 self.M /= self.invcol_scalings[np.newaxis,:]
+                # if scaling has been applied in place, 
+                # no need to do it again
+                self.scale = False
         self.affine_offset = None
 
     def linear_map(self, x):
