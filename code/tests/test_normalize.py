@@ -136,7 +136,7 @@ def test_centering_fit(debug=False):
     loss = rr.l2normsq.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
-                 rr.nonnegative(5, lagrange=1)]
+                 rr.nonnegative(5)]
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
@@ -208,7 +208,7 @@ def test_scaling_fit(debug=False):
     loss = rr.l2normsq.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
-                 rr.nonnegative(5, lagrange=1)]
+                 rr.nonnegative(5)]
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
@@ -280,7 +280,7 @@ def test_scaling_and_centering_fit(debug=False):
     loss = rr.l2normsq.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
-                 rr.nonnegative(5, lagrange=1)]
+                 rr.nonnegative(5)]
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
@@ -354,7 +354,7 @@ def test_scaling_and_centering_fit_inplace(debug=False):
     loss = rr.l2normsq.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
-                 rr.nonnegative(5, lagrange=1)]
+                 rr.nonnegative(5)]
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
@@ -428,7 +428,7 @@ def test_scaling_fit_inplace(debug=False):
     loss = rr.l2normsq.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
-                 rr.nonnegative(5, lagrange=1)]
+                 rr.nonnegative(5)]
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
@@ -501,7 +501,7 @@ def test_centering_fit_inplace(debug=False):
     loss = rr.l2normsq.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
-                 rr.nonnegative(5, lagrange=1)]
+                 rr.nonnegative(5)]
     groups = [slice(0,25), slice(25,30)]
     penalty = rr.separable((P,), penalties,
                            groups)
