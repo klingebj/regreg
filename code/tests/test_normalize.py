@@ -21,13 +21,22 @@ def test_centering():
     L = rr.normalize(X, center=True, scale=False)
     # coef for loss
 
-    beta = np.random.normal(size=(P,))
-    v = L.linear_map(beta)
-    v2 = np.dot(X, beta)
-    v2 -= v2.mean()
-    v3 = np.dot(X2, beta)
-    np.testing.assert_almost_equal(v, v2)
-    np.testing.assert_almost_equal(v, v3)
+    for _ in range(10):
+        beta = np.random.normal(size=(P,))
+        v = L.linear_map(beta)
+        v2 = np.dot(X, beta)
+        v2 -= v2.mean()
+        v3 = np.dot(X2, beta)
+        v4 = L.affine_map(beta)
+        np.testing.assert_almost_equal(v, v3)
+        np.testing.assert_almost_equal(v, v2)
+        np.testing.assert_almost_equal(v, v4)
+
+        y = np.random.standard_normal(N)
+        u1 = L.adjoint_map(y)
+        y2 = y - y.mean()
+        u2 = np.dot(X.T, y2)
+        np.testing.assert_almost_equal(u1, u2)
 
 def test_scaling():
     """
@@ -50,10 +59,20 @@ def test_scaling():
 
     scalings = np.sqrt((X**2).sum(0) / N)
     scaling_matrix = np.diag(1./scalings)
-    beta = np.random.normal(size=(P,))
-    v = L.linear_map(beta)
-    v2 = np.dot(X, np.dot(scaling_matrix, beta))
-    np.testing.assert_almost_equal(v, v2)
+    
+    for _ in range(10):
+
+        beta = np.random.normal(size=(P,))
+        v = L.linear_map(beta)
+        v2 = np.dot(X, np.dot(scaling_matrix, beta))
+        v3 = L.affine_map(beta)
+        np.testing.assert_almost_equal(v, v2)
+        np.testing.assert_almost_equal(v, v3)
+
+        y = np.random.standard_normal(N)
+        u1 = L.adjoint_map(y)
+        u2 = np.dot(scaling_matrix, np.dot(X.T, y))
+        np.testing.assert_almost_equal(u1, u2)
 
 def test_scaling_and_centering():
     """
@@ -75,11 +94,19 @@ def test_scaling_and_centering():
 
     scalings = np.std(X, 0)
     scaling_matrix = np.diag(1./scalings)
-    beta = np.random.normal(size=(P,))
-    v = L.linear_map(beta)
-    v2 = np.dot(X, np.dot(scaling_matrix, beta))
-    v2 -= v2.mean()
-    np.testing.assert_almost_equal(v, v2)
+
+    for _ in range(10):
+        beta = np.random.normal(size=(P,))
+        v = L.linear_map(beta)
+        v2 = np.dot(X, np.dot(scaling_matrix, beta))
+        v2 -= v2.mean()
+        np.testing.assert_almost_equal(v, v2)
+
+        y = np.random.standard_normal(N)
+        u1 = L.adjoint_map(y)
+        y2 = y - y.mean()
+        u2 = np.dot(scaling_matrix, np.dot(X.T, y2))
+        np.testing.assert_almost_equal(u1, u2)
 
 
 @np.testing.decorators.knownfailureif(True, msg='the intercept coefficient is off here')
@@ -131,6 +158,16 @@ def test_centering_fit(debug=False):
                                   penalty.nonsmooth_objective,
                                   penalty.proximal,
                                   np.random.standard_normal(P))
+
+    for _ in range(10):
+        beta = np.random.standard_normal(P)
+        g1 = loss.smooth_objective(beta, mode='grad')
+        g2 = loss2.smooth_objective(beta, mode='grad')
+        np.testing.assert_almost_equal(g1, g2)
+        b1 = penalty.proximal(beta - g1)
+        b2 = penalty.proximal(beta - g2)
+        np.testing.assert_almost_equal(b1, b2)
+
     solver2 = rr.FISTA(composite_form2)
     solver2.debug = debug
     solver2.fit(tol=1.0e-12, min_its=200)
@@ -183,6 +220,16 @@ def test_scaling_fit(debug=False):
 
     # Solve the problem with X2
     loss2 = rr.l2normsq.affine(X2, -Y, coef=coef)
+
+
+    for _ in range(10):
+        beta = np.random.standard_normal(P)
+        g1 = loss.smooth_objective(beta, mode='grad')
+        g2 = loss2.smooth_objective(beta, mode='grad')
+        np.testing.assert_almost_equal(g1, g2)
+        b1 = penalty.proximal(beta - g1)
+        b2 = penalty.proximal(beta - g2)
+        np.testing.assert_almost_equal(b1, b2)
 
     composite_form2 = rr.composite(loss2.smooth_objective,
                                   penalty.nonsmooth_objective,
@@ -238,6 +285,15 @@ def test_scaling_and_centering_fit(debug=False):
 
     # Solve the problem with X2
     loss2 = rr.l2normsq.affine(X2, -Y, coef=coef)
+
+    for _ in range(10):
+        beta = np.random.standard_normal(P)
+        g1 = loss.smooth_objective(beta, mode='grad')
+        g2 = loss2.smooth_objective(beta, mode='grad')
+        np.testing.assert_almost_equal(g1, g2)
+        b1 = penalty.proximal(beta - g1)
+        b2 = penalty.proximal(beta - g2)
+        np.testing.assert_almost_equal(b1, b2)
 
     composite_form2 = rr.composite(loss2.smooth_objective,
                                   penalty.nonsmooth_objective,
