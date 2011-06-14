@@ -273,7 +273,8 @@ class atom(nonsmooth):
                                                               
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
-               bound=None, linear_term=None, offset=None):
+               bound=None, args=(), keywords=None,
+               linear_term=None, offset=None):
         """
         Args and keywords passed to cls constructor along with
         l and primal_shape
