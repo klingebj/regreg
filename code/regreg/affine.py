@@ -424,25 +424,25 @@ class stack(object):
         self.dual_groups = self.group_dtype.names 
 
     def linear_map(self, x):
-        result = np.empty(self.total_dual)
+        result = np.empty(self.dual_shape)
         for g, t in zip(self.dual_slices, self.transforms):
-            result[g] = t.linear_map(x).reshape
+            result[g] = t.linear_map(x)
         return result
 
     def affine_map(self, x):
-        result = np.empty(self.total_dual)
+        result = np.empty(self.dual_shape)
         for g, t in zip(self.dual_slices, self.transforms):
             result[g] = t.affine_map(x)
         return result
 
     def adjoint_map(self, u):
         result = np.zeros(self.primal_shape)
-        for g, t, s in zip(self.dual_groups, self.transforms,
+        for g, t, s in zip(self.dual_slices, self.transforms,
                         self.dual_shapes):
             result += t.adjoint_map(u[g].reshape(s))
         return result
 
-def power_LD(transform, max_its=500,tol=1e-8, debug=False):
+def power_L(transform, max_its=500,tol=1e-8, debug=False):
     """
     Approximate the largest singular value (squared) of the linear part of
     a transform using power iterations

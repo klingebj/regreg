@@ -41,6 +41,7 @@ solver = R.FISTA(problem.conjugate_composite())
 solver.fit(max_its=200, tol=1e-08)
 conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.composite.coefs)
 
+pylab.scatter(np.arange(Y.shape[0]), Y)
 pylab.plot(solution, c='y', linewidth=7)	
 pylab.plot(constrained_solution, c='r', linewidth=5)
 pylab.plot(conjugate_coefs, c='black', linewidth=3)	

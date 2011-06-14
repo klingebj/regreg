@@ -2,7 +2,7 @@ import numpy as np
 from scipy import sparse
 from algorithms import FISTA
 from composite import composite
-from affine import stack as afstack, identity as afidentity
+from affine import stack as afstack, identity as afidentity, power_L
 from separable import separable
 from conjugate import conjugate
 
@@ -44,52 +44,15 @@ class container(object):
                           transform.dual_slices)
         return transform, nonsm
 
-    def evaluate_dual_atoms(self, u, check_feasibility=False):
-        out = 0.
-        # XXX dtype manipulations -- would be nice not to have to do this
-        u = u.view(self.dual_dtype).reshape(())
-        for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
-            transform, atom = dual_atom
-            out += atom.nonsmooth_objective(u[segment],
-                                            check_feasibility=check_feasibility)
-        return out
-
-    def evaluate_primal_atoms(self, x, check_feasibility=False):
+    def nonsmooth_objective(self, x, check_feasibility=False):
         out = 0.
         for atom in self.atoms:
             out += atom.nonsmooth_objective(x,
                                             check_feasibility=check_feasibility)
         return out
-    
-    def dual_prox(self, u, lipschitz_D=1.):
-        """
-        Return (unique) minimizer
-
-        .. math::
-
-           v^{\lambda}(u) = \text{argmin}_{v \in \real^m} \frac{1}{2}
-           \|v-u\|^2_2  s.t.  h^*_i(v) \leq \infty, 0 \leq i \leq M-1
-
-        where *m*=u.shape[0]=np.sum(self.dual_dims), :math:`M`=self.M
-        and :math:`h^*_i` is the conjugate of 
-        self.atoms[i].lagrange * self.atoms[i].evaluate and 
-        :math:`\lambda_i`=self.atoms[i].lagrange
-
-        This is used in the ISTA/FISTA solver loop with :math:`u=z-g/L` when finding
-        self.primal_prox, i.e., the signal approximator problem.
-        """
-        # XXX dtype manipulations -- would be nice not to have to do this
-
-        v = np.empty((), self.dual_dtype)
-        u = u.view(self.dual_dtype).reshape(())
-        for dual_atom, segment in zip(self.dual_atoms, self.dual_segments):
-            transform, atom = dual_atom
-            v[segment] = atom.proximal(u[segment], lipschitz_D)
-        return v.reshape((1,)).view(np.float)
 
     default_solver = FISTA
-    def primal_prox(self, y, lipschitz_P=1, prox_control=None):
-        #def primal_prox(self, y, lipschitz_P=1, with_history=False, debug=False, max_its=5000, tol=1e-14):
+    def proximal(self, y, lipschitz_P=1, prox_control=None):
         """
         The proximal function for the primal problem
         """
@@ -109,7 +72,8 @@ class container(object):
         if not hasattr(self, 'dualopt'):
             self.dualp = self.dual_composite(yL, lipschitz_P=lipschitz_P)
             #Approximate Lipschitz constant
-            self.dual_reference_lipschitz = 1.05*power_LD(blah, debug=prox_control['debug'])
+            transform, _ = self.dual
+            self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
             self.dualopt = container.default_solver(self.dualp)
             self.dualopt.debug = prox_control['debug']
 
@@ -140,16 +104,11 @@ class container(object):
         prox problem with a given y value.
         """
         self._dual_prox_center = y
+        transform, separable_atom = self.dual
         if initial is None:
-            z = np.random.standard_normal(self.dual_dtype)
-            for segment in self.dual_segments:
-                z[segment] += np.random.standard_normal(z[segment].shape)
-
-            # XXX dtype manipulations -- would be nice not to have to do this
-            z = z.reshape((1,)).view(np.float)
-            initial = self.dual_prox(z, 1./lipschitz_P)
-        nonsmooth_objective = self.evaluate_dual_atoms
-        prox = self.dual_prox
+            initial = np.random.standard_normal(transform.dual_shape)
+        nonsmooth_objective = separable_atom.nonsmooth_objective
+        prox = separable_atom.proximal
         return composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipschitz_P)
 
     def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
@@ -239,18 +198,12 @@ class container(object):
             self.conjugate = conjugate(self.loss, tol=conjugate_tol,
                                        epsilon=epsilon)
 
-        prox = self.dual_prox
-        nonsmooth_objective = self.evaluate_dual_atoms
+        transform, separable_atom = self.dual
+        prox = separable_atom.proximal
+        nonsmooth_objective = separable_atom.nonsmooth_objective
 
         if initial is None:
-            z = np.zeros((), self.dual_dtype)
-            for segment in self.dual_segments:
-                z[segment] += np.random.standard_normal(z[segment].shape)
-
-            # XXX dtype manipulations -- would be nice not to have to do this
-            z = z.reshape((1,)).view(np.float)
-            initial = self.dual_prox(z, 1.)
-
+            initial = np.random.standard_normal(transform.dual_shape)
         return composite(self.conjugate_smooth_objective, nonsmooth_objective, prox, initial, smooth_multiplier)
         
 
@@ -261,8 +214,8 @@ class container(object):
 
         if initial is None:
             initial = np.random.standard_normal(self.atoms[0].primal_shape)
-        prox = self.primal_prox
-        nonsmooth_objective = self.evaluate_primal_atoms
+        prox = self.proximal
+        nonsmooth_objective = self.nonsmooth_objective
         
         return composite(self.loss.smooth_objective, nonsmooth_objective, prox, initial, smooth_multiplier)
 
