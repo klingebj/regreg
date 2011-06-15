@@ -85,6 +85,8 @@ class smooth_atom(smooth_composite):
         self.constant_term = constant_term
         self.primal_shape = primal_shape
         self.coef = coef
+        if coef < 0:
+            raise ValueError('coefs must be nonnegative to ensure convexity (assuming all atoms are indeed convex)')
         self.coefs = np.zeros(self.primal_shape)
         raise NotImplementedError
 
