@@ -36,6 +36,7 @@ Let's generate some data appropriate for this problem.
    Y = 2 * np.random.binomial(1, 0.5, size=(N,)) - 1.
    X = np.random.standard_normal((N,P))
    X[Y==1] += np.array([3,-2])[np.newaxis,:]
+   X -= X.mean(0)[np.newaxis,:]
 
 We now specify the hinge loss part of the problem
 
@@ -94,6 +95,7 @@ Let's generate a bigger dataset
    Y = 2 * np.random.binomial(1, 0.5, size=(N,)) - 1.
    X = np.random.standard_normal((N,P))
    X[Y==1] += np.array([30,-20] + (P-2)*[0])[np.newaxis,:]
+   X -= X.mean(0)[np.newaxis,:]
 
 The hinge loss is defined similarly, and we only need to add a sparsity penalty
 
@@ -144,7 +146,8 @@ The hinge loss is defined similarly, and we only need to add a sparsity penalty
    C = 0.2
    hinge = rr.positive_part(N, lagrange=C)
    hinge_loss = rr.linear_atom(hinge, transform)
-   smoothed_hinge_loss = rr.smoothed_atom(hinge_loss)
+   epsilon = 0.04
+   smoothed_hinge_loss = rr.smoothed_atom(hinge_loss, epsilon=epsilon)
 
 
    s = rr.selector(slice(0,P), (P+1,))
@@ -161,7 +164,7 @@ constant. We'll first get a bound on the largest squared singular value of X
    # the other smooth piece is a quadratic with identity
    # for quadratic form, so its lipschitz constant is 1
 
-   lipschitz = 1.05 * singular_value_sq + 1
+   lipschitz = 1.05 * singular_value_sq / epsilon + 1
 
 Now, we can solve the problem without having to backtrack.
 

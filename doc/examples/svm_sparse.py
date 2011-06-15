@@ -9,7 +9,7 @@ P = 200
 Y = 2 * np.random.binomial(1, 0.5, size=(N,)) - 1.
 X = np.random.standard_normal((N,P))
 X[Y==1] += np.array([30,-20] + (P-2)*[0])[np.newaxis,:]
-
+X -= X.mean(0)[np.newaxis,:]
 
 X_1 = np.hstack([X, np.ones((N,1))])
 transform = rr.affine_transform(-Y[:,np.newaxis] * X_1, np.ones(N))
