@@ -257,9 +257,20 @@ class logistic_loglikelihood(smooth_atom):
     A class for combining the logistic log-likelihood with a general seminorm
     """
 
-    def __init__(self, linear_operator, binary_response, offset=None, coef=1):
+    def __init__(self, linear_operator, successes, trials=None, offset=None, coef=1):
         self.affine_transform = affine_transform(linear_operator, offset)
-        self.binary_response = binary_response
+        if trials is None:
+            if not set([0,1]).issuperset(np.unique(successes)):
+                raise ValueError("Number of successes is not binary - must specify number of trials")
+            self.trials = np.ones(successes.shape)
+        else:
+            if np.min(trials-successes) < 0:
+                raise ValueError("Number of successes greater than number of trials")
+            if np.min(successes) < 0:
+                raise ValueError("Response coded as negative number - should be non-negative number of successes")
+            self.trials = trials
+        self.successes = successes
+        
         self.primal_shape = self.affine_transform.primal_shape
         self.coef = coef
 
@@ -275,13 +286,13 @@ class logistic_loglikelihood(smooth_atom):
         yhat = self.affine_transform.linear_map(x)
         exp_yhat = np.exp(yhat)
         if mode == 'both':
-            ratio = exp_yhat/(1.+exp_yhat)
-            return -2 * self.scale((np.dot(self.binary_response,yhat) - np.sum(np.log(1+exp_yhat)))), -2 * self.scale(self.affine_transform.adjoint_map(self.binary_response-ratio))
+            ratio = self.trials * exp_yhat/(1.+exp_yhat)
+            return -2 * self.scale((np.dot(self.successes,yhat) - np.sum(self.trials*np.log(1+exp_yhat)))), -2 * self.scale(self.affine_transform.adjoint_map(self.successes-ratio))
         elif mode == 'grad':
-            ratio = exp_yhat/(1.+exp_yhat)
-            return - 2 * self.scale(self.affine_transform.adjoint_map(self.binary_response-ratio))
+            ratio = self.trials * exp_yhat/(1.+exp_yhat)
+            return - 2 * self.scale(self.affine_transform.adjoint_map(self.successes-ratio))
         elif mode == 'func':
-            return -2 * self.scale(np.dot(self.binary_response,yhat) - np.sum(np.log(1+exp_yhat)))
+            return -2 * self.scale(np.dot(self.successes,yhat) - np.sum(self.trials*np.log(1+exp_yhat)))
         else:
             raise ValueError("mode incorrectly specified")
 
