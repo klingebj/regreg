@@ -148,25 +148,41 @@ class atom(nonsmooth):
             self._linear_transform = identity_transform(self.primal_shape)
         return self._linear_transform
     
-    def seminorm(self, x, check_feasibility=False):
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
         """
         Return :math:`\lambda \cdot %(objective)s`, where
-        :math:`\lambda` is self.lagrange. If check_feasibility
+        :math:`\lambda` is lagrange. If check_feasibility
         is True, and seminorm is unbounded, will return np.inf
         if appropriate.
-        """
-        raise NotImplementedError
 
-    def constraint(self, x):
+        The class atom's seminorm just returns the appropriate lagrange
+        parameter for use by the subclasses.
+        """
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
+        return lagrange
+
+    def constraint(self, x, bound=None):
         """
         Verify :math:`\cdot %(objective)s \leq \lambda`, where
-        :math:`\lambda` is self.bound,
+        :math:`\lambda` is bound,
         :math:`\alpha` is self.offset (if any). 
 
         If True, returns 0,
         else returns np.inf.
+
+        The class atom's constraint just returns the appropriate bound
+        parameter for use by the subclasses.
+
         """
-        raise NotImplementedError
+        if bound is None:
+            bound = self.bound
+        if bound is None:
+            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
+        return bound
+
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         if self.offset is not None:
@@ -319,12 +335,16 @@ class l1norm(atom):
     _doc_dict = copy(atom._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
-    def seminorm(self, x, check_feasibility=False):
-        return self.lagrange * np.fabs(x).sum()
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
+        lagrange = atom.seminorm(self, x, 
+                                 check_feasibility=check_feasibility, 
+                                 lagrange=lagrange)
+        return lagrange * np.fabs(x).sum()
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, x):
-        inbox = np.fabs(x).sum() <= self.bound * (1 + self.tol)
+    def constraint(self, x, bound=None):
+        bound = atom.constraint(self, x, bound=bound)
+        inbox = np.fabs(x).sum() <= bound * (1 + self.tol)
         if inbox:
             return 0
         else:
@@ -352,12 +372,16 @@ class supnorm(atom):
     _doc_dict['objective'] = objective_template % {'var': r'\beta + \alpha'}
 
 
-    def seminorm(self, x, check_feasibility=False):
-        return self.lagrange * np.fabs(x).max()
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
+        lagrange = atom.seminorm(self, x, 
+                                 check_feasibility=check_feasibility, 
+                                 lagrange=lagrange)
+        return lagrange * np.fabs(x).max()
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, x):
-        inbox = np.product(np.less_equal(np.fabs(x), self.bound * (1+self.tol)))
+    def constraint(self, x, bound=None):
+        bound = atom.constraint(self, x, bound=bound)
+        inbox = np.product(np.less_equal(np.fabs(x), bound * (1+self.tol)))
         if inbox:
             return 0
         else:
@@ -386,18 +410,20 @@ class l2norm(atom):
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
 
-    def seminorm(self, x, check_feasibility=False):
-        return self.lagrange * np.linalg.norm(x)
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
+        lagrange = atom.seminorm(self, x, 
+                                 check_feasibility=check_feasibility, 
+                                 lagrange=lagrange)
+        return lagrange * np.linalg.norm(x)
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, x):
-        inball = (np.linalg.norm(x) <= self.bound * (1 + self.tol))
+    def constraint(self, x, bound=None):
+        bound = atom.constraint(self, x, bound=bound)
+        inball = (np.linalg.norm(x) <= bound * (1 + self.tol))
         if inball:
             return 0
         else:
             return np.inf
-    def seminorm(self, x, check_feasibility=False):
-        return self.lagrange * np.linalg.norm(x)
     constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
@@ -432,12 +458,16 @@ class positive_part(atom):
                                                    'shape':_doc_dict['shape']}
 
 
-    def seminorm(self, x, check_feasibility=False):
-        return self.lagrange * np.maximum(x, 0).sum()
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
+        lagrange = atom.seminorm(self, x, 
+                                 check_feasibility=check_feasibility, 
+                                 lagrange=lagrange)
+        return lagrange * np.maximum(x, 0).sum()
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, x):
-        inside = np.maximum(x, 0).sum() <= self.bound * (1 + self.tol)
+    def constraint(self, x, bound=None):
+        bound = atom.constraint(self, x, bound=bound)
+        inside = np.maximum(x, 0).sum() <= bound * (1 + self.tol)
         if inside:
             return 0
         else:
@@ -475,17 +505,21 @@ class constrained_max(atom):
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha',
                                                    'shape':_doc_dict['shape']}
 
-    def seminorm(self, x, check_feasibility=False):
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
+        lagrange = atom.seminorm(self, x, 
+                                 check_feasibility=check_feasibility, 
+                                 lagrange=lagrange)
         anyneg = np.any(x < 0 + self.tol)
-        v = self.lagrange * np.max(x)
+        v = lagrange * np.max(x)
         if not anyneg or not check_feasibility:
             return v
         return np.inf
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, x):
+    def constraint(self, x, bound=None):
+        bound = atom.constraint(self, x, bound=bound)
         anyneg = np.any(x < 0 + self.tol)
-        inside = np.max(x) <= self.bound * (1 + self.tol)
+        inside = np.max(x) <= bound * (1 + self.tol)
         if inside and not anyneg:
             return 0
         else:
@@ -519,18 +553,22 @@ class constrained_positive_part(atom):
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha',
                                                    'shape':_doc_dict['shape']}
 
-    def seminorm(self, x, check_feasibility=False):
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
+        lagrange = atom.seminorm(self, x, 
+                                 check_feasibility=check_feasibility, 
+                                 lagrange=lagrange)
         anyneg = np.any(x < 0 + self.tol)
         v = np.maximum(x, 0).sum()
         if not anyneg or not check_feasibility:
-            return v * self.lagrange
+            return v * lagrange
         return np.inf
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, x):
+    def constraint(self, x, bound=None):
+        bound = atom.constraint(self, x, bound=bound)
         anyneg = np.any(x < 0 + self.tol)
         v = np.maximum(x, 0).sum()
-        if anyneg or v >= self.bound * (1 + self.tol):
+        if anyneg or v >= bound * (1 + self.tol):
             return np.inf
         return 0
     constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
@@ -567,13 +605,17 @@ class max_positive_part(atom):
     _doc_dict = copy(atom._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
-    def seminorm(self, x, check_feasibility=False):
-        return np.max(np.maximum(x,0)) * self.lagrange
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
+        lagrange = atom.seminorm(self, x, 
+                                 check_feasibility=check_feasibility, 
+                                 lagrange=lagrange)
+        return np.max(np.maximum(x,0)) * lagrange
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, x):
+    def constraint(self, x, bound=None):
+        bound = atom.constraint(self, x, bound=bound)
         v = np.max(np.maximum(x,0))
-        if v >= self.bound * (1 + self.tol):
+        if v >= bound * (1 + self.tol):
             return np.inf
         return 0
     constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
@@ -593,7 +635,6 @@ class max_positive_part(atom):
             v[pos] = projl1(v[pos], lagrange / lipschitz)
         return x-v.reshape(x.shape)
     lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
-
 
 class affine_atom(object):
 

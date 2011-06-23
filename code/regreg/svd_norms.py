@@ -1,11 +1,12 @@
+"""
+This module contains the implementation operator and nuclear norms, used in 
+matrix completion problems and other low-rank factorization
+problems.
+
+"""
 from md5 import md5
-
 import numpy as np
-from scipy import sparse
-
 from projl1 import projl1
-from copy import copy
-
 from atoms import atom, conjugate_seminorm_pairs
 
 class svd_atom(atom):
@@ -122,20 +123,24 @@ class nuclear_norm(matrix_atom):
     _doc_dict = copy(matrix_atom._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'X + A'}
 
-    def seminorm(self, X, check_feasibility=False):
+    def seminorm(self, X, check_feasibility=False,
+                 lagrange=None):
         # This will compute an svd of X
         # if the md5 hash of X doesn't match.
+        lagrange = atom.seminorm(self, X, lagrange=lagrange,
+                                 check_feasibility=check_feasibility)
         self.X = X
         _, D, _ = self.SVD
         return self.lagrange * np.sum(D)
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, X):
+    def constraint(self, X, bound=None):
         # This will compute an svd of X
         # if the md5 hash of X doesn't match.
+        bound = atom.constraint(self, X, bound=bound)
         self.X = X
         _, D, _ = self.SVD
-        inbox = np.sum(D) <= self.bound * (1 + self.tol)
+        inbox = np.sum(D) <= bound * (1 + self.tol)
         if inbox:
             return 0
         else:
@@ -181,17 +186,20 @@ class operator_norm(matrix_atom):
     _doc_dict = copy(matrix_atom._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'X + A'}
 
-    def seminorm(self, X, check_feasibility=False):
+    def seminorm(self, X, lagrange=None, check_feasibility=False):
         # This will compute an svd of X
         # if the md5 hash of X doesn't match.
+        lagrange = atom.seminorm(self, X, lagrange=lagrange,
+                                 check_feasibility=check_feasibility)
         self.X = X
         _, D, _ = self.SVD
         return self.lagrange * np.max(D)
     seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
-    def constraint(self, X):
+    def constraint(self, X, bound=None):
         # This will compute an svd of X
         # if the md5 hash of X doesn't match.
+        bound = atom.constraint(self, X, bound=bound)
         self.X = X
         _, D, _ = self.SVD
         inbox = np.max(D) <= self.bound * (1 + self.tol)
