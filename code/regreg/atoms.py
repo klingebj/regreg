@@ -82,8 +82,7 @@ class atom(nonsmooth):
                  str(self.offset),
                  self.constant_term)
     
-    @property
-    def conjugate(self):
+    def get_conjugate(self):
         if not hasattr(self, "_conjugate"):
             if self.offset is not None:
                 linear_term = -self.offset
@@ -116,6 +115,7 @@ class atom(nonsmooth):
             self._conjugate = atom
             self._conjugate._conjugate = self
         return self._conjugate
+    conjugate = property(get_conjugate)
     
     def get_lagrange(self):
         return self._lagrange
@@ -230,13 +230,19 @@ class atom(nonsmooth):
         else:
             return eta - offset
 
+    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
+                 'constant':r' + \tau',
+                 'objective': '',
+                 'shape':'p',
+                 'var':r'x'}
+
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         r"""
         Return unique minimizer
 
         .. math::
 
-           %(var)s^{\lambda}(x) =
+           %(var)s^{\lambda}(u) =
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
            \frac{L}{2}
            \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
@@ -260,19 +266,13 @@ class atom(nonsmooth):
             raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
         return lagrange
 
-    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
-
     def bound_prox(self, x, lipschitz=1, bound=None):
         r"""
         Return unique minimizer
 
         .. math::
 
-           %(var)s^{\lambda}(x) \in 
+           %(var)s^{\lambda}(u) \in 
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
            \frac{L}{2}
            \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
