@@ -14,8 +14,34 @@ ctypedef np.int_t DTYPE_int_t
 
 #TODO: Add some documentation to this!
 
+
 def projl1(np.ndarray[DTYPE_float_t, ndim=1]  x, 
            DTYPE_float_t bound=1.):
+
+    cdef np.ndarray[DTYPE_float_t, ndim=1] sorted_x = np.sort(np.fabs(x))
+    cdef int p = x.shape[0]
+    
+    cdef double csum = 0.
+    cdef double next, cut
+    cdef int i, stop
+    for i in range(p):
+        next = sorted_x[p-i-1]
+        csum += next
+        stop = (csum - (i+1)*next) > bound
+        if stop:
+            break
+    if stop:
+        cut = next + (csum - (i+1)*next - bound)/(i)
+        return soft_threshold(x,cut)
+    else:
+        return x
+
+                                                            
+
+def projl1_2(np.ndarray[DTYPE_float_t, ndim=1]  x, 
+             DTYPE_float_t bound=1.):
+
+
 
     cdef int p = x.shape[0]
     cdef np.ndarray[DTYPE_int_t, ndim=2] U = np.empty((3,p),dtype=int)
@@ -23,6 +49,7 @@ def projl1(np.ndarray[DTYPE_float_t, ndim=1]  x,
     cdef int Urow = 0
     cdef DTYPE_float_t s = 0
     cdef DTYPE_float_t rho = 0
+
 
     cdef int u, k, i, kind, Grow, Lrow, Gcol, Lcol, first
     cdef DTYPE_float_t xu, xk, ds, drho, eta

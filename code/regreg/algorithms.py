@@ -128,7 +128,7 @@ class FISTA(algorithm):
 
                     trial_f = self.composite.smooth_objective(beta,mode='func')
 
-                    if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
+                    if np.fabs(trial_f - current_f)/np.max([1.,np.fabs(trial_f)]) > 1e-10:
                         stop = trial_f <= current_f + np.dot(beta-r,grad) + 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     else:
                         trial_grad = self.composite.smooth_objective(beta,mode='grad')
@@ -151,7 +151,8 @@ class FISTA(algorithm):
             trial_obj = trial_f + self.composite.nonsmooth_objective(beta)
 
             obj_change = np.fabs(trial_obj - current_obj)
-            obj_rel_change = obj_change/np.fabs(max(min(current_obj, trial_obj),0))
+            #obj_rel_change = obj_change/np.fabs(max(min(current_obj, trial_obj),0))
+            obj_rel_change = obj_change/np.max([np.fabs(current_obj),1.])
             if coef_stop:
                 coef_rel_change = np.linalg.norm(self.composite.coefs - beta) / np.max([1.,np.linalg.norm(beta)])
 
@@ -184,12 +185,12 @@ class FISTA(algorithm):
                 t_new = 1.
                 r = beta
 
-            if itercount > 1 and current_obj < trial_obj and obj_rel_change > 1e-12 and current_obj > 1e-12 and monotonicity_restart:
+            if itercount > 1 and current_obj < trial_obj and obj_rel_change > 1e-10 and monotonicity_restart:
                 #Adaptive restarting: restart if monotonicity violated
                 if self.debug:
                     print "\tRestarting", current_obj, trial_obj
 
-                if not set_prox_control and t_old == 1.:
+                if t_old == 1.:
                     #Gradient step didn't decrease objective: tolerance composites or incorrect prox op... time to give up?
                     if self.debug:
                         print "Badstep: current: %f, proposed %f" % (current_obj, trial_obj)
