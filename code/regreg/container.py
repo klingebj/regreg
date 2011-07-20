@@ -3,7 +3,7 @@ from scipy import sparse
 from algorithms import FISTA
 from composite import (composite, nonsmooth as nonsmooth_composite,
                        smooth as smooth_composite)
-from affine import (stack as afstack, identity as afidentity, power_L,
+from affine import (vstack as afvstack, identity as afidentity, power_L,
                     selector as afselector)
 from separable import separable
 #from conjugate import conjugate
@@ -45,7 +45,7 @@ class container(composite):
                     t, a = atom.dual
                     transforms.append(t)
                     dual_atoms.append(a)
-                transform = afstack(transforms)
+                transform = afvstack(transforms)
                 nonsm = separable(transform.dual_shape, dual_atoms,
                                   transform.dual_slices)
                 self._dual = transform, nonsm

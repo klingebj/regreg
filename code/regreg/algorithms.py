@@ -129,10 +129,10 @@ class FISTA(algorithm):
                     trial_f = self.composite.smooth_objective(beta,mode='func')
 
                     if np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
-                        stop = trial_f <= current_f + np.sum((beta-r)*grad) + 0.5*self.inv_step*np.linalg.norm(beta-r)**2
+                        stop = trial_f <= current_f + np.dot((beta-r).reshape(-1),grad.reshape(-1)) + 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     else:
                         trial_grad = self.composite.smooth_objective(beta,mode='grad')
-                        stop = np.fabs(np.sum((beta-r)*(grad-trial_grad))) <= 0.5*self.inv_step*np.linalg.norm(beta-r)**2
+                        stop = np.fabs(np.dot((beta-r).reshape(-1),(grad-trial_grad).reshape(-1))) <= 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     if not stop:
                         self.inv_step *= alpha
                         if self.debug:

@@ -393,9 +393,9 @@ class identity(object):
     def adjoint_map(self, x, copy=True):
         return self.linear_map(x, copy)
 
-class stack(object):
+class vstack(object):
     """
-    Stack several affine transforms together though
+    Stack several affine transforms vertically together though
     not necessarily as a big matrix.
    
     """
@@ -407,6 +407,7 @@ class stack(object):
         self.dual_slices = []
         total_dual = 0
         for transform in transforms:
+            transform = astransform(transform)
             if self.primal_shape == -1:
                 self.primal_shape = transform.primal_shape
             else:
@@ -423,6 +424,14 @@ class stack(object):
                                      for i, shape in enumerate(self.dual_shapes)])
         self.dual_groups = self.group_dtype.names 
 
+        # figure out the affine offset
+        self.affine_offset = np.empty(self.dual_shape)
+        x = np.zeros(self.primal_shape)
+        for g, t in zip(self.dual_slices, self.transforms):
+            self.affine_offset[g] = t.affine_map(x)
+        if np.all(np.equal(self.affine_offset, 0)):
+            self.affine_offset = None
+            
     def linear_map(self, x):
         result = np.empty(self.dual_shape)
         for g, t in zip(self.dual_slices, self.transforms):
@@ -432,14 +441,83 @@ class stack(object):
     def affine_map(self, x):
         result = np.empty(self.dual_shape)
         for g, t in zip(self.dual_slices, self.transforms):
-            result[g] = t.affine_map(x)
-        return result
+            result[g] = t.linear_map(x)
+        if self.affine_offset is not None:
+            return result + self.affine_offset
+        else:
+            return result
 
     def adjoint_map(self, u):
         result = np.zeros(self.primal_shape)
         for g, t, s in zip(self.dual_slices, self.transforms,
-                        self.dual_shapes):
+                           self.dual_shapes):
             result += t.adjoint_map(u[g].reshape(s))
+        return result
+
+class hstack(object):
+    """
+    Stack several affine transforms horizontally together though
+    not necessarily as a big matrix.
+   
+    """
+
+    def __init__(self, transforms):
+        self.dual_shape = -1
+        self.primal_shapes = []
+        self.transforms = []
+        self.primal_slices = []
+        total_primal = 0
+        for transform in transforms:
+            transform = astransform(transform)
+            if self.dual_shape == -1:
+                self.dual_shape = transform.dual_shape
+            else:
+                if transform.dual_shape != self.dual_shape:
+                    raise ValueError("dual dimensions don't agree")
+            self.transforms.append(transform)
+            self.primal_shapes.append(transform.primal_shape)
+            increment = np.product(transform.primal_shape)
+            self.primal_slices.append(slice(total_primal, total_primal + increment))
+            total_primal += increment
+
+        self.primal_shape = (total_primal,)
+        self.group_dtype = np.dtype([('group_%d' % i, np.float, shape) 
+                                     for i, shape in enumerate(self.primal_shapes)])
+        self.primal_groups = self.group_dtype.names 
+
+        # figure out the affine offset
+        self.affine_offset = np.zeros(self.dual_shape)
+        for g, s, t in zip(self.primal_slices, self.primal_shapes,
+                           self.transforms):
+            self.affine_offset += t.affine_map(np.zeros(s))
+        if np.all(np.equal(self.affine_offset, 0)):
+            self.affine_offset = None
+
+    def linear_map(self, x):
+        result = np.zeros(self.dual_shape)
+        for g, t, s in zip(self.primal_slices, self.transforms,
+                           self.primal_shapes):
+            result += t.linear_map(x[g].reshape(s))
+        return result
+
+    def affine_map(self, x):
+        result = np.zeros(self.dual_shape)
+        for g, t, s in zip(self.primal_slices, self.transforms,
+                        self.primal_shapes):
+            result += t.linear_map(x[g].reshape(s))
+        if self.affine_offset is not None:
+            return result + self.affine_offset
+        else:
+            return result
+
+    def adjoint_map(self, u):
+        result = np.empty(self.primal_shape)
+        #XXX this reshaping will fail for shapes that aren't
+        # 1D, would have to view as self.group_dtype to
+        # take advantange of different shapes
+        for g, t, s in zip(self.primal_slices, self.transforms,
+                           self.primal_shapes):
+            result[g] = t.adjoint_map(u).reshape(-1)
         return result
 
 def power_L(transform, max_its=500,tol=1e-8, debug=False):
@@ -463,3 +541,9 @@ def power_L(transform, max_its=500,tol=1e-8, debug=False):
             print "L", norm
         itercount += 1
     return norm
+
+def astransform(X):
+    if isinstance(X, affine_transform):
+        return X
+    else:
+        return linear_transform(X)
