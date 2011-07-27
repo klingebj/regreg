@@ -8,7 +8,7 @@ from copy import copy
 class cone(nonsmooth):
 
     """
-    A class that defines the API for support functions.
+    A class that defines the API for cone constraints.
     """
     tol = 1.0e-05
 
@@ -244,7 +244,7 @@ class nonnegative(cone):
         .. math::
 
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  (v)_i \geq 0.
+            \|x-v\|^2_2 \ \text{s.t.} \  v_i \geq 0.
 
         where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
         This is just a element-wise
@@ -296,65 +296,6 @@ class nonpositive(nonnegative):
         return np.minimum(x, 0)
 
 
-class projection(cone):
-
-    """
-    An atom representing a linear constraint.
-    It is specified via a matrix that is assumed
-    to be an set of row vectors spanning the space.
-    """
-
-    #XXX this is broken currently
-    def __init__(self, primal_shape, basis):
-        self.basis = basis
-
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2  \; \text{ s.t.} \; x \in \text{row}(L)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange 
-        and :math:`L` = self.basis.
-
-        This is just projection onto :math:`\text{row}(L)`.
-
-        """
-        coefs = np.dot(self.basis, x)
-        return np.dot(coefs, self.basis)
-
-class projection_complement(cone):
-
-    """
-    An atom representing a linear constraint.
-    The orthogonal complement of projection
-    """
-
-    #XXX this is broken currently
-    def __init__(self, primal_shape, basis):
-        self.basis = basis
-
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2  \; \text{ s.t.} \; x \in \text{row}(L)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange 
-        and :math:`L` = self.basis.
-
-        This is just projection onto :math:`\text{row}(L)`.
-
-        """
-        coefs = np.dot(self.basis, x)
-        return x - np.dot(coefs, self.basis)
-
 class zero(cone):
     """
     The zero seminorm, support function of :math:\{0\}
@@ -382,8 +323,7 @@ class zero_constraint(cone):
 
 conjugate_cone_pairs = {}
 for n1, n2 in [(nonnegative,nonpositive),
-               (zero, zero_constraint),
-               #(projection, projection_complement),
+               (zero, zero_constraint)
                ]:
     conjugate_cone_pairs[n1] = n2
     conjugate_cone_pairs[n2] = n1
