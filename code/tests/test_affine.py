@@ -76,6 +76,30 @@ def test_composition():
     assert_array_equal(comp.adjoint_map(w), np.dot(X2.T, np.dot(X1.T, w)))
     assert_array_equal(comp.affine_map(z), np.dot(X1, np.dot(X2, z)+b2)+b1)
 
+def test_composition2():
+    X1 = np.random.standard_normal((20,30))
+    X2 = np.random.standard_normal((30,10))
+    X3 = np.random.standard_normal((10,20))
+
+    b1 = np.random.standard_normal(20)
+    b2 = np.random.standard_normal(30)
+    b3 = np.random.standard_normal(10)
+
+    L1 = affine_transform(X1, b1)
+    L2 = affine_transform(X2, b2)
+    L3 = affine_transform(X3, b3)
+
+    z = np.random.standard_normal(20)
+    w = np.random.standard_normal(20)
+    comp = composition(L1,L2,L3)
+
+    assert_array_equal(comp.linear_map(z), 
+                       np.dot(X1, np.dot(X2, np.dot(X3, z))))
+    assert_array_equal(comp.adjoint_map(w), 
+                       np.dot(X3.T, np.dot(X2.T, np.dot(X1.T, w))))
+    assert_array_equal(comp.affine_map(z), 
+                       np.dot(X1, np.dot(X2, np.dot(X3, z) + b3) + b2) + b1)
+
 def test_adjoint():
     X = np.random.standard_normal((20,30))
     b = np.random.standard_normal(20)
