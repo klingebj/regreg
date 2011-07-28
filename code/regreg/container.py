@@ -7,8 +7,8 @@ from affine import (vstack as afvstack, identity as afidentity, power_L,
                     selector as afselector)
 from separable import separable
 #from conjugate import conjugate
-from atoms import affine_atom as nonsmooth_affine
-from cones import zero_constraint, zero as zero_nonsmooth
+from atoms import affine_atom as nonsmooth_affine_atom
+from cones import zero_constraint, zero as zero_nonsmooth, affine_cone
 
 class container(composite):
     """
@@ -19,7 +19,8 @@ class container(composite):
         self.smooth_atoms = []
         for atom in atoms:
             if (isinstance(atom, nonsmooth_composite) or 
-                isinstance(atom, nonsmooth_affine)):
+                isinstance(atom, nonsmooth_affine_atom) or
+                isinstance(atom, affine_cone)):
                 self.nonsmooth_atoms.append(atom)
             elif isinstance(atom, smooth_composite):
                 self.smooth_atoms.append(atom)
