@@ -543,7 +543,65 @@ def power_L(transform, max_its=500,tol=1e-8, debug=False):
     return norm
 
 def astransform(X):
+    """
+    If X is an affine_transform, return X,
+    else try to cast it as an affine_transform
+    """
     if isinstance(X, affine_transform):
         return X
     else:
         return linear_transform(X)
+
+class adjoint(object):
+
+    """
+    Given an affine_transform, return a linear_transform
+    that is the adjoint of its linear part.
+    """
+    def __init__(self, transform):
+        self.transform = transform
+        self.affine_offset = None
+        self.primal_shape = transform.dual_shape
+        self.dual_shape = transform.primal_shape
+
+    def linear_map(self, x):
+        return self.transform.adjoint_map(x)
+
+    def affine_map(self, x):
+        return self.linear_map(x)
+
+    def adjoint_map(self, x):
+        return self.transform.linear_map(x)
+
+class composition(object):
+
+    def __init__(self, *transforms):
+        self.transforms = transforms
+        self.primal_shape = transforms[-1].primal_shape
+        self.dual_shape = transforms[0].dual_shape
+
+        # compute the affine_offset
+        affine_offset = self.affine_map(np.zeros(self.primal_shape))
+        if not np.allclose(affine_offset, 0): 
+            self.affine_offset = None
+        else:
+            self.affine_offset = affine_offset
+
+    def linear_map(self, x):
+        output = x
+        for transform in self.transforms[::-1]:
+            output = transform.linear_map(output)
+        return output
+
+    def affine_map(self, x):
+        output = x
+        for transform in self.transforms[::-1]:
+            output = transform.affine_map(output)
+        return output
+
+    def adjoint_map(self, x):
+        output = x
+        for transform in self.transforms:
+            output = transform.adjoint_map(output)
+        return output
+        

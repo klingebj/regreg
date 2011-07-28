@@ -4,7 +4,8 @@
 from operator import add
 import numpy as np
 
-from regreg.affine import broadcast_first, affine_transform, AffineError
+from regreg.affine import (broadcast_first, affine_transform, 
+                           AffineError, composition, adjoint)
 
 from numpy.testing import (assert_array_almost_equal,
                            assert_array_equal)
@@ -58,3 +59,33 @@ def test_affine_transform():
         assert_array_equal(trans.affine_map(x), x)
         assert_array_equal(trans.linear_map(x), x)
         assert_array_equal(trans.adjoint_map(x), x)
+
+def test_composition():
+    X1 = np.random.standard_normal((20,30))
+    X2 = np.random.standard_normal((30,10))
+    b1 = np.random.standard_normal(20)
+    b2 = np.random.standard_normal(30)
+    L1 = affine_transform(X1, b1)
+    L2 = affine_transform(X2, b2)
+
+    z = np.random.standard_normal(10)
+    w = np.random.standard_normal(20)
+    comp = composition(L1,L2)
+
+    assert_array_equal(comp.linear_map(z), np.dot(X1, np.dot(X2, z)))
+    assert_array_equal(comp.adjoint_map(w), np.dot(X2.T, np.dot(X1.T, w)))
+    assert_array_equal(comp.affine_map(z), np.dot(X1, np.dot(X2, z)+b2)+b1)
+
+def test_adjoint():
+    X = np.random.standard_normal((20,30))
+    b = np.random.standard_normal(20)
+    L = affine_transform(X, b)
+
+    z = np.random.standard_normal(30)
+    w = np.random.standard_normal(20)
+    A = adjoint(L)
+
+    assert_array_equal(A.linear_map(w), L.adjoint_map(w))
+    assert_array_equal(A.affine_map(w), L.adjoint_map(w))
+    assert_array_equal(A.adjoint_map(z), L.linear_map(z))
+
