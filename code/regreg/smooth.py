@@ -284,15 +284,44 @@ class logistic_loglikelihood(smooth_atom):
         """
         
         yhat = self.affine_transform.affine_map(x)
-        exp_yhat = np.exp(yhat)
+
+        #Check for overflow in np.exp (can occur during initial backtracking steps)
+        if np.max(yhat) > 1e2:
+            overflow = True
+            not_overflow_ind = np.where(yhat <= 1e2)[0]
+            exp_yhat = np.exp(yhat[not_overflow_ind])
+        else:
+            overflow = False
+            exp_yhat = np.exp(yhat)
+
+            
         if mode == 'both':
-            ratio = self.trials * exp_yhat/(1.+exp_yhat)
-            return -2 * self.scale((np.dot(self.successes,yhat) - np.sum(self.trials*np.log(1+exp_yhat)))), -2 * self.scale(self.affine_transform.adjoint_map(self.successes-ratio))
+            ratio = self.trials * 1.
+            if overflow:
+                log_exp_yhat = yhat * 1.
+                log_exp_yhat[not_overflow_ind] = np.log(1.+exp_yhat)
+                ratio[not_overflow_ind] *= exp_yhat/(1.+exp_yhat)
+            else:
+                log_exp_yhat = np.log(1.+exp_yhat)
+                ratio *= exp_yhat/(1.+exp_yhat)
+                
+            return -2 * self.scale((np.dot(self.successes,yhat) - np.sum(self.trials*log_exp_yhat))), -2 * self.scale(self.affine_transform.adjoint_map(self.successes-ratio))
+
         elif mode == 'grad':
-            ratio = self.trials * exp_yhat/(1.+exp_yhat)
+            ratio = self.trials * 1.
+            if overflow:
+                ratio[not_overflow_ind] *= exp_yhat/(1.+exp_yhat)
+            else:
+                ratio *= exp_yhat/(1.+exp_yhat)
             return - 2 * self.scale(self.affine_transform.adjoint_map(self.successes-ratio))
+
         elif mode == 'func':
-            return -2 * self.scale(np.dot(self.successes,yhat) - np.sum(self.trials*np.log(1+exp_yhat)))
+            if overflow:
+                log_exp_yhat = yhat * 1.
+                log_exp_yhat[not_overflow_ind] = np.log(1.+exp_yhat)
+            else:
+                log_exp_yhat = np.log(1.+exp_yhat)
+            return -2 * self.scale(np.dot(self.successes,yhat) - np.sum(self.trials * log_exp_yhat))
         else:
             raise ValueError("mode incorrectly specified")
 
