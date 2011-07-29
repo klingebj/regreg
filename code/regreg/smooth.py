@@ -283,7 +283,7 @@ class logistic_loglikelihood(smooth_atom):
         if mode == 'func', return only the function value
         """
         
-        yhat = self.affine_transform.linear_map(x)
+        yhat = self.affine_transform.affine_map(x)
         exp_yhat = np.exp(yhat)
         if mode == 'both':
             ratio = self.trials * exp_yhat/(1.+exp_yhat)
