@@ -60,6 +60,33 @@ def test_affine_transform():
         assert_array_equal(trans.linear_map(x), x)
         assert_array_equal(trans.adjoint_map(x), x)
 
+
+
+def test_offset_transform():
+    # Test affine transform
+    m = 20
+    x1d = np.arange(m)
+    x2d = x1d[:,None]
+    x22d = np.c_[x2d, x2d]
+    # Error if both of linear and affine components are None
+    assert_raises(AffineError, affine_transform, None, None)
+    # With linear None and 0 affine offset - identity transform
+    for x in (x1d, x2d, x22d):
+        trans = affine_transform(None, np.zeros((m,1)))
+        assert_array_equal(trans.affine_map(x), trans.offset_map(trans.linear_map(x)))
+        # With linear eye and None affine offset - identity again
+        trans = affine_transform(np.eye(m), None)
+        assert_array_equal(trans.affine_map(x), trans.offset_map(trans.linear_map(x)))
+        # affine_transform as input
+        trans = affine_transform(trans, None)
+        assert_array_equal(trans.affine_map(x), trans.offset_map(trans.linear_map(x)))
+        # diag
+        trans = affine_transform(np.ones(m), None, True)
+        assert_array_equal(trans.affine_map(x), trans.offset_map(trans.linear_map(x)))
+        #Non-zero offset
+        trans = affine_transform(np.eye(m), np.ones((m,1)))
+        assert_array_equal(trans.affine_map(x), trans.offset_map(trans.linear_map(x)))
+
 def test_composition():
     X1 = np.random.standard_normal((20,30))
     X2 = np.random.standard_normal((30,10))
