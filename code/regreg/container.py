@@ -55,7 +55,7 @@ class container(composite):
         return self._dual
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
-        value, grad = 0, 0
+        value, grad = 0, np.zeros(x.shape)
         if mode == 'func':
             for atom in self.smooth_atoms:
                 value += atom.smooth_objective(x, mode=mode, 
