@@ -82,7 +82,6 @@ class affine_transform(object):
             if np.alltrue([hasattr(self.linear_operator, n) for 
                            n in ['linear_map',
                                  'affine_map',
-                                 'offset_map',
                                  'affine_offset',
                                  'adjoint_map',
                                  'primal_shape',
