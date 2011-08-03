@@ -2,8 +2,16 @@ import numpy as np
 from scipy import sparse
 from composite import composite, nonsmooth
 from affine import linear_transform, identity as identity_transform
-from projl1 import projl1
 from copy import copy
+import warnings
+
+try:
+    from projl1_cython import projl1
+except:
+    warnings.warn('Cython version of projl1 not available. Using slower python version')
+    from projl1_python import projl1
+
+
 
 class cone(nonsmooth):
 
