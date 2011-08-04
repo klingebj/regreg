@@ -103,6 +103,7 @@ class FISTA(algorithm):
         
         itercount = 0
         badstep = 0
+        attempting_decrease = False
         while itercount < max_its:
 
             #Restart every 'restart' iterations
@@ -116,8 +117,9 @@ class FISTA(algorithm):
 
             # Backtracking loop
             if backtrack:
-                if np.mod(itercount+1,100)==0:
+                if (np.mod(itercount+1,100)==0) or attempting_decrease:
                     self.inv_step *= 1/alpha
+                    attempting_decrease = True
                 current_f, grad = self.composite.smooth_objective(r,mode='both')
                 stop = False
                 while not stop:
@@ -136,6 +138,7 @@ class FISTA(algorithm):
                         trial_grad = self.composite.smooth_objective(beta,mode='grad')
                         stop = np.fabs(np.dot((beta-r).reshape(-1),(grad-trial_grad).reshape(-1))) <= 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     if not stop:
+                        attempting_decrease = False
                         self.inv_step *= alpha
                         if self.debug:
                             print "Increasing inv_step", self.inv_step
