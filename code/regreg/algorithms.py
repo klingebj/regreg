@@ -41,7 +41,8 @@ class FISTA(algorithm):
             return_objective_hist = True,
             monotonicity_restart=True,
             debug = None,
-            prox_control=None):
+            prox_control=None,
+            attempt_decrease = True):
 
         """
         Use the FISTA (or ISTA) algorithm to fit the problem
@@ -74,6 +75,8 @@ class FISTA(algorithm):
               Resets self.debug, which controls whether convergence information is printed
         prox_control : dict
               A dictionary of arguments for fit(), used when the composite.proximal_step itself is a FISTA problem
+        attempt_decrease : bool
+              If True, attempt to decrease inv_step on the first iteration
     
         Returns
         -------
@@ -88,12 +91,11 @@ class FISTA(algorithm):
         set_prox_control = prox_control is not None
 
         objective_hist = np.zeros(max_its)
+
         
-        if self.inv_step is None:
-            #If available, use Lipschitz constant from last fit
+        if backtrack and self.inv_step is None:
+            #If inv_step is not available from last fit use start_inv_step
             self.inv_step = start_inv_step
-        else:
-            self.inv_step *= 1/alpha
 
         r = self.composite.coefs
         t_old = 1.
@@ -103,7 +105,6 @@ class FISTA(algorithm):
         
         itercount = 0
         badstep = 0
-        attempt_decrease = False
         while itercount < max_its:
 
             #Restart every 'restart' iterations
@@ -117,7 +118,7 @@ class FISTA(algorithm):
 
             # Backtracking loop
             if backtrack:
-                if (np.mod(itercount+1,100)==0) or attempt_decrease:
+                if np.mod(itercount+1,100)==0 or attempt_decrease:
                     self.inv_step *= 1/alpha
                     attempt_decrease = True
                 current_f, grad = self.composite.smooth_objective(r,mode='both')
