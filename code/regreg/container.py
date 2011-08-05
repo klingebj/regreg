@@ -99,7 +99,8 @@ class container(composite):
                              'min_its': 5,
                              'return_objective_hist': False,
                              'tol': 1e-14,
-                             'debug':False}
+                             'debug':False,
+                             'backtrack':False}
 
             if prox_control is not None:
                 prox_defaults.update(prox_control)
@@ -118,6 +119,9 @@ class container(composite):
                 self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
                 self.dualopt = container.default_solver(self.dualp)
                 self.dualopt.debug = prox_control['debug']
+                if prox_control['backtrack']:
+                    #If backtracking set start_inv_step
+                    prox_control['start_inv_step'] = self.dual_reference_lipschitz / lipschitz
 
             self.dualopt.composite.smooth_multiplier = 1./lipschitz
             self.dualp.lipschitz = self.dual_reference_lipschitz / lipschitz
