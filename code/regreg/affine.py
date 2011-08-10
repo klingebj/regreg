@@ -60,7 +60,12 @@ class affine_transform(object):
         if linear_operator is None and affine_offset is None:
             raise AffineError('linear_operator and affine_offset cannot '
                               'both be None')
-        self.affine_offset = affine_offset
+
+        if sparse.issparse(affine_offset):
+            #Convert sparse offset to an array
+            self.affine_offset = affine_offset.toarray()
+        else:
+            self.affine_offset = affine_offset
         self.linear_operator = linear_operator
 
         if linear_operator is None:

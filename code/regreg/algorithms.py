@@ -42,7 +42,7 @@ class FISTA(algorithm):
             monotonicity_restart=True,
             debug = None,
             prox_control=None,
-            attempt_decrease = True):
+            attempt_decrease = False):
 
         """
         Use the FISTA (or ISTA) algorithm to fit the problem
@@ -191,7 +191,8 @@ class FISTA(algorithm):
                 t_new = 1.
                 r = beta
 
-            if itercount > 1 and current_obj < trial_obj and obj_rel_change > 1e-10 and monotonicity_restart:
+            if itercount > 1 and current_obj < trial_obj and obj_rel_change > 1e-10 and \
+                   monotonicity_restart and not attempt_decrease:
                 #Adaptive restarting: restart if monotonicity violated
                 if self.debug:
                     print "\tRestarting", current_obj, trial_obj
