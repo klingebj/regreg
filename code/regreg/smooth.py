@@ -257,19 +257,27 @@ class logistic_loglikelihood(smooth_atom):
     A class for combining the logistic log-likelihood with a general seminorm
     """
 
+    #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
+
     def __init__(self, linear_operator, successes, trials=None, offset=None, coef=1):
         self.affine_transform = affine_transform(linear_operator, offset)
-        if trials is None:
-            if not set([0,1]).issuperset(np.unique(successes)):
-                raise ValueError("Number of successes is not binary - must specify number of trials")
-            self.trials = np.ones(successes.shape)
+
+        if sparse.issparse(successes):
+            #Convert sparse success vector to an array
+            self.successes = successes.toarray().flatten()
         else:
-            if np.min(trials-successes) < 0:
+            self.successes = successes
+
+        if trials is None:
+            if not set([0,1]).issuperset(np.unique(self.successes)):
+                raise ValueError("Number of successes is not binary - must specify number of trials")
+            self.trials = np.ones(self.successes.shape)
+        else:
+            if np.min(trials-self.successes) < 0:
                 raise ValueError("Number of successes greater than number of trials")
-            if np.min(successes) < 0:
+            if np.min(self.successes) < 0:
                 raise ValueError("Response coded as negative number - should be non-negative number of successes")
             self.trials = trials
-        self.successes = successes
         
         self.primal_shape = self.affine_transform.primal_shape
         self.coef = coef
