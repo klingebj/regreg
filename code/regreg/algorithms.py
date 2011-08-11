@@ -110,7 +110,7 @@ class FISTA(algorithm):
             #Restart every 'restart' iterations
             if np.mod(itercount+1,restart)==0:
                 if self.debug:
-                    print "Restarting"
+                    print "\tRestarting weights"
                 r = self.composite.coefs
                 t_old = 1.
 
@@ -142,7 +142,7 @@ class FISTA(algorithm):
                         attempt_decrease = False
                         self.inv_step *= alpha
                         if self.debug:
-                            print "Increasing inv_step", self.inv_step
+                            print "%i    Increasing inv_step to" % itercount, self.inv_step
                      
             else:
                 #Use specified Lipschitz constant
@@ -166,7 +166,8 @@ class FISTA(algorithm):
                 if coef_stop:
                     print itercount, current_obj, self.inv_step, obj_rel_change, coef_rel_change, tol
                 else:
-                    print itercount, current_obj, self.inv_step, obj_rel_change, tol
+                    print "%i    obj: %.6e    inv_step: %.2e    rel_obj_change: %.2e    tol: %.1e" % (itercount, current_obj, self.inv_step, obj_rel_change, tol)
+                    #print itercount, current_obj, self.inv_step, obj_rel_change, tol
 
             if itercount >= min_its:
                 if coef_stop:
@@ -191,11 +192,10 @@ class FISTA(algorithm):
                 t_new = 1.
                 r = beta
 
-            if itercount > 1 and current_obj < trial_obj and obj_rel_change > 1e-10 and \
-                   monotonicity_restart and not attempt_decrease:
+            if itercount > 1 and current_obj < trial_obj and obj_rel_change > 1e-10 and monotonicity_restart:
                 #Adaptive restarting: restart if monotonicity violated
                 if self.debug:
-                    print "\tRestarting", current_obj, trial_obj
+                    print "%i    Restarting weights" % itercount
                 attempt_decrease = True
 
                 if t_old == 1.:
