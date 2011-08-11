@@ -1,7 +1,7 @@
 from operator import add, mul
 import numpy as np
 from scipy import sparse
-
+import warnings
 
 def broadcast_first(a, b, op):
     """ apply binary operation `op`, broadcast `a` over axis 1 if necessary
@@ -79,6 +79,8 @@ class affine_transform(object):
             self.noneD = False
             self.sparseD = sparse.isspmatrix(self.linear_operator)
             self.sparseD_csr = sparse.isspmatrix_csr(self.linear_operator)
+            if self.sparseD and not self.sparseD_csr:
+                warnings.warn("Linear operator matrix is sparse, but not csr_matrix. Convert to csr_matrix for faster multiplications!")
             if self.sparseD_csr:
                 self.linear_operator_T = sparse.csr_matrix(self.linear_operator.T)
 
