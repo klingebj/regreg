@@ -167,20 +167,19 @@ class FISTA(algorithm):
                     print itercount, current_obj, self.inv_step, obj_rel_change, coef_rel_change, tol
                 else:
                     print "%i    obj: %.6e    inv_step: %.2e    rel_obj_change: %.2e    tol: %.1e" % (itercount, current_obj, self.inv_step, obj_rel_change, tol)
-                    #print itercount, current_obj, self.inv_step, obj_rel_change, tol
 
             if itercount >= min_its:
                 if coef_stop:
                     if coef_rel_change < tol:
                         self.composite.coefs = beta
                         if self.debug:
-                            print "Stopped because coefficients haven't changed"
+                            print "Success: Optimization stopped because change in coefficients was below tolerance"
                         break
                 else:
                     if obj_rel_change < tol or obj_change < tol:
                         self.composite.coefs = beta
                         if self.debug:
-                            print 'Stopped because decrease in objective was below tolerance'
+                            print 'Success: Optimization stopped because decrease in objective was below tolerance'
                         break
 
             if FISTA:
@@ -201,12 +200,12 @@ class FISTA(algorithm):
                 if t_old == 1.:
                     #Gradient step didn't decrease objective: tolerance composites or incorrect prox op... time to give up?
                     if self.debug:
-                        print "Badstep: current: %f, proposed %f" % (current_obj, trial_obj)
+                        print "%i    Badstep: current: %f, proposed %f" % (itercount, current_obj, trial_obj)
                     badstep += 1
                     if badstep > 3:
                         warnings.warn('prox is taking bad steps')
                         if self.debug:
-                            print 'Stopped while prox was taking bad steps'
+                            print 'Caution: Optimization stopped while prox was taking bad steps'
                         break
                 itercount += 1
                 t_old = 1.
@@ -218,7 +217,10 @@ class FISTA(algorithm):
                 itercount += 1
                 current_obj = trial_obj
 
+
         if self.debug:
+            if itercount == max_its:
+                print "Optimization stopped because iteration limit was reached"
             print "FISTA used", itercount, "of", max_its, "iterations"
         if return_objective_hist:
             return objective_hist[:itercount]
