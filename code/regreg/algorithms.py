@@ -141,6 +141,8 @@ class FISTA(algorithm):
                     if not stop:
                         attempt_decrease = False
                         self.inv_step *= alpha
+                        if not np.isfinite(self.inv_step):
+                            raise ValueError("inv_step overflowed")
                         if self.debug:
                             print "%i    Increasing inv_step to" % itercount, self.inv_step
                      
