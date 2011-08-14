@@ -36,7 +36,7 @@ class AffineError(Exception):
 
 class affine_transform(object):
     
-    def __init__(self, linear_operator, affine_offset, diag=False):
+    def __init__(self, linear_operator, affine_offset, diag=False, primal_shape=None):
         """ Create affine transform
 
         Parameters
@@ -108,6 +108,12 @@ class affine_transform(object):
                 self.affineD = False
                 self.primal_shape = (linear_operator.shape[0],)
                 self.dual_shape = (linear_operator.shape[0],)
+            elif not primal_shape is None and (len(primal_shape) == 2):
+                #Primal shape is a matrix
+                self.primal_shape = primal_shape
+                self.dual_shape = (linear_operator.shape[0],primal_shape[1])
+                self.diagD = False
+                self.affineD = False
             else:
                 self.primal_shape = (linear_operator.shape[1],)
                 self.dual_shape = (linear_operator.shape[0],)
@@ -260,10 +266,10 @@ class affine_transform(object):
 class linear_transform(affine_transform):
     """ A linear transform is an affine transform with no affine offset
     """
-    def __init__(self, linear_operator, diag=False):
+    def __init__(self, linear_operator, diag=False, primal_shape=None):
         if linear_operator is None:
             raise AffineError('linear_operator cannot be None')
-        affine_transform.__init__(self, linear_operator, None, diag=diag)
+        affine_transform.__init__(self, linear_operator, None, diag=diag, primal_shape=primal_shape)
 
 
 class selector(linear_transform):
