@@ -30,6 +30,13 @@ def test_multinomial_vs_logistic():
     solver.fit(debug=False, tol=1e-10)
     coefs2 = solver.composite.coefs
 
+    loss = rr.logistic_loglikelihood.linear(X, successes=counts[:,1], trials = np.sum(counts, axis=1))
+    problem = rr.container(loss)
+    solver = rr.FISTA(problem)
+    solver.fit(debug=False, tol=1e-10)
+    coefs3 = solver.composite.coefs
+
     npt.assert_equal(coefs1.shape,(p,J-1))
     npt.assert_array_almost_equal(coefs1.flatten(), coefs2.flatten(), 5)
+    npt.assert_array_almost_equal(coefs1.flatten(), -coefs3.flatten(), 5)
 
