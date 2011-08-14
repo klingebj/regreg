@@ -4,77 +4,6 @@ from affine import affine_transform
 import warnings
 from composite import smooth as smooth_composite
 
-# class smooth_function(smooth_composite):
-#     """
-#     A container class for smooth_atom classes
-#     """
-
-#     # TODO? use a list for atoms instead of *atoms?
-#     def __init__(self, *atoms, **keywords):
-#         # why do we have this -- XXX
-#         if not set(keywords.keys()).issubset(['coef', 'constant_term']):
-#             warnings.warn('only keyword argument should be multiplier, "coef" and "constant", got %s' % `keywords`)
-
-#         self.coef = 1
-#         if keywords.has_key('coef'):
-#             self.coef = keywords['coef']
-
-#         self.constant_term = 0
-#         if keywords.has_key('constant_term'):
-#             self.constant_term = keywords['constant_term']
-
-#         self.atoms = []
-#         self.primal_shape = -1
-#         for atom in atoms:
-#             if self.primal_shape == -1:
-#                 self.primal_shape = atom.primal_shape
-#             else:
-#                 if atom.primal_shape != self.primal_shape:
-#                     raise ValueError("primal dimensions don't agree")
-#             self.atoms.append(atom)
-#         self.coefs = np.zeros(self.primal_shape)
-
-#     def smooth_objective(self, x, mode='both', check_feasibility=False):
-#         """
-#         Evaluate a smooth function and/or its gradient
-
-#         if mode == 'both', return both function value and gradient
-#         if mode == 'grad', return only the gradient
-#         if mode == 'func', return only the function value
-#         """
-
-#         if mode == 'func':
-#             if len(self.atoms) > 1:
-#                 v = 0.
-#                 for atom in self.atoms:
-#                     v += atom.smooth_objective(x, mode=mode)
-#                 return self.scale(v) + self.constant_term
-#             else:
-#                 return self.scale(self.atoms[0].smooth_objective(x, mode=mode)) + self.constant_term
-#         elif mode == 'grad':
-#             if len(self.atoms) > 1:
-#                 g = np.zeros(self.primal_shape)
-#                 for atom in self.atoms:
-#                     g += atom.smooth_objective(x, mode=mode)
-#                 return self.scale(g)
-#             else:
-#                 return self.scale(self.atoms[0].smooth_objective(x, mode=mode))
-#         elif mode == 'both':
-#             if len(self.atoms) > 1:
-#                 v = 0.
-#                 g = np.zeros(self.primal_shape)
-#                 for atom in self.atoms:
-#                     output = atom.smooth_objective(x, mode=mode)
-#                     v += output[0]
-#                     g += output[1]
-#                 return self.scale(v) + self.constant_term, self.scale(g)
-#             else:
-#                 v, g = self.atoms[0].smooth_objective(x, mode=mode)
-#                 return self.scale(v) + self.constant_term, self.scale(g)
-#         else:
-#             raise ValueError("Mode specified incorrectly")
-
-
 class smooth_atom(smooth_composite):
 
     """
@@ -333,27 +262,52 @@ class logistic_loglikelihood(smooth_atom):
         else:
             raise ValueError("mode incorrectly specified")
 
-# class zero(smooth_function):
 
-#     def __init__(self, primal_shape):
-#         self.primal_shape = primal_shape
 
-#     def smooth_objective(self, x, mode='both', check_feasibility=False):
-#         """
-#         Evaluate a smooth function and/or its gradient
+class poisson_loglikelihood(smooth_atom):
 
-#         if mode == 'both', return both function value and gradient
-#         if mode == 'grad', return only the gradient
-#         if mode == 'func', return only the function value
-#         """
+    """
+    A class for combining the Poisson log-likelihood with a general seminorm
+    """
+
+    #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
+
+    def __init__(self, linear_operator, counts, offset=None, coef=1):
+        self.affine_transform = affine_transform(linear_operator, offset)
+
+        if sparse.issparse(counts):
+            #Convert sparse success vector to an array
+            self.counts = counts.toarray().flatten()
+        else:
+            self.counts = counts
+
+        if not np.allclose(np.round(self.counts),self.counts):
+            raise ValueError("Counts vector is not integer valued")
+        if np.min(self.counts) < 0:
+            raise ValueError("Counts vector is not non-negative")
         
-#         if mode == 'both':
-#             return 0, np.zeros(x.shape)
-#         elif mode == 'grad':
-#             return np.zeros(x.shape)
-#         elif mode == 'func':
-#             return 0
-#         else:
-#             raise ValueError("mode incorrectly specified")
+        self.primal_shape = self.affine_transform.primal_shape
+        self.coef = coef
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+        
+        yhat = self.affine_transform.affine_map(x)
+        exp_yhat = np.exp(yhat)
+        
+        if mode == 'both':
+            return -2. * self.scale(-np.sum(exp_yhat) + np.dot(self.counts,yhat)), -2. * self.scale(self.affine_transform.adjoint_map(self.counts - exp_yhat))
+        elif mode == 'grad':
+            return -2. * self.scale(self.affine_transform.adjoint_map(self.counts - exp_yhat))
+        elif mode == 'func':
+            return -2. * self.scale(-np.sum(exp_yhat) + np.dot(self.counts,yhat))
+        else:
+            raise ValueError("mode incorrectly specified")
 
 

@@ -8,7 +8,7 @@ from cones import (nonnegative, nonpositive,
 from linear_constraints import (projection, projection_complement)
 
 from affine import (identity, selector, affine_transform, normalize, linear_transform)
-from smooth import (l2normsq, linear, logistic_loglikelihood, smooth_atom, affine_smooth, signal_approximator)
+from smooth import (l2normsq, linear, logistic_loglikelihood, poisson_loglikelihood, smooth_atom, affine_smooth, signal_approximator)
 
 from separable import separable
 from container import container
