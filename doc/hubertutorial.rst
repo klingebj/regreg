@@ -39,7 +39,7 @@ Now we can create the problem object, beginning with the loss function
 .. ipython::
 
    penalty = rr.l1norm(1000,lagrange=5.)
-   loss = rr.smoothed_atom(l1norm.affine(X, -Y), epsilon=1.)
+   loss = rr.smoothed_atom(rr.l1norm.linear(X, offset=-Y, lagrange=1.), epsilon=1.)
 
 The penalty contains the regularization parameter that can be easily accessed and changed,
 

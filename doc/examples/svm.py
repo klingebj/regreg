@@ -35,4 +35,4 @@ pointY = [-(pointX[0]*problem.coefs[0]+problem.coefs[2])/problem.coefs[1],
           -(pointX[1]*problem.coefs[0]+problem.coefs[2])/problem.coefs[1]]
 pylab.plot(pointX, pointY, linestyle='--', label='Separating hyperplane')
 pylab.title("Accuracy = %0.1f %%" % (100-100 * np.fabs(labels - Y).sum() / (2 * N)))
-pylab.show()
+#pylab.show()
