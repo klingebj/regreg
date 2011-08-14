@@ -2,7 +2,9 @@ import numpy as np
 from scipy import sparse
 from affine import affine_transform
 import warnings
+import inspect
 from composite import smooth as smooth_composite
+
 
 class smooth_atom(smooth_composite):
 
@@ -24,38 +26,43 @@ class smooth_atom(smooth_composite):
     
     @classmethod
     def affine(cls, linear_operator, offset, coef=1, diag=False,
-               constant_term=0):
+               constant_term=0, **kws):
         """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
+        Keywords given in kws are passed to cls constructor along with other arguments
         """
+        if not acceptable_init_args(cls, kws):
+            raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
+        
         atransform = affine_transform(linear_operator, offset, diag=diag)
-        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term)
+        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term, **kws)
         
         return affine_smooth(atom, atransform)
 
     @classmethod
     def linear(cls, linear_operator, coef=1, diag=False,
-               constant_term=0):
+               constant_term=0, **kws):
         """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
+        Keywords given in kws are passed to cls constructor along with other arguments
         """
+        if not acceptable_init_args(cls, kws):
+            raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
+
         atransform = affine_transform(linear_operator, None, diag=diag)
-        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term)
+        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term, **kws)
         
         return affine_smooth(atom, atransform)
 
     @classmethod
     def shift(cls, offset, coef=1, 
-              constant_term=0,
-              args=(), keywords={}):
+              constant_term=0, **kws):
         """
-        Args and keywords passed to cls constructor along with
-        l and primal_shape
+        Keywords given in kws are passed to cls constructor along with other arguments
         """
+        if not acceptable_init_args(cls, kws):
+            raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
+        
         atransform = affine_transform(None, offset)
-        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term)
+        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term, **kws)
         return affine_smooth(atom, atransform)
 
     def scale(self, obj, copy=False):
@@ -64,6 +71,22 @@ class smooth_atom(smooth_composite):
         if copy:
             return obj.copy()
         return obj
+
+def acceptable_init_args(cls, proposed_keywords):
+    """
+    Check that the keywords in the dictionary proposed_keywords are arguments to __init__ of class cls
+
+    Returns True/False
+    """
+    args = inspect.getargspec(cls.__init__).args
+    forbidden = ['self', 'primal_shape', 'coef', 'constant_term']
+    for kw in proposed_keywords.keys():
+        if not kw in args:
+            return False
+        if kw in forbidden:
+            return False
+    return True
+
     
 class affine_smooth(smooth_atom):
 
@@ -188,8 +211,7 @@ class logistic_loglikelihood(smooth_atom):
 
     #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
 
-    def __init__(self, linear_operator, successes, trials=None, offset=None, coef=1):
-        self.affine_transform = affine_transform(linear_operator, offset)
+    def __init__(self, primal_shape, successes, trials=None, coef=1., constant_term=0.):
 
         if sparse.issparse(successes):
             #Convert sparse success vector to an array
@@ -207,8 +229,9 @@ class logistic_loglikelihood(smooth_atom):
             if np.min(self.successes) < 0:
                 raise ValueError("Response coded as negative number - should be non-negative number of successes")
             self.trials = trials
-        
-        self.primal_shape = self.affine_transform.primal_shape
+
+        self.constant_term = constant_term
+        self.primal_shape = primal_shape
         self.coef = coef
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
@@ -220,48 +243,45 @@ class logistic_loglikelihood(smooth_atom):
         if mode == 'func', return only the function value
         """
         
-        yhat = self.affine_transform.affine_map(x)
-
         #Check for overflow in np.exp (can occur during initial backtracking steps)
-        if np.max(yhat) > 1e2:
+        if np.max(x) > 1e2:
             overflow = True
-            not_overflow_ind = np.where(yhat <= 1e2)[0]
-            exp_yhat = np.exp(yhat[not_overflow_ind])
+            not_overflow_ind = np.where(x <= 1e2)[0]
+            exp_x = np.exp(x[not_overflow_ind])
         else:
             overflow = False
-            exp_yhat = np.exp(yhat)
+            exp_x = np.exp(x)
 
             
         if mode == 'both':
             ratio = self.trials * 1.
             if overflow:
-                log_exp_yhat = yhat * 1.
-                log_exp_yhat[not_overflow_ind] = np.log(1.+exp_yhat)
-                ratio[not_overflow_ind] *= exp_yhat/(1.+exp_yhat)
+                log_exp_x = x * 1.
+                log_exp_x[not_overflow_ind] = np.log(1.+exp_x)
+                ratio[not_overflow_ind] *= exp_x/(1.+exp_x)
             else:
-                log_exp_yhat = np.log(1.+exp_yhat)
-                ratio *= exp_yhat/(1.+exp_yhat)
+                log_exp_x = np.log(1.+exp_x)
+                ratio *= exp_x/(1.+exp_x)
                 
-            return -2 * self.scale((np.dot(self.successes,yhat) - np.sum(self.trials*log_exp_yhat))), -2 * self.scale(self.affine_transform.adjoint_map(self.successes-ratio))
+            return -2 * self.scale((np.dot(self.successes,x) - np.sum(self.trials*log_exp_x))) + self.constant_term, -2 * self.scale(self.successes-ratio)
 
         elif mode == 'grad':
             ratio = self.trials * 1.
             if overflow:
-                ratio[not_overflow_ind] *= exp_yhat/(1.+exp_yhat)
+                ratio[not_overflow_ind] *= exp_x/(1.+exp_x)
             else:
-                ratio *= exp_yhat/(1.+exp_yhat)
-            return - 2 * self.scale(self.affine_transform.adjoint_map(self.successes-ratio))
-
+                ratio *= exp_x/(1.+exp_x)
+            return - 2 * self.scale(self.successes-ratio)
+        
         elif mode == 'func':
             if overflow:
-                log_exp_yhat = yhat * 1.
-                log_exp_yhat[not_overflow_ind] = np.log(1.+exp_yhat)
+                log_exp_x = x * 1.
+                log_exp_x[not_overflow_ind] = np.log(1.+exp_x)
             else:
-                log_exp_yhat = np.log(1.+exp_yhat)
-            return -2 * self.scale(np.dot(self.successes,yhat) - np.sum(self.trials * log_exp_yhat))
+                log_exp_x = np.log(1.+exp_x)
+            return -2 * self.scale(np.dot(self.successes,x) - np.sum(self.trials * log_exp_x)) + self.constant_term
         else:
             raise ValueError("mode incorrectly specified")
-
 
 
 class poisson_loglikelihood(smooth_atom):
@@ -272,8 +292,7 @@ class poisson_loglikelihood(smooth_atom):
 
     #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
 
-    def __init__(self, linear_operator, counts, offset=None, coef=1):
-        self.affine_transform = affine_transform(linear_operator, offset)
+    def __init__(self, primal_shape, counts, coef=1., constant_term=0.):
 
         if sparse.issparse(counts):
             #Convert sparse success vector to an array
@@ -286,7 +305,8 @@ class poisson_loglikelihood(smooth_atom):
         if np.min(self.counts) < 0:
             raise ValueError("Counts vector is not non-negative")
         
-        self.primal_shape = self.affine_transform.primal_shape
+        self.constant_term = constant_term
+        self.primal_shape = primal_shape
         self.coef = coef
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
@@ -297,16 +317,14 @@ class poisson_loglikelihood(smooth_atom):
         if mode == 'grad', return only the gradient
         if mode == 'func', return only the function value
         """
-        
-        yhat = self.affine_transform.affine_map(x)
-        exp_yhat = np.exp(yhat)
+        exp_x = np.exp(x)
         
         if mode == 'both':
-            return -2. * self.scale(-np.sum(exp_yhat) + np.dot(self.counts,yhat)), -2. * self.scale(self.affine_transform.adjoint_map(self.counts - exp_yhat))
+            return -2. * self.scale(-np.sum(exp_x) + np.dot(self.counts,x)) + self.constant_term, -2. * self.scale(self.counts - exp_x)
         elif mode == 'grad':
-            return -2. * self.scale(self.affine_transform.adjoint_map(self.counts - exp_yhat))
+            return -2. * self.scale(self.counts - exp_x)
         elif mode == 'func':
-            return -2. * self.scale(-np.sum(exp_yhat) + np.dot(self.counts,yhat))
+            return -2. * self.scale(-np.sum(exp_x) + np.dot(self.counts,x)) + self.constant_term
         else:
             raise ValueError("mode incorrectly specified")
 
