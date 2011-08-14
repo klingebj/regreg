@@ -329,3 +329,62 @@ class poisson_loglikelihood(smooth_atom):
             raise ValueError("mode incorrectly specified")
 
 
+
+
+
+class multinomial_loglikelihood(smooth_atom):
+
+    """
+    A class for baseline-category logistic regression for nominal responses (e.g. Agresti, pg 267)
+    """
+
+    def __init__(self, primal_shape, counts, coef=1., constant_term=0.):
+
+        if sparse.issparse(counts):
+            #Convert sparse success vector to an array
+            self.counts = counts.toarray()
+        else:
+            self.counts = counts
+
+        self.J = self.counts.shape[1]
+        #Select the counts for the first J-1 categories
+        self.firstcounts = self.counts[:,range(self.J-1)]
+
+        if not np.allclose(np.round(self.counts),self.counts):
+            raise ValueError("Counts vector is not integer valued")
+        if np.min(self.counts) < 0:
+            raise ValueError("Counts vector is not non-negative")
+
+        self.trials = np.sum(self.counts, axis=1)
+
+        if primal_shape[1] != self.J - 1:
+            raise ValueError("Primal shape is incorrect - should only have coefficients for first J-1 categories")
+        
+        self.constant_term = constant_term
+        self.primal_shape = primal_shape
+        self.coef = coef
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+        exp_x = np.exp(x)
+
+        #TODO: Using transposes to scale the rows of a 2d array - should we use an affine_transform to do this?
+
+        if mode == 'both':
+            ratio = ((self.trials/(1. + np.sum(exp_x, axis=1))) * exp_x.T).T
+            return -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term, - 2 * self.scale(self.firstcounts - ratio) 
+        elif mode == 'grad':
+            ratio = ((self.trials/(1. + np.sum(exp_x, axis=1))) * exp_x.T).T
+            return - 2 * self.scale(self.firstcounts - ratio) 
+        elif mode == 'func':
+            return -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term
+        else:
+            raise ValueError("mode incorrectly specified")
+
+
