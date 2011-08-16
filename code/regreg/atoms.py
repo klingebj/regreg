@@ -320,6 +320,21 @@ class atom(nonsmooth):
         return bound
 
     @classmethod
+    def affine(cls, linear_operator, offset, lagrange=None, diag=False,
+               bound=None, linear_term=None):
+        """
+        This is the same as the linear class method but with offset as a positional argument
+        """
+        if not isinstance(linear_operator, affine_transform):
+            l = linear_transform(linear_operator, diag=diag)
+        else:
+            l = linear_operator
+        atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
+                   linear_term=linear_term, offset=offset)
+        return affine_atom(atom, l)
+
+
+    @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
                bound=None, linear_term=None, offset=None):
         if not isinstance(linear_operator, affine_transform):
@@ -329,6 +344,15 @@ class atom(nonsmooth):
         atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)
         return affine_atom(atom, l)
+
+
+    @classmethod
+    def offset(cls, offset, lagrange=None, diag=False,
+               bound=None, linear_term=None):
+        atom = cls(offset.shape, lagrange=lagrange, bound=bound,
+                   linear_term=linear_term, offset=offset)
+        return atom
+
     
 class l1norm(atom):
 
