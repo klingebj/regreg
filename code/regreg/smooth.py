@@ -125,10 +125,10 @@ def squaredloss(linear_operator, offset, coef=1):
     # the affine method gets rid of the need for the squaredloss class
     # as previously written squared loss had a factor of 2
 
-    #return l2normsq.affine(-linear_operator, offset, coef=coef/2., initial=np.zeros(linear_operator.shape[1]))
-    return l2normsq.affine(-linear_operator, offset, coef=coef/2.)
+    #return quadratic.affine(-linear_operator, offset, coef=coef/2., initial=np.zeros(linear_operator.shape[1]))
+    return quadratic.affine(-linear_operator, offset, coef=coef/2.)
 
-class l2normsq(smooth_atom):
+class quadratic(smooth_atom):
     """
     The square of the l2 norm
     """
@@ -201,7 +201,7 @@ class linear(smooth_atom):
     
 
 def signal_approximator(offset, coef=1):
-    return l2normsq.shift(-offset, coef)
+    return quadratic.shift(-offset, coef)
 
 class logistic_loglikelihood(smooth_atom):
 

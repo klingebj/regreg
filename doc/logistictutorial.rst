@@ -41,7 +41,7 @@ Now we can create the problem object, beginning with the loss function
 .. ipython::
 
    loss = rr.logistic_loglikelihood.linear(X,successes=Y)
-   penalty = rr.l2normsq(1000, coef=1.)
+   penalty = rr.quadratic(1000, coef=1.)
 
 The logistic log-likelihood function is written without a matrix :math:`X`. We use the ".linear" to specify the linear composition :math:`X\beta`. Similarly, we could use ".affine" to specify an offset :math:`X\beta + \alpha`.
 The penalty contains the regularization parameter that can be easily accessed and changed,

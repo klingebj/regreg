@@ -21,7 +21,7 @@ smoothed_hinge_loss = rr.smoothed_atom(hinge_loss, epsilon=epsilon)
 
 s = rr.selector(slice(0,P), (P+1,))
 sparsity = rr.l1norm.linear(s, lagrange=3.)
-quadratic = rr.l2normsq.linear(s, coef=0.5)
+quadratic = rr.quadratic.linear(s, coef=0.5)
 
 
 from regreg.affine import power_L

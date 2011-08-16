@@ -6,7 +6,7 @@ from scipy import sparse
 import regreg.api as rr
 
 Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-loss = rr.l2normsq.shift(-Y, coef=0.5)
+loss = rr.quadratic.shift(-Y, coef=0.5)
 sparsity = rr.l1norm(len(Y), lagrange=0.8)
 sparsity.lagrange += 1
 D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]

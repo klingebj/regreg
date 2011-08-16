@@ -97,7 +97,7 @@ we obtain the same solution.
 .. ipython::
 
    sparsity = R.l1norm(1000, bound=np.fabs(basis_pursuit_soln).sum())
-   loss = R.l2normsq.affine(X, -Y)
+   loss = R.quadratic.affine(X, -Y)
    lasso = R.container(loss, sparsity)
    lasso_solver = R.FISTA(lasso)
    h = lasso_solver.fit(max_its=2000, tol=1.0e-10)

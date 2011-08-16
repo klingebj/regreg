@@ -53,7 +53,7 @@ and the quadratic penalty
 
 .. ipython::
 
-   quadratic = rr.l2normsq.linear(rr.selector(slice(0,P), (P+1,)), coef=0.5)
+   quadratic = rr.quadratic.linear(rr.selector(slice(0,P), (P+1,)), coef=0.5)
 
 Now, let's solve it
 
@@ -109,7 +109,7 @@ The hinge loss is defined similarly, and we only need to add a sparsity penalty
 
    s = rr.selector(slice(0,P), (P+1,))
    sparsity = rr.l1norm.linear(s, lagrange=0.2)
-   quadratic = rr.l2normsq.linear(s, coef=0.5)
+   quadratic = rr.quadratic.linear(s, coef=0.5)
 
 .. ipython::
 
@@ -152,7 +152,7 @@ The hinge loss is defined similarly, and we only need to add a sparsity penalty
 
    s = rr.selector(slice(0,P), (P+1,))
    sparsity = rr.l1norm.linear(s, lagrange=0.2)
-   quadratic = rr.l2normsq.linear(s, coef=0.5)
+   quadratic = rr.quadratic.linear(s, coef=0.5)
 
 Now, let's fit it. For this problem, we can use a known bound for the Lipschitz
 constant. We'll first get a bound on the largest squared singular value of X

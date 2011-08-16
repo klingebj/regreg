@@ -133,7 +133,7 @@ def test_centering_fit(debug=False):
     lagrange = .1
 
     # Loss function (squared difference between fitted and actual data)
-    loss = rr.l2normsq.affine(L, -Y, coef=coef)
+    loss = rr.quadratic.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
                  rr.nonnegative(5)]
@@ -151,7 +151,7 @@ def test_centering_fit(debug=False):
     coefs = solver.composite.coefs
 
     # Solve the problem with X2
-    loss2 = rr.l2normsq.affine(X2, -Y, coef=coef)
+    loss2 = rr.quadratic.affine(X2, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
     composite_form2 = rr.composite(loss2.smooth_objective,
@@ -205,7 +205,7 @@ def test_scaling_fit(debug=False):
     lagrange = .1
 
     # Loss function (squared difference between fitted and actual data)
-    loss = rr.l2normsq.affine(L, -Y, coef=coef)
+    loss = rr.quadratic.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
                  rr.nonnegative(5)]
@@ -223,7 +223,7 @@ def test_scaling_fit(debug=False):
     coefs = solver.composite.coefs
 
     # Solve the problem with X2
-    loss2 = rr.l2normsq.affine(X2, -Y, coef=coef)
+    loss2 = rr.quadratic.affine(X2, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
     composite_form2 = rr.composite(loss2.smooth_objective,
@@ -277,7 +277,7 @@ def test_scaling_and_centering_fit(debug=False):
     lagrange = .1
 
     # Loss function (squared difference between fitted and actual data)
-    loss = rr.l2normsq.affine(L, -Y, coef=coef)
+    loss = rr.quadratic.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
                  rr.nonnegative(5)]
@@ -296,7 +296,7 @@ def test_scaling_and_centering_fit(debug=False):
     coefs = solver.composite.coefs
 
     # Solve the problem with X2
-    loss2 = rr.l2normsq.affine(X2, -Y, coef=coef)
+    loss2 = rr.quadratic.affine(X2, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
     composite_form2 = rr.composite(loss2.smooth_objective,
@@ -351,7 +351,7 @@ def test_scaling_and_centering_fit_inplace(debug=False):
     lagrange = .1
 
     # Loss function (squared difference between fitted and actual data)
-    loss = rr.l2normsq.affine(L, -Y, coef=coef)
+    loss = rr.quadratic.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
                  rr.nonnegative(5)]
@@ -370,7 +370,7 @@ def test_scaling_and_centering_fit_inplace(debug=False):
     coefs = solver.composite.coefs
 
     # Solve the problem with X, which has been normalized in place
-    loss2 = rr.l2normsq.affine(X, -Y, coef=coef)
+    loss2 = rr.quadratic.affine(X, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
     composite_form2 = rr.composite(loss2.smooth_objective,
@@ -425,7 +425,7 @@ def test_scaling_fit_inplace(debug=False):
     lagrange = .1
 
     # Loss function (squared difference between fitted and actual data)
-    loss = rr.l2normsq.affine(L, -Y, coef=coef)
+    loss = rr.quadratic.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
                  rr.nonnegative(5)]
@@ -443,7 +443,7 @@ def test_scaling_fit_inplace(debug=False):
     coefs = solver.composite.coefs
 
     # Solve the problem with X, which has been normalized in place
-    loss2 = rr.l2normsq.affine(X, -Y, coef=coef)
+    loss2 = rr.quadratic.affine(X, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
     composite_form2 = rr.composite(loss2.smooth_objective,
@@ -498,7 +498,7 @@ def test_centering_fit_inplace(debug=False):
     lagrange = .1
 
     # Loss function (squared difference between fitted and actual data)
-    loss = rr.l2normsq.affine(L, -Y, coef=coef)
+    loss = rr.quadratic.affine(L, -Y, coef=coef)
 
     penalties = [rr.constrained_positive_part(25, lagrange=lagrange),
                  rr.nonnegative(5)]
@@ -516,7 +516,7 @@ def test_centering_fit_inplace(debug=False):
     coefs = solver.composite.coefs
 
     # Solve the problem with X, which has been normalized in place
-    loss2 = rr.l2normsq.affine(X, -Y, coef=coef)
+    loss2 = rr.quadratic.affine(X, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
     composite_form2 = rr.composite(loss2.smooth_objective,

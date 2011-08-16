@@ -5,7 +5,7 @@ from scipy import sparse
 import regreg.api as rr
 
 Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-loss = rr.l2normsq.shift(-Y, coef=0.5)
+loss = rr.quadratic.shift(-Y, coef=0.5)
 
 sparsity = rr.l1norm(len(Y), 1.4)
 # TODO should make a module to compute typical Ds
@@ -29,14 +29,14 @@ constrained_solver.composite.lipschitz = 1.01
 vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
 constrained_solution = constrained_solver.composite.coefs
 
-loss = rr.l2normsq.shift(-Y, coef=0.5)
-true_conjugate = rr.l2normsq.shift(Y, coef=0.5, constant_term=-np.linalg.norm(Y)**2/2)
+loss = rr.quadratic.shift(-Y, coef=0.5)
+true_conjugate = rr.quadratic.shift(Y, coef=0.5, constant_term=-np.linalg.norm(Y)**2/2)
 problem = rr.container(loss, fused_constraint, sparsity_constraint)
 solver = rr.FISTA(problem.conjugate_composite(true_conjugate))
 solver.fit(max_its=200, tol=1e-08)
 conjugate_coefs = problem.conjugate_primal_from_dual(solver.composite.coefs)
 
-loss = rr.l2normsq.shift(-Y, coef=0.5)
+loss = rr.quadratic.shift(-Y, coef=0.5)
 problem = rr.container(loss, fused_constraint, sparsity_constraint)
 solver = rr.FISTA(problem.conjugate_composite())
 solver.fit(max_its=200, tol=1e-08)

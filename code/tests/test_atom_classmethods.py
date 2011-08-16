@@ -19,35 +19,35 @@ def test_affine_linear_offset_l1norm():
     
     coefs = []
     
-    loss = rr.l2normsq.affine(X,-Y, coef=0.5)
+    loss = rr.quadratic.affine(X,-Y, coef=0.5)
     sparsity = rr.l1norm(p, lagrange=5.)
     problem = rr.container(loss, sparsity)
     solver = rr.FISTA(problem)
     solver.fit(debug=False, tol=1e-10)
     coefs.append(1.*solver.composite.coefs)
     
-    loss = rr.l2normsq.affine(X,-Y, coef=0.5)
+    loss = rr.quadratic.affine(X,-Y, coef=0.5)
     sparsity = rr.l1norm.linear(np.eye(p), lagrange=5.)
     problem = rr.container(loss, sparsity)
     solver = rr.FISTA(problem)
     solver.fit(debug=False, tol=1e-10)
     coefs.append(1.*solver.composite.coefs)
     
-    loss = rr.l2normsq.affine(X,-Y, coef=0.5)
+    loss = rr.quadratic.affine(X,-Y, coef=0.5)
     sparsity = rr.l1norm.affine(np.eye(p),np.zeros(p), lagrange=5.)
     problem = rr.container(loss, sparsity)
     solver = rr.FISTA(problem)
     solver.fit(debug=False, tol=1e-10)
     coefs.append(1.*solver.composite.coefs)
     
-    loss = rr.l2normsq.affine(X,-Y, coef=0.5)
+    loss = rr.quadratic.affine(X,-Y, coef=0.5)
     sparsity = rr.l1norm.linear(np.eye(p), lagrange=5., offset=np.zeros(p))
     problem = rr.container(loss, sparsity)
     solver = rr.FISTA(problem)
     solver.fit(debug=False, tol=1e-10)
     coefs.append(1.*solver.composite.coefs)
     
-    loss = rr.l2normsq.affine(X,-Y, coef=0.5)
+    loss = rr.quadratic.affine(X,-Y, coef=0.5)
     sparsity = rr.l1norm.offset(np.zeros(p), lagrange=5.)
     problem = rr.container(loss, sparsity)
     solver = rr.FISTA(problem)

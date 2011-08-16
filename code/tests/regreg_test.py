@@ -16,7 +16,7 @@ def test_l1_seminorm():
     p = 1000
     Y = 10 * np.random.normal(0,1,p)
 
-    loss = R.l2normsq.shift(-Y, coef=0.5)
+    loss = R.quadratic.shift(-Y, coef=0.5)
     sparsity = R.l1norm(p, lagrange=5.)
     sparsity.lagrange *= 1.
 
@@ -61,7 +61,7 @@ def test_lasso_via_dual_split():
     
     penalties = [R.l1norm.linear(selector(500, slice(i*100,(i+1)*100)), lagrange=0.2) for i in range(5)]
     x = np.random.standard_normal(500)
-    loss = R.l2normsq.shift(-x, coef=0.5)
+    loss = R.quadratic.shift(-x, coef=0.5)
     lasso = R.container(loss,*penalties)
     solver = R.FISTA(lasso)
     solver.fit(tol=1e-8)
@@ -83,7 +83,7 @@ def test_multiple_lasso():
     sparsity1 = R.l1norm(p, lagrange=l1*0.75)
     sparsity2 = R.l1norm(p, lagrange=l1*0.25)
     x = np.random.normal(0,1,p)
-    loss = R.l2normsq.shift(-x, coef=0.5)
+    loss = R.quadratic.shift(-x, coef=0.5)
     p = R.container(loss, sparsity1, sparsity2)
     solver = R.FISTA(p)
     vals = solver.fit(tol=1.0e-10)
@@ -113,7 +113,7 @@ def test_1d_fused_lasso():
     
     X = np.random.standard_normal((2*n,n))
     Y = np.random.standard_normal((2*n,))
-    loss = R.l2normsq.affine(X, -Y, coef=0.5)
+    loss = R.quadratic.affine(X, -Y, coef=0.5)
     fused_lasso = R.container(loss, fused)
     solver=R.FISTA(fused_lasso)
     vals1 = solver.fit(max_its=25000, tol=1e-10)
@@ -122,7 +122,7 @@ def test_1d_fused_lasso():
     B = np.array(sparse.tril(np.ones((n,n))).todense())
     X2 = np.dot(X,B)
     
-    loss = R.l2normsq.affine(X2, -Y, coef=0.5)
+    loss = R.quadratic.affine(X2, -Y, coef=0.5)
     sparsity = R.l1norm(n, lagrange=l1)
     lasso = R.container(loss, sparsity)
     solver = R.FISTA(lasso)
@@ -138,7 +138,7 @@ def test_conjugate_solver():
 
     # Solve Lagrange problem 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-    loss = R.l2normsq.shift(-Y, coef=0.5)
+    loss = R.quadratic.shift(-Y, coef=0.5)
 
     sparsity = R.l1norm(len(Y), lagrange = 1.4)
     D = sparse.csr_matrix((np.identity(500) + np.diag([-1]*499,k=1))[:-1])
@@ -165,8 +165,8 @@ def test_conjugate_solver():
 
     # Solve with (shifted) conjugate function
 
-    loss = R.l2normsq.shift(-Y, coef=0.5)
-    true_conjugate = R.l2normsq.shift(Y, coef=0.5)
+    loss = R.quadratic.shift(-Y, coef=0.5)
+    true_conjugate = R.quadratic.shift(Y, coef=0.5)
     problem = R.container(loss, fused_constraint, sparsity_constraint)
     solver = R.FISTA(problem.conjugate_composite(true_conjugate))
     solver.fit(max_its=500, tol=1e-10)
@@ -175,7 +175,7 @@ def test_conjugate_solver():
 
     # Solve with generic conjugate function
 
-    loss = R.l2normsq.shift(-Y, coef=0.5)
+    loss = R.quadratic.shift(-Y, coef=0.5)
     problem = R.container(loss, fused_constraint, sparsity_constraint)
     solver2 = R.FISTA(problem.conjugate_composite(conjugate_tol=1e-12))
     solver2.fit(max_its=500, tol=1e-10)
@@ -200,7 +200,7 @@ def test_admm_l1_seminorm():
     p = 1000
     Y = 10 * np.random.normal(0,1,p)
 
-    loss = R.l2normsq.shift(-Y, coef=0.5)
+    loss = R.quadratic.shift(-Y, coef=0.5)
     sparsity = R.l1norm(p, lagrange=5.)
 
     prob = R.container(loss, sparsity)

@@ -19,7 +19,7 @@ hinge_loss = rr.linear_atom(hinge, transform)
 
 s = rr.selector(slice(0,P), (P+1,))
 sparsity = rr.l1norm.linear(s, lagrange=0.2)
-quadratic = rr.l2normsq.linear(s, coef=0.5)
+quadratic = rr.quadratic.linear(s, coef=0.5)
 problem = rr.container(quadratic, hinge_loss, sparsity)
 solver = rr.FISTA(problem)
 solver.debug = True

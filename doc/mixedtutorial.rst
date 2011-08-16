@@ -28,7 +28,7 @@ Next, let's generate an example signal, and solve the Lagrange form of the probl
 .. ipython::
  
    Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-   loss = rr.l2normsq.shift(-Y, coef=0.5)
+   loss = rr.quadratic.shift(-Y, coef=0.5)
 
    sparsity = rr.l1norm(len(Y), lagrange=1.4)
    # TODO should make a module to compute typical Ds
@@ -67,8 +67,8 @@ We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^
 
 .. ipython::
 
-   loss = rr.l2normsq.shift(-Y, coef=0.5)
-   true_conjugate = rr.l2normsq.shift(Y, coef=0.5, constant_term=-np.linalg.norm(Y)**2/2.)
+   loss = rr.quadratic.shift(-Y, coef=0.5)
+   true_conjugate = rr.quadratic.shift(Y, coef=0.5, constant_term=-np.linalg.norm(Y)**2/2.)
    problem = rr.container(loss, fused_constraint, sparsity)
    solver = rr.FISTA(problem.conjugate_composite(true_conjugate))
    solver.fit(max_its=200, tol=1e-08)
@@ -78,7 +78,7 @@ Let's also solve this with the generic constraint class, which is called by defa
 
 .. ipython::
 
-   loss = rr.l2normsq.shift(-Y, coef=0.5)
+   loss = rr.quadratic.shift(-Y, coef=0.5)
    problem = rr.container(loss, fused_constraint, sparsity)
    solver = rr.FISTA(problem.conjugate_composite())
    solver.fit(max_its=200, tol=1e-08)

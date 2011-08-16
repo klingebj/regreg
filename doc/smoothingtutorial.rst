@@ -36,7 +36,7 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = R.l2normsq.shift(-Y,coef=1)
+   loss = R.quadratic.shift(-Y,coef=1)
    sparsity = R.l1norm(len(Y), lagrange=1.8)
 
    # fused
