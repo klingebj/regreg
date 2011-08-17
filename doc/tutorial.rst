@@ -30,13 +30,27 @@ RegReg tutorials
 
   * Illustrates solving a problem with a seminorm in both the objective and constraint
 
-* Logistic regression tutorials
+* :ref:`normalizetutorial`
 
-  * :ref:`logisticl2tutorial`
+  * Illustrates using RegReg to normalize a matrix without storing another copy
+
+* Generalized linear models
+
+  * Logistic regression 
+
+    * :ref:`logisticl2tutorial`
  
-  * Example with differentiable objective and differentiable penalty
+    * Example with differentiable objective and differentiable penalty
 
-  * Sparse logistic regression tutorial (TODO)
+    * Sparse logistic regression tutorial (TODO)
+
+  * Poisson regression
+
+    * :ref:`poissontutorial`
+
+  * Multinomial regression
+      
+    * :ref:`multinomialtutorial`
 
 
 * :ref:`elasticnettutorial` (TODO: add citation)
