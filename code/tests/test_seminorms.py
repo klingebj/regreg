@@ -29,7 +29,7 @@ def test_proximal_maps():
             nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
             nt.assert_raises(AttributeError, setattr, d, 'lagrange', 4.)
 
-            loss = rr.l2normsq.shift(-Z, coef=0.5*L)
+            loss = rr.quadratic.shift(-Z, coef=0.5*L)
             problem = rr.composite(loss.smooth_objective, p.nonsmooth_objective,
                                    p.proximal, np.random.standard_normal(shape))
             solver = rr.FISTA(problem)
@@ -37,7 +37,7 @@ def test_proximal_maps():
 
             yield ac, p.proximal(Z, lipschitz=L), solver.composite.coefs
 
-            loss = rr.l2normsq.shift(-Z, coef=0.5*L)
+            loss = rr.quadratic.shift(-Z, coef=0.5*L)
             problem = rr.container(loss, p)
             solver = rr.FISTA(problem)
             solver.fit(tol=1.0e-12)
@@ -85,7 +85,7 @@ def test_linear_term_proximal():
             
             ##        yield ac, d.proximal_optimum(Z)[1], p.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2
 
-            loss = rr.l2normsq.shift(-Z, coef=0.5*L)
+            loss = rr.quadratic.shift(-Z, coef=0.5*L)
             problem = rr.composite(loss.smooth_objective, p.nonsmooth_objective,
                                    p.proximal, np.random.standard_normal(shape))
             solver = rr.FISTA(problem)
