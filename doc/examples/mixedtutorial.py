@@ -28,21 +28,8 @@ constrained_solution = constrained_solver.composite.coefs
 constrained_delta = np.fabs(D * constrained_solution).sum()
 print delta, constrained_delta
 
-loss = R.quadratic.shift(-Y, coef=0.5)
-true_conjugate = R.quadratic.shift(Y, coef=0.5, constant_term=-np.linalg.norm(Y)**2)
-problem = R.container(loss, fused_constraint, sparsity)
-solver = R.FISTA(problem.conjugate_composite(true_conjugate))
-solver.fit(max_its=200, tol=1e-08)
-conjugate_coefs = problem.conjugate_primal_from_dual(solver.composite.coefs)
-
-loss = R.quadratic.shift(-Y, coef=0.5)
-problem = R.container(loss, fused_constraint, sparsity)
-solver = R.FISTA(problem.conjugate_composite())
-solver.fit(max_its=200, tol=1e-08)
-conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.composite.coefs)
-
 pylab.scatter(np.arange(Y.shape[0]), Y)
-pylab.plot(solution, c='y', linewidth=7)	
-pylab.plot(constrained_solution, c='r', linewidth=5)
-pylab.plot(conjugate_coefs, c='black', linewidth=3)	
-pylab.plot(conjugate_coefs_gen, c='gray', linewidth=1)		
+pylab.plot(solution, c='y', linewidth=3)	
+pylab.plot(constrained_solution, c='r', linewidth=1)
+#pylab.plot(conjugate_coefs, c='black', linewidth=3)	
+#pylab.plot(conjugate_coefs_gen, c='gray', linewidth=1)		

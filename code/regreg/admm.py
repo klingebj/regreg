@@ -159,7 +159,6 @@ class node_problem(composite_class):
         self.atom = atom
         self.linear_transform, dual_atom = atom.dual
         self.atom = dual_atom.conjugate
-        print self.atom, self.linear_transform
         self.beta = beta
         self._u = u
         self.rho = rho

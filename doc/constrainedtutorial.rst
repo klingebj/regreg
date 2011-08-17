@@ -58,7 +58,7 @@ form of the problem
    problem = rr.container(loss, sparsity, fused)
    
    solver = rr.FISTA(problem)
-   solver.fit(max_its=100, tol=1e-10)
+   solver.fit(max_its=100)
    solution = problem.coefs
 
 We will now solve this problem in constraint form, using the 
@@ -78,32 +78,17 @@ By default, the container class will try to solve this problem with the two-loop
    constrained_solution = constrained_solver.composite.coefs
 
 
-We can also solve this using the conjugate function :math:`\mathcal{L}_\epsilon^*`:
+We can also solve this problem approximately by smoothing one or more of the constraints with the smoothed_atom method. The smoothed constraint is then treated as a differentiable function which can be faster in some problems.
 
 .. ipython::
 
-   loss = rr.quadratic.shift(-Y, coef=0.5)
-   true_conjugate = rr.quadratic.shift(Y, coef=0.5, constant_term=-np.linalg.norm(Y)**2/2)
-   problem = rr.container(loss, fused_constraint, sparsity_constraint)
-   solver = rr.FISTA(problem.conjugate_composite(true_conjugate))
-   solver.fit(max_its=200, tol=1e-08)
-   conjugate_coefs = problem.conjugate_primal_from_dual(solver.composite.coefs)
-
-Let's also solve this with the generic constraint class, which is called by default when conjugate_composite is called without an argument
-
-.. ipython::
-
-   loss = rr.quadratic.shift(-Y, coef=0.5)
-   problem = rr.container(loss, fused_constraint, sparsity_constraint)
-   solver = rr.FISTA(problem.conjugate_composite())
-   solver.fit(max_its=200, tol=1e-08)
-   conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.composite.coefs)
-
-
+   smoothed_fused_constraint = rr.smoothed_atom(fused_constraint, epsilon=1e-2)
+   smoothed_constrained_problem = rr.container(loss, smoothed_fused_constraint, sparsity_constraint)
+   smoothed_constrained_solver = rr.FISTA(smoothed_constrained_problem)
+   vals = smoothed_constrained_solver.fit(tol=1e-06)
+   smoothed_constrained_solution = smoothed_constrained_solver.composite.coefs
    print np.linalg.norm(solution - constrained_solution) / np.linalg.norm(solution)
-   print np.linalg.norm(solution - conjugate_coefs_gen) / np.linalg.norm(solution)
-   print np.linalg.norm(conjugate_coefs - conjugate_coefs_gen) / np.linalg.norm(conjugate_coefs)
-
+   print np.linalg.norm(solution - smoothed_constrained_solution) / np.linalg.norm(solution)
 
 .. plot:: ./examples/constrainedtutorial.py
 

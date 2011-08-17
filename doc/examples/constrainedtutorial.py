@@ -14,7 +14,7 @@ fused = rr.l1norm.linear(D, 25.5)
 problem = rr.container(loss, sparsity, fused)
 
 solver = rr.FISTA(problem)
-solver.fit(max_its=100, tol=1e-10)
+solver.fit(max_its=100)
 solution = solver.composite.coefs
 
 delta1 = np.fabs(D * solution).sum()
@@ -29,22 +29,19 @@ constrained_solver.composite.lipschitz = 1.01
 vals = constrained_solver.fit(max_its=10, tol=1e-06, backtrack=False, monotonicity_restart=False)
 constrained_solution = constrained_solver.composite.coefs
 
-loss = rr.quadratic.shift(-Y, coef=0.5)
-true_conjugate = rr.quadratic.shift(Y, coef=0.5, constant_term=-np.linalg.norm(Y)**2/2)
-problem = rr.container(loss, fused_constraint, sparsity_constraint)
-solver = rr.FISTA(problem.conjugate_composite(true_conjugate))
-solver.fit(max_its=200, tol=1e-08)
-conjugate_coefs = problem.conjugate_primal_from_dual(solver.composite.coefs)
+fused_constraint = rr.l1norm.linear(D, bound=delta1)
+smoothed_fused_constraint = rr.smoothed_atom(fused_constraint, epsilon=1e-2)
+smoothed_constrained_problem = rr.container(loss, smoothed_fused_constraint, sparsity_constraint)
+smoothed_constrained_solver = rr.FISTA(smoothed_constrained_problem)
+vals = smoothed_constrained_solver.fit(tol=1e-06)
+smoothed_constrained_solution = smoothed_constrained_solver.composite.coefs
 
-loss = rr.quadratic.shift(-Y, coef=0.5)
-problem = rr.container(loss, fused_constraint, sparsity_constraint)
-solver = rr.FISTA(problem.conjugate_composite())
-solver.fit(max_its=200, tol=1e-08)
-conjugate_coefs_gen = problem.conjugate_primal_from_dual(solver.composite.coefs)
+#pylab.clf()
+pylab.scatter(np.arange(Y.shape[0]), Y,c='red', label=r'$Y$')
+pylab.plot(solution, c='yellow', linewidth=5, label='Lagrange')
+pylab.plot(constrained_solution, c='green', linewidth=3, label='Constrained')
+pylab.plot(smoothed_constrained_solution, c='black', linewidth=1, label='Smoothed')
+pylab.legend()
+#pylab.plot(conjugate_coefs, c='black', linewidth=3)	
+#pylab.plot(conjugate_coefs_gen, c='gray', linewidth=1)		
 
-pylab.scatter(np.arange(Y.shape[0]), Y)
-
-pylab.plot(solution, c='y', linewidth=7)	
-pylab.plot(constrained_solution, c='r', linewidth=5)
-pylab.plot(conjugate_coefs, c='black', linewidth=3)	
-pylab.plot(conjugate_coefs_gen, c='gray', linewidth=1)		

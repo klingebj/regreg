@@ -8,6 +8,11 @@ The :math:`\ell_2` regularized logistic regression problem minimizes the objecti
     .. math::
        -2\left(Y^TX\beta - \sum_i \log \left[ 1 + \exp(x_i^T\beta) \right] \right) + \lambda \|\beta\|_2^2
 
+which corresponds to the usual logistic regression model
+
+   .. math::
+       P(Y_i=1) = \mbox{logit}(x_i^T\beta) = \frac{1}{1 + \mbox{exp}(-x_i^T\beta)}
+
 To solve this problem using RegReg we begin by loading the necessary numerical libraries
 
 .. ipython::

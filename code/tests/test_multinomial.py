@@ -7,7 +7,7 @@ import regreg.api as rr
 def test_multinomial_vs_logistic():
 
     """
-    Test that multinomial regresison with two categories is the same as logistic regression
+    Test that multinomial regression with two categories is the same as logistic regression
     """
 
     n = 500
