@@ -644,6 +644,11 @@ class adjoint(object):
 
 class composition(object):
 
+    """
+    Composes a list of affine transforms, executing right to left
+    """
+
+
     def __init__(self, *transforms):
         self.transforms = transforms
         self.primal_shape = transforms[-1].primal_shape
@@ -668,7 +673,6 @@ class composition(object):
             output = transform.affine_map(output)
         return output
 
-
     def offset_map(self, x):
         output = x
         for transform in self.transforms[::-1]:
@@ -680,4 +684,46 @@ class composition(object):
         for transform in self.transforms:
             output = transform.adjoint_map(output)
         return output
+
+
         
+class affine_sum(object):
+
+    """
+    Creates the sum of a list of affine_transforms
+    """
+
+    def __init__(self, *transforms):
+        self.transforms = transforms
+        self.primal_shape = transforms[0].primal_shape
+        self.dual_shape = transforms[0].dual_shape
+
+        # compute the affine_offset
+        affine_offset = self.affine_map(np.zeros(self.primal_shape))
+        if np.allclose(affine_offset, 0): 
+            self.affine_offset = None
+        else:
+            self.affine_offset = affine_offset
+
+    def linear_map(self, x):
+        output = 0
+        for transform in self.transforms[::-1]:
+            output += transform.linear_map(x)
+        return output
+
+    def affine_map(self, x):
+        output = 0
+        for transform in self.transforms[::-1]:
+            output += transform.affine_map(x)
+        return output
+
+
+    def offset_map(self, x):
+        return self.affine_offset
+
+    def adjoint_map(self, x):
+        output = 0
+        for transform in self.transforms:
+            output += transform.adjoint_map(x)
+        return output
+

@@ -3,12 +3,13 @@
 
 from operator import add
 import numpy as np
-
+import regreg.api as rr
 from regreg.affine import (broadcast_first, affine_transform, 
                            AffineError, composition, adjoint)
 
 from numpy.testing import (assert_array_almost_equal,
                            assert_array_equal)
+
 
 from nose.tools import assert_true, assert_equal, assert_raises
 
@@ -140,3 +141,22 @@ def test_adjoint():
     assert_array_equal(A.affine_map(w), L.adjoint_map(w))
     assert_array_equal(A.adjoint_map(z), L.linear_map(z))
 
+def test_affine_sum():
+
+    n = 100
+    p = 25
+
+    X1 = np.random.standard_normal((n,p))
+    X2 = np.random.standard_normal((n,p))
+    b = np.random.standard_normal(n)
+    v = np.random.standard_normal(p)
+
+    transform1 = rr.affine_transform(X1,b)
+    transform2 = rr.linear_transform(X2)
+    sum_transform = rr.affine_sum(transform1, transform2)
+
+    assert_array_almost_equal(np.dot(X1,v) + np.dot(X2,v) + b, sum_transform.affine_map(v))
+    assert_array_almost_equal(np.dot(X1,v) + np.dot(X2,v), sum_transform.linear_map(v))
+    assert_array_almost_equal(np.dot(X1.T,b) + np.dot(X2.T,b), sum_transform.adjoint_map(b))
+    assert_array_almost_equal(b, sum_transform.offset_map(v))
+    assert_array_almost_equal(b, sum_transform.affine_offset)
