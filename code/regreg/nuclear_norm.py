@@ -26,15 +26,18 @@ class factored_matrix(object):
                  linear_operator,
                  min_singular=0.,
                  tol=1e-5,
-                 initial_rank=None):
+                 initial_rank=None,
+                 affine_offset=None):
+
+        self.affine_offset = affine_offset
+        self.tol = tol
+        self.initial_rank = initial_rank
+
         if min_singular >= 0:
             self.min_singular = min_singular
         else:
             raise ValueError("Minimum singular value must be non-negative")
         
-        self.affine_offset = None
-        self.tol = tol
-        self.initial_rank = initial_rank
         if type(linear_operator) == type([]) and len(linear_operator) == 3:
             self.SVD = linear_operator
         else:
@@ -49,23 +52,35 @@ class factored_matrix(object):
         self.SVD = [U,D,VT]
 
     def _getX(self):
-        return np.dot(self.SVD[0], np.dot(np.diag(self.SVD[1]), self.SVD[2]))
+        if not self.rankone:
+            return np.dot(self.SVD[0], np.dot(np.diag(self.SVD[1]), self.SVD[2]))
+        else:
+            return self.SVD[1][0,0] * np.dot(self.SVD[0], self.SVD[2])
     X = property(_getX, _setX)
 
     def _getSVD(self):
         return self._SVD
     def _setSVD(self, SVD):
-        if not (SVD[0].shape[1] == SVD[1].shape[0]) and (SVD[1].shape[2] == SVD[2].shape[0]):
-            raise ValueError("SVD shapes are not compatible")
+        self.rankone = False
+        if SVD[0].ndim == 1:
+            SVD[0] = SVD[0].reshape((SVD[0].shape[0],1))
+            SVD[1] = SVD[1].reshape((1,1))
+            SVD[2] = SVD[2].reshape((1,SVD[2].shape[0]))
+            self.rankone = True
         self._SVD = SVD
     SVD = property(_getSVD, _setSVD)
 
-
     def linear_map(self, x):
-        return np.dot(self.SVD[0], np.dot(np.diag(self.SVD[1]), np.dot(self.SVD[2], x)))
+        if self.rankone:
+            return self.SVD[1][0,0] * np.dot(self.SVD[0], np.dot(self.SVD[2], x))
+        else:
+            return np.dot(self.SVD[0], np.dot(np.diag(self.SVD[1]), np.dot(self.SVD[2], x)))
 
     def adjoint_map(self, x):
-        return np.dot(self.SVD[2].T, np.dot(np.diag(self.SVD[1]), np.dot(self.SVD[0].T, x)))
+        if self.rankone:
+            return self.SVD[1][0,0] * np.dot(self.SVD[2].T, np.dot(self.SVD[0].T, x))
+        else:
+            return np.dot(self.SVD[2].T, np.dot(np.diag(self.SVD[1]), np.dot(self.SVD[0].T, x)))
 
     def affine_map(self,x):
         if self.affine_offset is None:
@@ -98,6 +113,8 @@ def compute_svd(transform,
     initial = None
     while len(D) >= r/2:
         U, D, VT = partial_svd(transform, r=r, extra_rank=5, tol=tol, initial=initial, return_full=True)
+        if D[0] < min_singular:
+            return U[:,0], np.zeros((1,1)), VT[0,:]
         if D[-1] < min_singular:
             break
         initial = U 
@@ -160,6 +177,25 @@ def partial_svd(transform,
         itercount += 1
 
     nonzero = np.where(singular_values > 1e-12)[0]
-    return U[:,ind[nonzero]] * np.sign(singular_values[nonzero]), np.fabs(singular_values[nonzero]),  V[:,ind[nonzero]].T
+    if len(nonzero):
+        return U[:,ind[nonzero]] * np.sign(singular_values[nonzero]), np.fabs(singular_values[nonzero]),  V[:,ind[nonzero]].T
+    else:
+        return U[:,ind[0]], np.zeros((1,1)),  V[:,ind[0]].T
 
 
+def soft_treshold_SVD(X, lambda1=0.):
+
+    """
+    Soft-treshold the singular values of a matrix X
+    """
+    if not isinstance(X, factored_matrix):
+        X = factored_matrix(X)
+
+    singular_values = X.SVD[1]
+    ind = np.where(singular_values > lambda1)[0]
+    if len(ind) == 0:
+        X.SVD = [np.zeros(X.dual_shape[0]), np.zeros(1), np.zeros(X.primal_shape[0])]
+    else:
+        X.SVD = [X.SVD[0][:,ind], np.maximum(singular_values[ind] - lambda1,0), X.SVD[2][ind,:]]
+
+    return X
