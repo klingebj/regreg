@@ -648,7 +648,6 @@ class composition(object):
     Composes a list of affine transforms, executing right to left
     """
 
-
     def __init__(self, *transforms):
         self.transforms = transforms
         self.primal_shape = transforms[-1].primal_shape
@@ -690,11 +689,17 @@ class composition(object):
 class affine_sum(object):
 
     """
-    Creates the sum of a list of affine_transforms
+    Creates the (weighted) sum of a list of affine_transforms
     """
 
-    def __init__(self, *transforms):
+    def __init__(self, transforms, weights=None):
         self.transforms = transforms
+        if weights is None:
+            self.weights = np.ones(len(self.transforms))
+        else:
+            if not len(self.transforms) == len(weights):
+                raise ValueError("Must specify a weight for each transform")
+            self.weights = weights
         self.primal_shape = transforms[0].primal_shape
         self.dual_shape = transforms[0].dual_shape
 
@@ -707,14 +712,14 @@ class affine_sum(object):
 
     def linear_map(self, x):
         output = 0
-        for transform in self.transforms[::-1]:
-            output += transform.linear_map(x)
+        for transform, weight in zip(self.transforms[::-1], self.weights[::-1]):
+            output += weight * transform.linear_map(x)
         return output
 
     def affine_map(self, x):
         output = 0
-        for transform in self.transforms[::-1]:
-            output += transform.affine_map(x)
+        for transform, weight in zip(self.transforms[::-1], self.weights[::-1]):
+            output += weight * transform.affine_map(x)
         return output
 
 
@@ -723,7 +728,7 @@ class affine_sum(object):
 
     def adjoint_map(self, x):
         output = 0
-        for transform in self.transforms:
-            output += transform.adjoint_map(x)
+        for transform, weight in zip(self.transforms[::-1], self.weights[::-1]):
+            output += weight * transform.adjoint_map(x)
         return output
 
