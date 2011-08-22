@@ -7,7 +7,10 @@ problems.
 import numpy as np
 from atoms import atom, conjugate_seminorm_pairs
 import warnings
-from affine import linear_transform
+from affine import linear_transform, composition, affine_sum, power_L
+from smooth import smooth_atom
+from composite import composite
+from algorithms import FISTA
 
 try:
     from projl1_cython import projl1
@@ -27,11 +30,15 @@ class factored_matrix(object):
                  min_singular=0.,
                  tol=1e-5,
                  initial_rank=None,
-                 affine_offset=None):
+                 initial = None,
+                 affine_offset=None,
+                 debug=False):
 
         self.affine_offset = affine_offset
         self.tol = tol
         self.initial_rank = initial_rank
+        self.initial = initial
+        self.debug = debug
 
         if min_singular >= 0:
             self.min_singular = min_singular
@@ -43,12 +50,16 @@ class factored_matrix(object):
         else:
             self.X = linear_operator
 
+
+    def copy(self):
+        return factored_matrix([self.SVD[0].copy(), self.SVD[1].copy(), self.SVD[2].copy()])
+
     def _setX(self,transform):
         if isinstance(transform, np.ndarray):
             transform = linear_transform(transform)
         self.primal_shape = transform.primal_shape
         self.dual_shape = transform.dual_shape
-        U, D, VT = compute_svd(transform, min_singular=self.min_singular, tol=self.tol, initial_rank = self.initial_rank)
+        U, D, VT = compute_svd(transform, min_singular=self.min_singular, tol=self.tol, initial_rank = self.initial_rank, initial=self.initial, debug=self.debug)
         self.SVD = [U,D,VT]
 
     def _getX(self):
@@ -62,11 +73,13 @@ class factored_matrix(object):
         return self._SVD
     def _setSVD(self, SVD):
         self.rankone = False
-        if SVD[0].ndim == 1:
-            SVD[0] = SVD[0].reshape((SVD[0].shape[0],1))
+        if len(SVD[1].flatten()) == 1:
+            SVD[0] = SVD[0].reshape((SVD[0].flatten().shape[0],1))
             SVD[1] = SVD[1].reshape((1,1))
-            SVD[2] = SVD[2].reshape((1,SVD[2].shape[0]))
+            SVD[2] = SVD[2].reshape((1,SVD[2].flatten().shape[0]))
             self.rankone = True
+        self.primal_shape = (SVD[2].shape[1],)
+        self.dual_shape = (SVD[0].shape[0],)
         self._SVD = SVD
     SVD = property(_getSVD, _setSVD)
 
@@ -90,8 +103,10 @@ class factored_matrix(object):
 
 def compute_svd(transform,
                 initial_rank = None,
+                initial = None,
                 min_singular = 0.,
-                tol = 1e-5):
+                tol = 1e-5,
+                debug=False):
 
     """
     Compute the SVD of a matrix
@@ -104,20 +119,21 @@ def compute_svd(transform,
     p = transform.primal_shape[0]
     
     if initial_rank is None:
-        r = np.round(np.min([n,p]) * 0.1)
+        r = np.round(np.min([n,p]) * 0.1) + 1
     else:
-        r = initial_rank
+        r = np.max([initial_rank,1])
 
     min_so_far = 1.
     D = np.zeros(r)
-    initial = None
     while len(D) >= r/2:
-        U, D, VT = partial_svd(transform, r=r, extra_rank=5, tol=tol, initial=initial, return_full=True)
+        if debug:
+            print "Trying rank", r
+        U, D, VT = partial_svd(transform, r=r, extra_rank=5, tol=tol, initial=initial, return_full=True, debug=debug)
         if D[0] < min_singular:
             return U[:,0], np.zeros((1,1)), VT[0,:]
         if D[-1] < min_singular:
             break
-        initial = U 
+        initial = 1. * U 
         r *= 2
 
     ind = np.where(D >= min_singular)[0]
@@ -149,6 +165,8 @@ def partial_svd(transform,
     if initial is not None:
         if initial.shape == (n,q):
             U = initial
+        elif len(initial.shape) == 1:
+            U = np.hstack([initial.reshape((initial.shape[0],1)), np.random.standard_normal((n,q-1))])            
         else:
             U = np.hstack([initial, np.random.standard_normal((n,q-initial.shape[1]))])            
     else:
@@ -166,8 +184,8 @@ def partial_svd(transform,
 
 
     while itercount < max_its and singular_rel_change > tol:
-        if debug:
-            print itercount, singular_rel_change
+        if debug and itercount > 0:
+            print itercount, singular_rel_change, singular_values[range(np.min([10,len(singular_values)]))]
         V,_ = np.linalg.qr(transform.adjoint_map(U))
         X_V = transform.linear_map(V)
         U,_ = np.linalg.qr(X_V)
@@ -176,14 +194,14 @@ def partial_svd(transform,
         old_singular_values = singular_values * 1.
         itercount += 1
 
-    nonzero = np.where(singular_values > 1e-12)[0]
+    nonzero = np.where(np.fabs(singular_values) > 1e-12)[0]
     if len(nonzero):
         return U[:,ind[nonzero]] * np.sign(singular_values[nonzero]), np.fabs(singular_values[nonzero]),  V[:,ind[nonzero]].T
     else:
         return U[:,ind[0]], np.zeros((1,1)),  V[:,ind[0]].T
 
 
-def soft_treshold_SVD(X, lambda1=0.):
+def soft_threshold_SVD(X, lambda1=0.):
 
     """
     Soft-treshold the singular values of a matrix X
@@ -192,10 +210,78 @@ def soft_treshold_SVD(X, lambda1=0.):
         X = factored_matrix(X)
 
     singular_values = X.SVD[1]
-    ind = np.where(singular_values > lambda1)[0]
+    ind = np.where(singular_values >= lambda1)[0]
     if len(ind) == 0:
         X.SVD = [np.zeros(X.dual_shape[0]), np.zeros(1), np.zeros(X.primal_shape[0])]
     else:
         X.SVD = [X.SVD[0][:,ind], np.maximum(singular_values[ind] - lambda1,0), X.SVD[2][ind,:]]
 
     return X
+
+
+
+class interaction_loss(smooth_atom):
+
+    """
+    A class for the low-rank interaction problem.
+
+    The gradient is a matrix. Instead of forming the matrix, a linear_transform is returned
+    
+    """
+
+
+    def __init__(self, X, Y, coef=1.):
+
+        self.X = X
+        self.n = X.shape[0]
+        self.Y = Y
+        self.coef = coef
+
+        self.multX = linear_transform(self.X)
+        self.multXT = linear_transform(self.X.T)
+        self.row_weights = linear_transform(np.ones(self.n), diag=True)
+
+    def smooth_objective(self, A, mode='both', check_feasibility=False):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        resid = self.Y - np.diag(np.dot(self.X, A.linear_map(self.X.T)))
+
+        if mode == 'func':
+            return self.scale( 0.5 * np.linalg.norm(resid)**2 )
+        elif mode == 'grad':
+            self.row_weights.linear_operator = -1. * resid
+            return composition(self.multXT, self.row_weights, self.multX)
+        elif mode == 'both':
+            self.row_weights.linear_operator = -1. * resid
+            return self.scale( 0.5 * np.linalg.norm(resid)**2 ), composition(self.multXT, self.row_weights, self.multX)
+        else:
+            raise ValueError("Mode not specified correctly")
+
+def interactions_composite(X,Y, lambda1 = 0., initial=None, lipschitz=None, debug=False):
+
+    n, p = X.shape
+    loss = interaction_loss(X,Y)
+
+    def nukenorm(X, check_feasibility=False):
+        if not hasattr(X,'SVD'):
+            raise ValueError("Argument is not a factored matrix")
+        return lambda1 * np.fabs(X.SVD[1]).sum()
+
+    def prox(x,grad,lipschitz):
+        r = np.int(np.sum(x.SVD[1] > 1e-12) * 1.1)
+        transform = affine_sum([x,grad],[1., -1./lipschitz])
+        L = factored_matrix(transform, initial=x.SVD[0], initial_rank = r, debug=debug, tol=1e-12, min_singular=lambda1)
+        return soft_threshold_SVD(L, lambda1=lambda1)
+
+    if initial is None:
+        initial = factored_matrix([np.ones(p), np.ones(1), np.ones(p)])
+    if lipschitz is None:
+        lipschitz = power_L(X)**2
+
+    return composite(loss.smooth_objective, nukenorm, prox, initial, lipschitz=lipschitz, compute_difference=False)
