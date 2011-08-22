@@ -6,22 +6,26 @@ class composite(object):
     A generic way to specify a problem in composite form.
     """
 
-    def __init__(self, smooth_objective, nonsmooth_objective, proximal, initial, smooth_multiplier=1, lipschitz=None):
+    def __init__(self, smooth_objective, nonsmooth_objective, proximal, initial, smooth_multiplier=1, lipschitz=None, compute_difference=True):
         self.coefs = initial.copy()
         self.nonsmooth_objective = nonsmooth_objective
         self._smooth_objective = smooth_objective
         self.proximal = proximal
         self.smooth_multiplier = smooth_multiplier
         self._lipschitz = lipschitz
+        self.compute_difference = compute_difference
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         output = self._smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
-        if mode == 'both':
-            return self.smooth_multiplier * output[0], self.smooth_multiplier * output[1]
-        elif mode == 'grad' or mode == 'func':
-            return self.smooth_multiplier * output
+        if self.smooth_multiplier == 1:
+            return output
         else:
-            raise ValueError("Mode incorrectly specified")
+            if mode == 'both':
+                return self.smooth_multiplier * output[0], self.smooth_multiplier * output[1]
+            elif mode == 'grad' or mode == 'func':
+                return self.smooth_multiplier * output
+            else:
+                raise ValueError("Mode incorrectly specified")
 
     def objective(self, x, check_feasibility=False):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
@@ -48,13 +52,15 @@ class composite(object):
 
         prox_control: If not None, then a dictionary of parameters for the prox procedure
         """
-        z = x - grad / lipschitz
-        
-        if prox_control is None:
-            return self.proximal(z, lipschitz)
+        if self.compute_difference:
+            z = x - grad / lipschitz
+            if prox_control is None:
+                return self.proximal(z, lipschitz)
+            else:
+                return self.proximal(z, lipschitz, prox_control=prox_control)
         else:
-            return self.proximal(z, lipschitz, prox_control=prox_control)
-
+            return self.proximal(x, grad, lipschitz)
+        
     def get_lipschitz(self):
         return self._lipschitz
     def set_lipschitz(self, value):
