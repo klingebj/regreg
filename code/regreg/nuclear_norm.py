@@ -124,15 +124,13 @@ def compute_svd(transform,
         r = np.max([initial_rank,1])
 
     min_so_far = 1.
-    D = np.zeros(r)
-    while len(D) >= r/2:
+    D = [np.inf]
+    while D[-1] >= min_singular:
         if debug:
             print "Trying rank", r
         U, D, VT = partial_svd(transform, r=r, extra_rank=5, tol=tol, initial=initial, return_full=True, debug=debug)
         if D[0] < min_singular:
             return U[:,0], np.zeros((1,1)), VT[0,:]
-        if D[-1] < min_singular:
-            break
         initial = 1. * U 
         r *= 2
 
@@ -174,10 +172,10 @@ def partial_svd(transform,
 
     if return_full:
         ind = np.arange(q)
-        old_singular_values = np.zeros(q)
     else:
         ind = np.arange(r)
-        old_singular_values = np.zeros(r)
+    old_singular_values = np.zeros(r)
+    change_ind = np.arange(r)
 
     itercount = 0
     singular_rel_change = 1.
@@ -185,14 +183,15 @@ def partial_svd(transform,
 
     while itercount < max_its and singular_rel_change > tol:
         if debug and itercount > 0:
-            print itercount, singular_rel_change, singular_values[range(np.min([10,len(singular_values)]))]
+            print itercount, singular_rel_change, np.sum(np.fabs(singular_values)>1e-12), np.fabs(singular_values[range(np.min([5,len(singular_values)]))])
         V,_ = np.linalg.qr(transform.adjoint_map(U))
         X_V = transform.linear_map(V)
-        U,_ = np.linalg.qr(X_V)
-        singular_values = np.diagonal(np.dot(U.T,X_V))[ind]
+        U,R = np.linalg.qr(X_V)
+        singular_values = np.diagonal(R)[change_ind]
         singular_rel_change = np.linalg.norm(singular_values - old_singular_values)/np.linalg.norm(singular_values)
         old_singular_values = singular_values * 1.
         itercount += 1
+    singular_values = np.diagonal(R)[ind]
 
     nonzero = np.where(np.fabs(singular_values) > 1e-12)[0]
     if len(nonzero):
@@ -268,20 +267,25 @@ def interactions_composite(X,Y, lambda1 = 0., initial=None, lipschitz=None, debu
     n, p = X.shape
     loss = interaction_loss(X,Y)
 
-    def nukenorm(X, check_feasibility=False):
-        if not hasattr(X,'SVD'):
+    def nukenorm(Z, check_feasibility=False):
+        if not hasattr(Z,'SVD'):
             raise ValueError("Argument is not a factored matrix")
-        return lambda1 * np.fabs(X.SVD[1]).sum()
+        return lambda1 * np.fabs(Z.SVD[1]).sum()
 
     def prox(x,grad,lipschitz):
         r = np.int(np.sum(x.SVD[1] > 1e-12) * 1.1)
         transform = affine_sum([x,grad],[1., -1./lipschitz])
-        L = factored_matrix(transform, initial=x.SVD[0], initial_rank = r, debug=debug, tol=1e-12, min_singular=lambda1)
-        return soft_threshold_SVD(L, lambda1=lambda1)
+        L = factored_matrix(transform, initial=x.SVD[0], initial_rank = x.SVD[0].shape[1], debug=debug, tol=1e-8, min_singular=lambda1/lipschitz)
+        #print lipschitz*L.SVD[1]
+        return soft_threshold_SVD(L, lambda1=lambda1/lipschitz)
 
     if initial is None:
-        initial = factored_matrix([np.ones(p), np.ones(1), np.ones(p)])
+        u = np.random.standard_normal(p)
+        v = np.random.standard_normal(p)
+        u /= np.linalg.norm(u)
+        v /= np.linalg.norm(v)
+        initial = factored_matrix([u, (1e-2)*np.ones(1), v])
     if lipschitz is None:
         lipschitz = power_L(X)**2
 
-    return composite(loss.smooth_objective, nukenorm, prox, initial, lipschitz=lipschitz, compute_difference=False)
+    return composite(loss.smooth_objective, nukenorm, prox, initial=initial, lipschitz=lipschitz, compute_difference=False)
