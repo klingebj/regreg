@@ -200,7 +200,7 @@ def partial_svd(transform,
         return U[:,ind[0]], np.zeros((1,1)),  V[:,ind[0]].T
 
 
-def soft_threshold_SVD(X, lambda1=0.):
+def soft_threshold_SVD(X, c=0.):
 
     """
     Soft-treshold the singular values of a matrix X
@@ -209,11 +209,11 @@ def soft_threshold_SVD(X, lambda1=0.):
         X = factored_matrix(X)
 
     singular_values = X.SVD[1]
-    ind = np.where(singular_values >= lambda1)[0]
+    ind = np.where(singular_values >= c)[0]
     if len(ind) == 0:
         X.SVD = [np.zeros(X.dual_shape[0]), np.zeros(1), np.zeros(X.primal_shape[0])]
     else:
-        X.SVD = [X.SVD[0][:,ind], np.maximum(singular_values[ind] - lambda1,0), X.SVD[2][ind,:]]
+        X.SVD = [X.SVD[0][:,ind], np.maximum(singular_values[ind] - c,0), X.SVD[2][ind,:]]
 
     return X
 
@@ -272,20 +272,19 @@ def interactions_composite(X,Y, lambda1 = 0., initial=None, lipschitz=None, debu
             raise ValueError("Argument is not a factored matrix")
         return lambda1 * np.fabs(Z.SVD[1]).sum()
 
-    def prox(x,grad,lipschitz):
-        r = np.int(np.sum(x.SVD[1] > 1e-12) * 1.1)
-        transform = affine_sum([x,grad],[1., -1./lipschitz])
-        L = factored_matrix(transform, initial=x.SVD[0], initial_rank = x.SVD[0].shape[1], debug=debug, tol=1e-8, min_singular=lambda1/lipschitz)
-        #print lipschitz*L.SVD[1]
-        return soft_threshold_SVD(L, lambda1=lambda1/lipschitz)
+    def prox(x,grad,prox_lipschitz):
+        transform = affine_sum([x,grad],[1., -1./prox_lipschitz])
+        L = factored_matrix(transform, initial=x.SVD[0], initial_rank = x.SVD[0].shape[1], debug=debug, tol=1e-10, min_singular=lambda1/prox_lipschitz)
+        #print prox_lipschitz*L.SVD[1]
+        return soft_threshold_SVD(L, c=lambda1/prox_lipschitz)
 
     if initial is None:
         u = np.random.standard_normal(p)
         v = np.random.standard_normal(p)
         u /= np.linalg.norm(u)
         v /= np.linalg.norm(v)
-        initial = factored_matrix([u, (1e-2)*np.ones(1), v])
+        initial = factored_matrix([u, (1e-4)*np.ones(1), v])
     if lipschitz is None:
-        lipschitz = power_L(X)**2
+        lipschitz = np.sum(X**2) * np.sqrt(np.min(X.shape))
 
     return composite(loss.smooth_objective, nukenorm, prox, initial=initial, lipschitz=lipschitz, compute_difference=False)
