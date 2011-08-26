@@ -59,7 +59,7 @@ class factored_matrix(object):
             transform = linear_transform(transform)
         self.primal_shape = transform.primal_shape
         self.dual_shape = transform.dual_shape
-        U, D, VT = compute_svd(transform, min_singular=self.min_singular, tol=self.tol, initial_rank = self.initial_rank, initial=self.initial, debug=self.debug)
+        U, D, VT = compute_iterative_svd(transform, min_singular=self.min_singular, tol=self.tol, initial_rank = self.initial_rank, initial=self.initial, debug=self.debug)
         self.SVD = [U,D,VT]
 
     def _getX(self):
@@ -101,15 +101,15 @@ class factored_matrix(object):
         else:
             return self.linear_map(x) + affine_offset
 
-def compute_svd(transform,
-                initial_rank = None,
-                initial = None,
-                min_singular = 0.,
-                tol = 1e-5,
-                debug=False):
+def compute_iterative_svd(transform,
+                          initial_rank = None,
+                          initial = None,
+                          min_singular = 0.,
+                          tol = 1e-5,
+                          debug=False):
 
     """
-    Compute the SVD of a matrix
+    Compute the SVD of a matrix using partial_svd
     """
 
     if isinstance(transform, np.ndarray):
@@ -200,7 +200,7 @@ def partial_svd(transform,
         return U[:,ind[0]], np.zeros((1,1)),  V[:,ind[0]].T
 
 
-def soft_threshold_SVD(X, c=0.):
+def soft_threshold_svd(X, c=0.):
 
     """
     Soft-treshold the singular values of a matrix X
