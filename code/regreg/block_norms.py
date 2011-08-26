@@ -89,6 +89,7 @@ class block_max(block_sum):
                     
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         #HMM... requires a little thought
+        pass
 
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atoms.atom.bound_prox(self, x, lipschitz=lipschitz, 
