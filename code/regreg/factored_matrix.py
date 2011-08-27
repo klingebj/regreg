@@ -104,7 +104,7 @@ class factored_matrix(object):
 def compute_iterative_svd(transform,
                           initial_rank = None,
                           initial = None,
-                          min_singular = 0.,
+                          min_singular = 1e-16,
                           tol = 1e-5,
                           debug=False):
 
@@ -131,6 +131,8 @@ def compute_iterative_svd(transform,
         U, D, VT = partial_svd(transform, r=r, extra_rank=5, tol=tol, initial=initial, return_full=True, debug=debug)
         if D[0] < min_singular:
             return U[:,0], np.zeros((1,1)), VT[0,:]
+        if len(D) < r:
+            break
         initial = 1. * U 
         r *= 2
 
