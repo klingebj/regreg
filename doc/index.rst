@@ -24,3 +24,10 @@ If you are interested in contributing as a developer, please see the :ref:`agend
    documentation
 
 This website is based on the `NIPY website <http://nipy.sourceforge.net/nipy/stable/index.html>`_, see :ref:`doc-attribute` for details.
+
+Thanks
+======
+
+Jonathan Taylor and Brad Klingenberg were funded by NSF in writing their
+portion of the software. As such, this material is based upon work supported by the National Science Foundation under Grant No. 0906801.
+Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and do not necessarily reflect the views of the National Science Foundation.
