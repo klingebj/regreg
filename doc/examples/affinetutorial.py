@@ -9,7 +9,7 @@ Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
 alpha = np.linspace(0,10,500)
 Y += alpha
-loss = R.l2normsq.shift(-Y.copy(), coef=0.5)
+loss = R.quadratic.shift(-Y.copy(), coef=0.5)
 
 shrink_to_alpha = R.l1norm(Y.shape, offset=-alpha, lagrange=3.)
 

@@ -3,7 +3,7 @@ import numpy as np
 import scipy.sparse
 
 from regreg.algorithms import FISTA
-from regreg.smooth import l2normsq
+from regreg.smooth import quadratic
 from regreg.atoms import l1norm, maxnorm
 from regreg.seminorm import seminorm
 
@@ -12,7 +12,7 @@ DT = scipy.sparse.csr_matrix(D.T)
 D = scipy.sparse.csr_matrix(D)
 
 Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-loss = l2normsq.shift(-Y, l=0.5)
+loss = quadratic.shift(-Y, l=0.5)
 penalty = l1norm(D, l=20)
 
 problem = loss.add_seminorm(seminorm(penalty))
@@ -23,7 +23,7 @@ solution = solver.problem.coefs
 l1_soln = np.fabs(D * solution).sum()
 
 tfocs_penalty = maxnorm(499, l=l1_soln)
-tfocs_loss = l2normsq.affine(DT, -Y, l=0.5)
+tfocs_loss = quadratic.affine(DT, -Y, l=0.5)
 tfocs_loss.coefs = np.zeros(499)
 tfocs_problem = tfocs_loss.add_seminorm(tfocs_penalty)
 tfocs_solver = FISTA(tfocs_problem)
@@ -39,7 +39,7 @@ pylab.plot(tfocs_primal_solution, color='black', linewidth=3)
 
 
 newl1 = l1norm(D, l=l1_soln)
-conjugate = l2normsq.shift(Y, l=0.5)
+conjugate = quadratic.shift(Y, l=0.5)
 from regreg.constraint import constraint
 loss_constraint = constraint(conjugate, newl1)
 new_solver = FISTA(loss_constraint.dual_problem())

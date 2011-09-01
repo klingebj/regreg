@@ -58,9 +58,9 @@ class Block(object):
         else:
             initial = initial.copy()
         if self.linear_transform.linear_operator is not None:
-            self.loss = smooth.l2normsq.affine(self.linear_transform.linear_operator.T, -response, coef=0.5, diag=self.linear_transform.diagD)
+            self.loss = smooth.quadratic.affine(self.linear_transform.linear_operator.T, -response, coef=0.5, diag=self.linear_transform.diagD)
         else:
-            self.loss = smooth.l2normsq.shift(-response, coef=0.5)
+            self.loss = smooth.quadratic.shift(-response, coef=0.5)
 
         prox = self.dual_atom.proximal
         nonsmooth = self.dual_atom.nonsmooth_objective
@@ -82,7 +82,7 @@ class Block(object):
         return self.composite.coefs
     coefs = property(get_coefs, set_coefs)
     
-    # response is the negative offset in the loss which is (l2normsq / 2.)
+    # response is the negative offset in the loss which is (quadratic / 2.)
     def set_response(self, response):
         self.loss.affine_transform.affine_offset[:] = -response
     def get_response(self):
@@ -133,7 +133,7 @@ def test1():
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
     from regreg.container import container
-    from regreg.smooth import l2normsq
+    from regreg.smooth import quadratic
 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
 
@@ -143,7 +143,7 @@ def test1():
     D = sparse.csr_matrix(D)
 
     fused = l1norm.linear(D, lagrange=19.5)
-    loss = l2normsq.shift(-Y, lagrange=0.5)
+    loss = quadratic.shift(-Y, lagrange=0.5)
 
     p = container(loss, sparsity, fused)
     
@@ -170,11 +170,11 @@ def test2():
     from regreg.algorithms import FISTA
     from regreg.atoms import l1norm
     from regreg.container import container
-    from regreg.smooth import l2normsq
+    from regreg.smooth import quadratic
 
     n1, n2 = l1norm(1), l1norm(1)
     Y = np.array([30.])
-    loss = l2normsq.shift(-Y, lagrange=0.5)
+    loss = quadratic.shift(-Y, lagrange=0.5)
     blockwise([n1, n2], Y)
 
 

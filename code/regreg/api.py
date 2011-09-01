@@ -1,3 +1,6 @@
+"""
+A collection of commonly used RegReg functions and objects
+"""
 
 from atoms import (l1norm, l2norm, supnorm, 
                    positive_part, constrained_max, affine_atom as linear_atom,
@@ -7,8 +10,10 @@ from cones import (nonnegative, nonpositive,
 
 from linear_constraints import (projection, projection_complement)
 
-from affine import (identity, selector, affine_transform, normalize, linear_transform)
-from smooth import (l2normsq, linear, logistic_loglikelihood, smooth_atom, affine_smooth, signal_approximator)
+from affine import (identity, selector, affine_transform, normalize, linear_transform, composition as affine_composition, affine_sum)
+from smooth import (quadratic, linear, logistic_loglikelihood, poisson_loglikelihood, multinomial_loglikelihood, smooth_atom, affine_smooth, signal_approximator)
+
+from factored_matrix import (factored_matrix, compute_iterative_svd, soft_threshold_svd)
 
 from separable import separable
 from container import container

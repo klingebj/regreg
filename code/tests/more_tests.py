@@ -30,7 +30,7 @@ def fused_example():
     D = (np.identity(500) + np.diag([-1]*499,k=1))[:-1]
     fused = R.l1norm.linear(D, lagrange=10.5)
 
-    loss = R.l2normsq.shift(-x, coef=0.5)
+    loss = R.quadratic.shift(-x, coef=0.5)
     pen = R.container(loss, sparsity,fused)
     solver = R.FISTA(pen)
     vals = solver.fit()
@@ -55,7 +55,7 @@ def lasso_example():
     sparsity = R.l1norm(500, lagrange=l1/2.)
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
-    regloss = R.l2normsq.affine(X,-Y, coef=0.5)
+    regloss = R.quadratic.affine(X,-Y, coef=0.5)
     sparsity2 = R.l1norm(500, lagrange=l1/2.)
     p=R.container(regloss, sparsity, sparsity2)
     solver=R.FISTA(p)
@@ -78,7 +78,7 @@ def group_lasso_signal_approx():
     def selector(p, slice):
         return np.identity(p)[slice]
     penalties = [R.l2norm(selector(500, slice(i*100,(i+1)*100)), lagrange=10.) for i in range(5)]
-    loss = R.l2normsq.shift(-x, coef=0.5)
+    loss = R.quadratic.shift(-x, coef=0.5)
     group_lasso = R.container(loss, **penalties)
     x = np.random.standard_normal(500)
     solver = R.FISTA(group_lasso)
@@ -91,7 +91,7 @@ def lasso_via_dual_split():
         return np.identity(p)[slice]
     penalties = [R.l1norm(selector(500, slice(i*100,(i+1)*100)), lagrange=0.2) for i in range(5)]
     x = np.random.standard_normal(500)
-    loss = R.l2normsq.shift(-x, coef=0.5)
+    loss = R.quadratic.shift(-x, coef=0.5)
     lasso = R.container(loss,*penalties)
     solver = R.FISTA(lasso)
     np.testing.assert_almost_equal(np.maximum(np.fabs(x)-0.2, 0) * np.sign(x), solver.composite.coefs, decimal=3)
@@ -108,7 +108,7 @@ def group_lasso_example():
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
-    loss = R.l2normsq.affine(X, -Y, coef=0.5)
+    loss = R.quadratic.affine(X, -Y, coef=0.5)
     group_lasso = R.container(loss, *penalties)
 
     solver=R.FISTA(group_lasso)
@@ -140,7 +140,7 @@ def test_group_lasso_sparse(n=100):
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
-    loss = R.l2normsq.affine(X, -Y, coef=0.5)
+    loss = R.quadratic.affine(X, -Y, coef=0.5)
 
     penalties = [R.l2norm.linear(selector(500, slice(i*100,(i+1)*100)), lagrange=.1) for i in range(5)]
     penalties[0].lagrange = 250.
@@ -176,7 +176,7 @@ def test_1d_fused_lasso(n=100):
 
     X = np.random.standard_normal((2*n,n))
     Y = np.random.standard_normal((2*n,))
-    loss = R.l2normsq.affine(X, -Y, coef=0.5)
+    loss = R.quadratic.affine(X, -Y, coef=0.5)
     fused_lasso = R.container(loss, fused)
     solver=R.FISTA(fused_lasso)
     solver.debug = True
@@ -195,7 +195,7 @@ def test_lasso_dual():
     l1 = .1
     sparsity = R.l1norm(500, lagrange=l1)
     x = np.random.normal(0,1,500)
-    loss = R.l2normsq.shift(-x, coef=0.5)
+    loss = R.quadratic.shift(-x, coef=0.5)
     pen = R.container(loss, sparsity)
     solver = R.FISTA(pen)
     solver.fit()
@@ -217,7 +217,7 @@ def test_multiple_lasso_dual(n=500):
     sparsity1 = R.l1norm(n, lagrange=l1*0.75)
     sparsity2 = R.l1norm(n, lagrange=l1*0.25)
     x = np.random.normal(0,1,n)
-    loss = R.l2normsq.shift(-x, coef=0.5)
+    loss = R.quadratic.shift(-x, coef=0.5)
     p = R.container(loss, sparsity1, sparsity2)
     t1 = time.time()
     solver = R.FISTA(p)
@@ -245,7 +245,7 @@ def test_lasso_dual_from_primal(l1 = .1, L = 2.):
 
     X = np.random.standard_normal((1000,500))
     Y = np.random.standard_normal((1000,))
-    regloss = R.l2normsq.affine(-X,Y)
+    regloss = R.quadratic.affine(-X,Y)
     p= R.container(regloss, sparsity)
 
     z = x - y/L
@@ -265,7 +265,7 @@ def test_lasso(n=100):
     
     X = np.random.standard_normal((5000,n))
     Y = np.random.standard_normal((5000,))
-    regloss = R.l2normsq.affine(-X,Y)
+    regloss = R.quadratic.affine(-X,Y)
 
     p=R.container(regloss, sparsity)
     solver=R.FISTA(p)

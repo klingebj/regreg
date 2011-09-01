@@ -8,6 +8,11 @@ The :math:`\ell_2` regularized logistic regression problem minimizes the objecti
     .. math::
        -2\left(Y^TX\beta - \sum_i \log \left[ 1 + \exp(x_i^T\beta) \right] \right) + \lambda \|\beta\|_2^2
 
+which corresponds to the usual logistic regression model
+
+   .. math::
+       P(Y_i=1) = \mbox{logit}(x_i^T\beta) = \frac{1}{1 + \mbox{exp}(-x_i^T\beta)}
+
 To solve this problem using RegReg we begin by loading the necessary numerical libraries
 
 .. ipython::
@@ -40,9 +45,10 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = rr.logistic_loglikelihood(X,Y)
-   penalty = rr.l2normsq(1000, coef=1.)
+   loss = rr.logistic_loglikelihood.linear(X,successes=Y)
+   penalty = rr.quadratic(1000, coef=1.)
 
+The logistic log-likelihood function is written without a matrix :math:`X`. We use the ".linear" to specify the linear composition :math:`X\beta`. Similarly, we could use ".affine" to specify an offset :math:`X\beta + \alpha`.
 The penalty contains the regularization parameter that can be easily accessed and changed,
 
 .. ipython::

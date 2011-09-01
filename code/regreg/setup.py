@@ -14,8 +14,8 @@ def cython_extension(srcfile):
 def configuration(parent_package='',top_path=None):
     from numpy.distutils.misc_util import Configuration
     config = Configuration('regreg',parent_package,top_path)
-    config.add_extension('projl1',
-                         sources = ["projl1.c"],
+    config.add_extension('projl1_cython',
+                         sources = ["projl1_cython.c"],
                          )
     return config
 

@@ -50,7 +50,7 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = rr.l2normsq.shift(-Y,coef=0.5)
+   loss = rr.quadratic.shift(-Y,coef=0.5)
 
 there are other loss functions (squared error, logistic, etc) and any differentiable function can be specified. Next, we specifiy the seminorm for this problem by instantiating two l1norm objects,
 

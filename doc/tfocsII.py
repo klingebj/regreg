@@ -3,7 +3,7 @@ import numpy as np
 import scipy.sparse
 
 from regreg.algorithms import FISTA
-from regreg.smooth import l2normsq
+from regreg.smooth import quadratic
 from regreg.atoms import l1norm, maxnorm
 from regreg.seminorm import seminorm
 
@@ -17,7 +17,7 @@ penalty = seminorm(sparsity,fused)
 
 
 Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
-loss = l2normsq.shift(-Y, l=0.5)
+loss = quadratic.shift(-Y, l=0.5)
 problem = loss.add_seminorm(penalty)
 solver = FISTA(problem)
 solver.fit(max_its=100, tol=1e-10)
@@ -32,7 +32,7 @@ l1_sparsity = np.fabs(solution).sum()
 
 new_fused = l1norm(D, l=l1_fused)
 new_sparsity = l1norm(500, l=l1_sparsity)
-conjugate = l2normsq.shift(Y, l=0.5)
+conjugate = quadratic.shift(Y, l=0.5)
 from regreg.constraint import constraint
 loss_constraint = constraint(conjugate, new_fused, new_sparsity)
 constrained_solver = FISTA(loss_constraint.dual_problem())
