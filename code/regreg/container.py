@@ -14,7 +14,8 @@ class container(composite):
     """
     A container class for storing/combining seminorm_atom classes
     """
-    def __init__(self, *atoms):
+    def __init__(self, *atoms, **keywords):
+        self.compute_difference = keywords.pop('compute_difference', True)
         self.nonsmooth_atoms = []
         self.smooth_atoms = []
         for atom in atoms:
@@ -91,7 +92,7 @@ class container(composite):
         """
 
         transform, separable_atom = self.dual
-
+        
         if not (isinstance(transform, afidentity) or
                 isinstance(transform, afselector)):
             #Default fitting parameters
@@ -134,7 +135,13 @@ class container(composite):
                 return y - transform.adjoint_map(self.dualopt.composite.coefs/lipschitz)
         else:
             primal = separable_atom.conjugate
-            return primal.proximal(y, lipschitz=lipschitz)
+            if isinstance(transform, afselector):
+                z = y.copy()
+                z[transform.index_obj] = primal.proximal(y[transform.index_obj],
+                                                         lipschitz=lipschitz)
+                return z
+            else:
+                return primal.proximal(y, lipschitz=lipschitz)
 
     def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
 
