@@ -117,12 +117,20 @@ class container(composite):
                 self.dualp = composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipschitz)
 
                 #Approximate Lipschitz constant
-                self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
+                if not 'dual_reference_lipschitz' in prox_control.keys():
+                    self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
+
                 self.dualopt = container.default_solver(self.dualp)
                 self.dualopt.debug = prox_control['debug']
-                if prox_control['backtrack']:
-                    #If backtracking set start_inv_step
-                    prox_control['start_inv_step'] = self.dual_reference_lipschitz / lipschitz
+
+            if 'dual_reference_lipschitz' in prox_control.keys():
+                self.dual_reference_lipschitz = prox_control['dual_reference_lipschitz']
+                prox_control.pop('dual_reference_lipschitz')
+            if prox_control['backtrack']:
+                #If backtracking set start_inv_step
+                prox_control['start_inv_step'] = self.dual_reference_lipschitz / lipschitz
+
+
 
             self.dualopt.composite.smooth_multiplier = 1./lipschitz
             self.dualp.lipschitz = self.dual_reference_lipschitz / lipschitz
