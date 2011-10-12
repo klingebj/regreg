@@ -33,7 +33,7 @@ for epsilon in [0.6**i for i in range(20)]:
    solver.composite.lipschitz = 1.1/epsilon * Xnorm
    solver.fit(max_its=2000, tol=tol, min_its=10, backtrack=False)
 
-basis_pursuit_soln = smooth_linf_constraint.argmin
+basis_pursuit_soln = smooth_linf_constraint.sm_atom.argmin
 
 sparsity = R.l1norm(1000, bound=np.fabs(basis_pursuit_soln).sum())
 loss = R.l2normsq.affine(X, -Y)
