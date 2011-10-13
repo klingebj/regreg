@@ -347,7 +347,7 @@ class atom(nonsmooth):
 
 
     @classmethod
-    def offset(cls, offset, lagrange=None, diag=False,
+    def shift(cls, offset, lagrange=None, diag=False,
                bound=None, linear_term=None):
         atom = cls(offset.shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)
