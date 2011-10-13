@@ -69,13 +69,17 @@ class block_sum(atoms.atom):
     def bound_prox(self, x, lipschitz=1, bound=None):
         raise NotImplementedError('requires a little thought -- should be like l1prox')
 
-    @property
-    def lagrange(self):
+    def get_lagrange(self):
         return self.atom.lagrange
-
-    @property
-    def bound(self):
+    def set_lagrange(self, lagrange):
+        self.atom.largrange = lagrange
+    lagrange = property(get_lagrange, set_lagrange)
+    
+    def get_bound(self):
         return self.atom.bound
+    def set_bound(self, bound):
+        self.atom.bound = bound
+    bound = property(get_bound, set_bound)
 
     @property
     def conjugate(self):
