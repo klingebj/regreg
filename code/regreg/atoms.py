@@ -23,7 +23,7 @@ class atom(nonsmooth):
                  linear_term=None,
                  constant_term=0., offset=None):
 
-        self.offset = None
+        self.offset = offset
         self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)
@@ -347,7 +347,7 @@ class atom(nonsmooth):
 
 
     @classmethod
-    def offset(cls, offset, lagrange=None, diag=False,
+    def shift(cls, offset, lagrange=None, diag=False,
                bound=None, linear_term=None):
         atom = cls(offset.shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)

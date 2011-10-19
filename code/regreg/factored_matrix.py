@@ -18,7 +18,6 @@ except:
     warnings.warn('Cython version of projl1 not available. Using slower python version')
     from projl1_python import projl1
 
-
 class factored_matrix(object):
 
     """

@@ -192,7 +192,6 @@ class affine_transform(object):
         # if copy is True, v will already be a copy, so no need to check again
         return v
 
-
     def offset_map(self, x):
         r"""Apply affine offset to `x`
 
@@ -217,8 +216,6 @@ class affine_transform(object):
             # Deal with 1D and 2D input, affine_offset cases
             return broadcast_first(self.affine_offset, v, add)
         return v
-
-
 
     def adjoint_map(self, u, copy=True):
         r"""Apply transpose of linear component to `u`

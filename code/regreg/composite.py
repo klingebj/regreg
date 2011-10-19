@@ -106,7 +106,6 @@ class smooth(composite):
                            smooth_multiplier=smooth_multiplier,
                            lipschitz=lipschitz)
 
-
 class smoothed(smooth):
 
     def __init__(self, atom, epsilon=0.1,
@@ -189,3 +188,5 @@ class smoothed(smooth):
 
     def proximal(self, x, lipschitz=1):
         return x
+
+
