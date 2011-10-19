@@ -1,6 +1,7 @@
 import numpy as np
 from algorithms import FISTA
-from smooth import linear, quadratic
+from smooth import linear
+from quadratic import quadratic
 from composite import composite
 
 class conjugate(composite):
