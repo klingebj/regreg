@@ -729,3 +729,34 @@ class affine_sum(object):
             output += weight * transform.adjoint_map(x)
         return output
 
+class cholesky(object):
+
+    '''
+
+    Given :math:`Q > 0`, returns a linear transform
+    that is multiplication by :math:`Q^{-1}` by
+    first computing the Cholesky decomposition of :math:`Q`.
+
+    Parameters
+    ----------
+
+    Q: array
+       positive definite matrix 
+
+    '''
+
+    def __init__(self, Q):
+        self.primal_shape = Q.shape[0]
+        self.dual_shape = Q.shape[0]
+        self.affine_offset = None
+        self._Q = Q
+        self._cholesky = scipy.linalg.cho_factor(Q)
+
+    def linear_map(self, x):
+        return scipy.linalg.cho_solve(self._cholesky, x)
+
+    def affine_map(self, x):
+        return self.linear_map(x)
+
+    def adjoint_map(self, x):
+        return self.linear_map(x)
