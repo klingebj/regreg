@@ -23,7 +23,7 @@ class atom(nonsmooth):
                  linear_term=None,
                  constant_term=0., offset=None):
 
-        self.offset = None
+        self.offset = offset
         self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)

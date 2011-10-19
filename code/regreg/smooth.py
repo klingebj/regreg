@@ -1,10 +1,9 @@
 import numpy as np
 from scipy import sparse
-from affine import affine_transform
+from affine import affine_transform, linear_transform
 import warnings
 import inspect
 from composite import smooth as smooth_composite
-
 
 class smooth_atom(smooth_composite):
 
@@ -12,8 +11,18 @@ class smooth_atom(smooth_composite):
     A class for representing a smooth function and its gradient
     """
 
-    def __init__(self, primal_shape, coef=1, constant_term=0):
+    def __init__(self, primal_shape, coef=1, constant_term=0,
+                 linear_term=None, offset=None):
+
+
         self.constant_term = constant_term
+        if offset is not None:
+            self.offset = np.array(offset)
+
+        self.linear_term = None
+        if linear_term is not None:
+            self.linear_term = np.array(linear_term)
+
         self.primal_shape = primal_shape
         self.coef = coef
         if coef < 0:
@@ -26,21 +35,26 @@ class smooth_atom(smooth_composite):
     
     @classmethod
     def affine(cls, linear_operator, offset, coef=1, diag=False,
+               linear_term=None, 
                constant_term=0, **kws):
         """
         Keywords given in kws are passed to cls constructor along with other arguments
         """
+        if not isinstance(linear_operator, affine_transform):
+            l = linear_transform(linear_operator, diag=diag)
+        else:
+            l = linear_operator
         if not acceptable_init_args(cls, kws):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
         
-        atransform = affine_transform(linear_operator, offset, diag=diag)
-        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term, **kws)
+        atom = cls(l.primal_shape, coef=coef, constant_term=constant_term, offset=offset, linear_term=linear_term, **kws)
         
-        return affine_smooth(atom, atransform)
+        return affine_smooth(atom, l)
 
     @classmethod
     def linear(cls, linear_operator, coef=1, diag=False,
-               constant_term=0, **kws):
+               offset=None, 
+               constant_term=0, linear_term=None, **kws):
         """
         Keywords given in kws are passed to cls constructor along with other arguments
         """
@@ -48,22 +62,21 @@ class smooth_atom(smooth_composite):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
 
         atransform = affine_transform(linear_operator, None, diag=diag)
-        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term, **kws)
+        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term, linear_term=linear_term, offset=offset, **kws)
         
         return affine_smooth(atom, atransform)
 
     @classmethod
     def shift(cls, offset, coef=1, 
-              constant_term=0, **kws):
+              constant_term=0, linear_term=None, **kws):
         """
         Keywords given in kws are passed to cls constructor along with other arguments
         """
         if not acceptable_init_args(cls, kws):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
         
-        atransform = affine_transform(None, offset)
-        atom = cls(atransform.primal_shape, coef=coef, constant_term=constant_term, **kws)
-        return affine_smooth(atom, atransform)
+        atom = cls(offset.shape, coef=coef, constant_term=constant_term, offset=offset, linear_term=linear_term, **kws)
+        return atom
 
     def scale(self, obj, copy=False):
         if self.coef != 1:
@@ -71,6 +84,36 @@ class smooth_atom(smooth_composite):
         if copy:
             return obj.copy()
         return obj
+
+    def apply_offset(self, x):
+        if self.offset is not None:
+            return x + self.offset
+        return x
+
+    def apply_linear_term(self, f, g, mode='both'):
+        if self.linear_term is not None:
+            if mode == 'both':
+                f += np.sum(x * self.linear_term)
+                g += self.linear_term
+                return f, g
+            elif mode == 'func':
+                f += np.sum(x * self.linear_term)
+                return f
+            elif mode == 'grad':
+                g += self.linear_term
+                return g
+        else:
+            if mode == 'both':
+                return f, g
+            elif mode == 'func':
+                return f
+            elif mode == 'grad':
+                return g
+
+    def get_conjugate(self, epsilon=0):
+        # multiple of identity quadratic / 2 added 
+        # before computing conjugate
+        pass
 
 def acceptable_init_args(cls, proposed_keywords):
     """
@@ -87,14 +130,14 @@ def acceptable_init_args(cls, proposed_keywords):
             return False
     return True
 
-    
 class affine_smooth(smooth_atom):
 
     # if smooth_obj is a class, an object is created
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
-    def __init__(self, smooth_atom, atransform):
+    def __init__(self, smooth_atom, atransform, store_grad=True):
+        self.store_grad = store_grad
         self.sm_atom = smooth_atom
         self.affine_transform = atransform
         self.primal_shape = self.affine_transform.primal_shape
@@ -112,10 +155,14 @@ class affine_smooth(smooth_atom):
         if mode == 'both':
             v, g = self.sm_atom.smooth_objective(eta, mode='both')
             g = self.affine_transform.adjoint_map(g)
+            if self.store_grad:
+                self.grad = g
             return v, g
         elif mode == 'grad':
             g = self.sm_atom.smooth_objective(eta, mode='grad')
             g = self.affine_transform.adjoint_map(g)
+            if self.store_grad:
+                self.grad = g
             return g 
         elif mode == 'func':
             v = self.sm_atom.smooth_objective(eta, mode='func')
@@ -134,7 +181,11 @@ class quadratic(smooth_atom):
     """
 
     def __init__(self, primal_shape, coef=None, Q=None, Qdiag=False,
-                 constant_term=0):
+                 constant_term=0,
+                 offset=None,
+                 linear_term=None):
+        self.offset = offset
+        self.linear_term = linear_term
         self.constant_term = constant_term
         self.Q = Q
         if self.Q is not None:
@@ -154,28 +205,33 @@ class quadratic(smooth_atom):
         if mode == 'func', return only the function value
         """
 
+        x = self.apply_offset(x)
         if self.Q is None:
             if mode == 'both':
-                return self.scale(np.linalg.norm(x)**2) + self.constant_term, self.scale(2 * x)
+                f, g  = self.scale(np.linalg.norm(x)**2) + self.constant_term, self.scale(2 * x)
             elif mode == 'grad':
-                return self.scale(2 * x)
+                f, g = None, self.scale(2 * x)
             elif mode == 'func':
-                return self.scale(np.linalg.norm(x)**2) + self.constant_term
+                f, g = self.scale(np.linalg.norm(x)**2) + self.constant_term, None
             else:
                 raise ValueError("mode incorrectly specified")
         else:
             if mode == 'both':
-                return self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant_term, self.scale(2 * self.Q_transform.linear_map(x))
+                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant_term, self.scale(2 * self.Q_transform.linear_map(x))
             elif mode == 'grad':
-                return self.scale(2 * self.Q_transform.linear_map(x))
+                f, g = None, self.scale(2 * self.Q_transform.linear_map(x))
             elif mode == 'func':
-                return self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant_term
+                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant_term, None
             else:
                 raise ValueError("mode incorrectly specified")
-            
+        return self.apply_linear_term(f, g, mode)
+
 class linear(smooth_atom):
 
-    def __init__(self, vector, coef=1):
+    def __init__(self, vector, coef=1, linear_term=None,
+                 offset=None, constant_term=0):
+        self.linear_term = linear_term
+        self.offset = offset
         self.vector = coef * vector
         self.primal_shape = vector.shape
         self.coef =1
@@ -190,15 +246,16 @@ class linear(smooth_atom):
         if mode == 'func', return only the function value
         """
 
+        x = self.apply_offset(x)
         if mode == 'both':
-            return np.dot(self.vector, x), self.vector
+            f, g = np.dot(self.vector, x), self.vector
         elif mode == 'grad':
-            return self.vector
+            f, g = None, self.vector
         elif mode == 'func':
-            return np.dot(self.vector, x)
+            f, g = np.dot(self.vector, x), None
         else:
             raise ValueError("mode incorrectly specified")
-    
+        return self.apply_linear_term(f, g, mode)
 
 def signal_approximator(offset, coef=1):
     return quadratic.shift(-offset, coef)
@@ -211,7 +268,11 @@ class logistic_loglikelihood(smooth_atom):
 
     #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
 
-    def __init__(self, primal_shape, successes, trials=None, coef=1., constant_term=0.):
+    def __init__(self, primal_shape, successes, trials=None, coef=1., constant_term=0., linear_term=None, offset=None):
+
+        self.linear_term = linear_term
+        self.offset = offset
+        self.constant_term = constant_term
 
         if sparse.issparse(successes):
             #Convert sparse success vector to an array
@@ -244,6 +305,7 @@ class logistic_loglikelihood(smooth_atom):
         """
         
         #Check for overflow in np.exp (can occur during initial backtracking steps)
+        x = self.apply_offset(x)
         if np.max(x) > 1e2:
             overflow = True
             not_overflow_ind = np.where(x <= 1e2)[0]
@@ -251,7 +313,6 @@ class logistic_loglikelihood(smooth_atom):
         else:
             overflow = False
             exp_x = np.exp(x)
-
             
         if mode == 'both':
             ratio = self.trials * 1.
@@ -263,7 +324,7 @@ class logistic_loglikelihood(smooth_atom):
                 log_exp_x = np.log(1.+exp_x)
                 ratio *= exp_x/(1.+exp_x)
                 
-            return -2 * self.scale((np.dot(self.successes,x) - np.sum(self.trials*log_exp_x))) + self.constant_term, -2 * self.scale(self.successes-ratio)
+            f, g = -2 * self.scale((np.dot(self.successes,x) - np.sum(self.trials*log_exp_x))) + self.constant_term, -2 * self.scale(self.successes-ratio)
 
         elif mode == 'grad':
             ratio = self.trials * 1.
@@ -271,7 +332,7 @@ class logistic_loglikelihood(smooth_atom):
                 ratio[not_overflow_ind] *= exp_x/(1.+exp_x)
             else:
                 ratio *= exp_x/(1.+exp_x)
-            return - 2 * self.scale(self.successes-ratio)
+            f, g = None, - 2 * self.scale(self.successes-ratio)
         
         elif mode == 'func':
             if overflow:
@@ -279,10 +340,10 @@ class logistic_loglikelihood(smooth_atom):
                 log_exp_x[not_overflow_ind] = np.log(1.+exp_x)
             else:
                 log_exp_x = np.log(1.+exp_x)
-            return -2 * self.scale(np.dot(self.successes,x) - np.sum(self.trials * log_exp_x)) + self.constant_term
+            f, g = -2 * self.scale(np.dot(self.successes,x) - np.sum(self.trials * log_exp_x)) + self.constant_term, None
         else:
             raise ValueError("mode incorrectly specified")
-
+        return self.apply_linear_term(f, g, mode)
 
 class poisson_loglikelihood(smooth_atom):
 
@@ -292,8 +353,12 @@ class poisson_loglikelihood(smooth_atom):
 
     #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
 
-    def __init__(self, primal_shape, counts, coef=1., constant_term=0.):
-
+    def __init__(self, primal_shape, counts, coef=1., constant_term=0.,
+                 linear_term=None, offset=None):
+        self.linear_term = linear_term
+        self.offset = offset
+        self.constant_term = constant_term
+        
         if sparse.issparse(counts):
             #Convert sparse success vector to an array
             self.counts = counts.toarray().flatten()
@@ -305,7 +370,7 @@ class poisson_loglikelihood(smooth_atom):
         if np.min(self.counts) < 0:
             raise ValueError("Counts vector is not non-negative")
         
-        self.constant_term = constant_term
+
         self.primal_shape = primal_shape
         self.coef = coef
 
@@ -317,17 +382,18 @@ class poisson_loglikelihood(smooth_atom):
         if mode == 'grad', return only the gradient
         if mode == 'func', return only the function value
         """
+        x = self.apply_offset(x)
         exp_x = np.exp(x)
         
         if mode == 'both':
-            return -2. * self.scale(-np.sum(exp_x) + np.dot(self.counts,x)) + self.constant_term, -2. * self.scale(self.counts - exp_x)
+            f, g = -2. * self.scale(-np.sum(exp_x) + np.dot(self.counts,x)) + self.constant_term, -2. * self.scale(self.counts - exp_x)
         elif mode == 'grad':
-            return -2. * self.scale(self.counts - exp_x)
+            f, g = None, -2. * self.scale(self.counts - exp_x)
         elif mode == 'func':
-            return -2. * self.scale(-np.sum(exp_x) + np.dot(self.counts,x)) + self.constant_term
+            f, g =  -2. * self.scale(-np.sum(exp_x) + np.dot(self.counts,x)) + self.constant_term, None
         else:
             raise ValueError("mode incorrectly specified")
-
+        return self.apply_linear_term(f, g, mode)
 
 
 
@@ -338,7 +404,12 @@ class multinomial_loglikelihood(smooth_atom):
     A class for baseline-category logistic regression for nominal responses (e.g. Agresti, pg 267)
     """
 
-    def __init__(self, primal_shape, counts, coef=1., constant_term=0.):
+    def __init__(self, primal_shape, counts, coef=1., constant_term=0.,
+                 linear_term=None, offset=None):
+
+        self.linear_term = linear_term
+        self.offset = offset
+        self.constant_term = constant_term
 
         if sparse.issparse(counts):
             #Convert sparse success vector to an array
@@ -360,7 +431,6 @@ class multinomial_loglikelihood(smooth_atom):
         if primal_shape[1] != self.J - 1:
             raise ValueError("Primal shape is incorrect - should only have coefficients for first J-1 categories")
         
-        self.constant_term = constant_term
         self.primal_shape = primal_shape
         self.coef = coef
 
@@ -372,19 +442,20 @@ class multinomial_loglikelihood(smooth_atom):
         if mode == 'grad', return only the gradient
         if mode == 'func', return only the function value
         """
+        x = self.apply_offset(x)
         exp_x = np.exp(x)
 
         #TODO: Using transposes to scale the rows of a 2d array - should we use an affine_transform to do this?
 
         if mode == 'both':
             ratio = ((self.trials/(1. + np.sum(exp_x, axis=1))) * exp_x.T).T
-            return -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term, - 2 * self.scale(self.firstcounts - ratio) 
+            f, g = -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term, - 2 * self.scale(self.firstcounts - ratio) 
         elif mode == 'grad':
             ratio = ((self.trials/(1. + np.sum(exp_x, axis=1))) * exp_x.T).T
-            return - 2 * self.scale(self.firstcounts - ratio) 
+            f, g = None, - 2 * self.scale(self.firstcounts - ratio) 
         elif mode == 'func':
-            return -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term
+            f, g = -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term, None
         else:
             raise ValueError("mode incorrectly specified")
-
+        return self.apply_linear_term(f, g, mode)
 

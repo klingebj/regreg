@@ -26,9 +26,15 @@ class block_sum(atoms.atom):
                  offset=None,
                  linear_term=None,
                  constant_term=0.):
-        self.linear_term = linear_term
-        self.offset = offset
+
         self.constant_term = constant_term
+        if offset is not None:
+            self.offset = np.array(offset)
+
+        self.linear_term = None
+        if linear_term is not None:
+            self.linear_term = np.array(linear_term)
+
         self.primal_shape = primal_shape
         self.atom = atom_cls(primal_shape[1:], lagrange=lagrange,
                              bound=bound,

@@ -1,9 +1,9 @@
 import numpy as np
 from algorithms import FISTA
 from smooth import linear, quadratic
+from composite import composite
 
-
-class conjugate(object):
+class conjugate(composite):
 
     def __init__(self, smooth_f, epsilon=0.01, store_argmin=True, tol=1e-8):
         self._smooth_function = smooth_f
