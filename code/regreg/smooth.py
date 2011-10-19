@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import sparse
-from affine import affine_transform, linear_transform
+from affine import affine_transform, linear_transform, cholesky
 import warnings
 import inspect
 from composite import smooth as smooth_composite
@@ -13,7 +13,6 @@ class smooth_atom(smooth_composite):
 
     def __init__(self, primal_shape, coef=1, constant_term=0,
                  linear_term=None, offset=None):
-
 
         self.constant_term = constant_term
         if offset is not None:
@@ -113,7 +112,15 @@ class smooth_atom(smooth_composite):
     def get_conjugate(self, epsilon=0):
         # multiple of identity quadratic / 2 added 
         # before computing conjugate
-        pass
+        raise NotImplementedError('each smooth loss should implement its own get_conjugate')
+
+    @property
+    def conjugate(self):
+        if not hasattr(self, "_conjugate"):
+            self._conjugate = self.get_conjugate(epsilon=0)
+            self._conjugate._conjugate = self
+        return self._conjugate
+    
 
 def acceptable_init_args(cls, proposed_keywords):
     """
@@ -180,7 +187,7 @@ class quadratic(smooth_atom):
     The square of the l2 norm
     """
 
-    def __init__(self, primal_shape, coef=None, Q=None, Qdiag=False,
+    def __init__(self, primal_shape, coef=1., Q=None, Qdiag=False,
                  constant_term=0,
                  offset=None,
                  linear_term=None):
@@ -225,6 +232,37 @@ class quadratic(smooth_atom):
             else:
                 raise ValueError("mode incorrectly specified")
         return self.apply_linear_term(f, g, mode)
+
+    def get_conjugate(self, epsilon=0, factor=False):
+        if self.offset is not None:
+            linear_term = -self.offset
+        else:
+            linear_term = None
+        if self.linear_term is not None:
+            offset = -self.linear_term
+        else:
+            offset = None
+
+        if self.Q is None:
+            return quadratic(self.primal_shape, offset=offset,
+                             linear_term=linear_term, coef=1./(self.coef+epsilon))
+        elif self.Q_transform.diagD:
+            return quadratic(self.primal_shape,
+                             Q=1./(self.Q_transform.linear_operator + epsilon),
+                             offset=offset,
+                             linear_term=linear_term,
+                             coef=1./self.coef,
+                             Qdiag=True)
+        elif factor:
+            return quadratic(self.primal_shape,
+                             Q=cholesky(self.Q_transform.linear_operator +
+                                        epsilon*np.identity(self.primal_shape[0])),
+                             Qdiag=False,
+                             offset=offset,
+                             linear_term=linear_term,
+                             coef=1./self.coef)
+        else:
+            raise ValueError('factor is False, so no factorization was done')
 
 class linear(smooth_atom):
 

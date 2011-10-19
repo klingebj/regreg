@@ -1,6 +1,7 @@
 from operator import add, mul
 import numpy as np
 from scipy import sparse
+from scipy.linalg import cho_factor, cho_solve
 import warnings
 
 def broadcast_first(a, b, op):
@@ -750,10 +751,10 @@ class cholesky(object):
         self.dual_shape = Q.shape[0]
         self.affine_offset = None
         self._Q = Q
-        self._cholesky = scipy.linalg.cho_factor(Q)
+        self._cholesky = cho_factor(Q)
 
     def linear_map(self, x):
-        return scipy.linalg.cho_solve(self._cholesky, x)
+        return cho_solve(self._cholesky, x)
 
     def affine_map(self, x):
         return self.linear_map(x)
