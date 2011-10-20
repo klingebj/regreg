@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.linalg import cho_factor, cho_solve
+from scipy.linalg import cho_factor, cho_solve, cholesky_banded, cho_solve_banded
 from affine import affine_transform
 from smooth import smooth_atom
 
@@ -101,15 +101,25 @@ class cholesky(object):
 
     '''
 
-    def __init__(self, Q):
+    def __init__(self, Q, cholesky=None, banded=False):
         self.primal_shape = Q.shape[0]
         self.dual_shape = Q.shape[0]
         self.affine_offset = None
         self._Q = Q
-        self._cholesky = cho_factor(Q)
+        self.banded = banded
+        if cholesky is None:
+            if not self.banded:
+                self._cholesky = cho_factor(Q)
+            else:
+                self._cholesky = cholesky_banded(Q)
+        else:
+            self._cholesky = cholesky
 
     def linear_map(self, x):
-        return cho_solve(self._cholesky, x)
+        if not self.banded:
+            return cho_solve(self._cholesky, x)
+        else:
+            return cho_solve_banded(self._cholesky, x)
 
     def affine_map(self, x):
         return self.linear_map(x)

@@ -639,6 +639,29 @@ class adjoint(object):
     def adjoint_map(self, x):
         return self.transform.linear_map(x)
 
+class residual(object):
+
+    """
+    Compute the residual from an affine transform.
+    """
+
+    def __init__(self, transform):
+        self.transform = astransform(transform)
+        self.primal_shape = self.transform.primal_shape
+        self.dual_shape = self.transform.dual_shape
+        self.affine_offset = None
+        if not self.primal_shape == self.dual_shape:
+            raise ValueError('dual and primal shapes should be the same to compute residual')
+
+    def linear_map(self, x):
+        return x - self.transform.linear_map(x)
+
+    def affine_map(self, x):
+        return x - self.transform.affine_map(x)
+
+    def adjoint_map(self, u):
+        return u - self.transform.adjoint_map(u)
+
 class composition(object):
 
     """
