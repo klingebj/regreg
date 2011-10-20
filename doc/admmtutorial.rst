@@ -89,15 +89,6 @@ Here we first created D, converted it a sparse matrix, and then created an l1nor
 
    problem = R.container(loss, sparsity, fused)
 
-We could still easily access the penalty parameter
-
-.. ipython::
-   
-   problem.atoms
-   problem.atoms[0].lagrange
-
-Finally, we can solve the problem using the ADMM algorithm
-
 .. ipython::
 
    solver = R.admm_problem(problem)

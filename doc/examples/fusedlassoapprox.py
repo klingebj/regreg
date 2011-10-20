@@ -13,7 +13,7 @@ D = sparse.csr_matrix(D)
 fused = R.l1norm.linear(D, lagrange=25.5)
 
 
-loss = R.l2normsq.shift(-Y)
+loss = R.quadratic.shift(-Y)
 
 
 problem = R.container(loss, sparsity, fused)

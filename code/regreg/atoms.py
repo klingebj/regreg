@@ -3,8 +3,14 @@ from scipy import sparse
 from composite import composite, nonsmooth
 from affine import (linear_transform, identity as identity_transform, 
                     affine_transform)
-from projl1 import projl1
 from copy import copy
+import warnings
+
+try:
+    from projl1_cython import projl1
+except:
+    warnings.warn('Cython version of projl1 not available. Using slower python version')
+    from projl1_python import projl1
 
 class atom(nonsmooth):
 
@@ -17,7 +23,7 @@ class atom(nonsmooth):
                  linear_term=None,
                  constant_term=0., offset=None):
 
-        self.offset = None
+        self.offset = offset
         self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)
@@ -314,6 +320,21 @@ class atom(nonsmooth):
         return bound
 
     @classmethod
+    def affine(cls, linear_operator, offset, lagrange=None, diag=False,
+               bound=None, linear_term=None):
+        """
+        This is the same as the linear class method but with offset as a positional argument
+        """
+        if not isinstance(linear_operator, affine_transform):
+            l = linear_transform(linear_operator, diag=diag)
+        else:
+            l = linear_operator
+        atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
+                   linear_term=linear_term, offset=offset)
+        return affine_atom(atom, l)
+
+
+    @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
                bound=None, linear_term=None, offset=None):
         if not isinstance(linear_operator, affine_transform):
@@ -323,6 +344,15 @@ class atom(nonsmooth):
         atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)
         return affine_atom(atom, l)
+
+
+    @classmethod
+    def shift(cls, offset, lagrange=None, diag=False,
+               bound=None, linear_term=None):
+        atom = cls(offset.shape, lagrange=lagrange, bound=bound,
+                   linear_term=linear_term, offset=offset)
+        return atom
+
     
 class l1norm(atom):
 

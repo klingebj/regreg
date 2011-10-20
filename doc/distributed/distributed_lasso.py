@@ -29,7 +29,7 @@ class LassoNode(object):
         self.X = R.affine_transform(X, None)
         self.atom = R.l1norm(X.shape[1], l)
         self.rho = rho
-        self.loss = R.l2normsq.affine(X, -np.zeros(X.shape[0]), lagrange=rho/2.)
+        self.loss = R.quadratic.affine(X, -np.zeros(X.shape[0]), lagrange=rho/2.)
         self.lasso = R.container(self.loss, self.atom)
         self.solver = R.FISTA(self.lasso.problem())
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     #np.random.seed(1) # for debugging
 
     penalty = R.l1norm(p, lagrange=lagrange)
-    loss = R.l2normsq.affine(-X, Y, lagrange=0.5)
+    loss = R.quadratic.affine(-X, Y, lagrange=0.5)
     lasso = R.container(loss, penalty)
     solver = R.FISTA(lasso.problem())
     solver.fit(tol=tol)

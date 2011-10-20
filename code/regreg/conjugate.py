@@ -1,14 +1,15 @@
 import numpy as np
 from algorithms import FISTA
-from smooth import linear, l2normsq
+from smooth import linear
+from quadratic import quadratic
+from composite import composite
 
-
-class conjugate(object):
+class conjugate(composite):
 
     def __init__(self, smooth_f, epsilon=0.01, store_argmin=True, tol=1e-8):
         self._smooth_function = smooth_f
         self._linear = linear(np.zeros(smooth_f.primal_shape))
-        self._quadratic = l2normsq(smooth_f.primal_shape, coef=epsilon/2.)
+        self._quadratic = quadratic(smooth_f.primal_shape, coef=epsilon/2.)
         self._smooth_function_linear = container(smooth_f, self._linear, self._quadratic)
         self._solver = FISTA(self._smooth_function_linear)
         self.tol = tol

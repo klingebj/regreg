@@ -8,6 +8,7 @@ from md5 import md5
 import numpy as np
 from projl1 import projl1
 from atoms import atom, conjugate_seminorm_pairs
+from copy import copy
 
 class svd_atom(atom):
     
@@ -112,7 +113,7 @@ class svd_atom(atom):
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
         return bound
 
-class nuclear_norm(matrix_atom):
+class nuclear_norm(svd_atom):
 
     """
     The nuclear norm
@@ -120,7 +121,7 @@ class nuclear_norm(matrix_atom):
     prox_tol = 1.0e-10
 
     objective_template = r"""\|%(var)s\|_*"""
-    _doc_dict = copy(matrix_atom._doc_dict)
+    _doc_dict = copy(svd_atom._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'X + A'}
 
     def seminorm(self, X, check_feasibility=False,
@@ -148,7 +149,7 @@ class nuclear_norm(matrix_atom):
     constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
 
     def lagrange_prox(self, X,  lipschitz=1, lagrange=None):
-        lagrange = matrix_atom.lagrange_prox(self, X, lipschitz, lagrange)
+        lagrange = svd_atom.lagrange_prox(self, X, lipschitz, lagrange)
         self.X = X
         U, D, V = self.SVD
         D_soft_thresholded = np.maximum(D - lagrange/lipschitz, 0)
@@ -158,10 +159,10 @@ class nuclear_norm(matrix_atom):
         c.SVD = self.SVD
         self._X = np.dot(U[:,keepD], D_soft_thresholded[keepD][:,np.newaxis] * V[keepD])
         return self.X
-    lagrange_prox.__doc__ = matrix_atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = svd_atom.lagrange_prox.__doc__ % _doc_dict
 
     def bound_prox(self, X, lipschitz=1, bound=None):
-        bound = matrix_atom.bound_prox(self, X, lipschitz, bound)
+        bound = svd_atom.bound_prox(self, X, lipschitz, bound)
         self.X = X
         U, D, V = self.SVD
         D_projected = projl1(D, self.bound)
@@ -173,9 +174,9 @@ class nuclear_norm(matrix_atom):
         self._X = np.dot(U[:,keepD], D_projected[keepD][:,np.newaxis] * V[keepD])
         return self.X
 
-    bound_prox.__doc__ = matrix_atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = svd_atom.bound_prox.__doc__ % _doc_dict
 
-class operator_norm(matrix_atom):
+class operator_norm(svd_atom):
 
     """
     The operator norm
@@ -183,7 +184,7 @@ class operator_norm(matrix_atom):
     prox_tol = 1.0e-10
 
     objective_template = r"""\|%(var)s\|_{\text{op}}"""
-    _doc_dict = copy(matrix_atom._doc_dict)
+    _doc_dict = copy(svd_atom._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'X + A'}
 
     def seminorm(self, X, lagrange=None, check_feasibility=False):
@@ -210,7 +211,7 @@ class operator_norm(matrix_atom):
     constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
 
     def lagrange_prox(self, X,  lipschitz=1, lagrange=None):
-        lagrange = matrix_atom.lagrange_prox(self, X, lipschitz, lagrange)
+        lagrange = svd_atom.lagrange_prox(self, X, lipschitz, lagrange)
         self.X = X
         U, D, V = self.SVD
         D_soft_thresholded = D - projl1(D, lagrange/lipschitz)
@@ -220,17 +221,17 @@ class operator_norm(matrix_atom):
         c.SVD = self.SVD
         self._X = np.dot(U[:,keepD], D_soft_thresholded[keepD][:,np.newaxis] * V[keepD])
         return self.X
-    lagrange_prox.__doc__ = matrix_atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = svd_atom.lagrange_prox.__doc__ % _doc_dict
 
     def bound_prox(self, X, lipschitz=1, bound=None):
-        bound = matrix_atom.bound_prox(self, X, lipschitz, bound)
+        bound = svd_atom.bound_prox(self, X, lipschitz, bound)
         self.X = X
         self._D = U, np.maximum(D, self.bound), V
         U, D, V = self.SVD
         # store the projected X -- or should we keep original?
         self._X = np.dot(U, D[:,np.newaxis] * V)
         return self.X
-    bound_prox.__doc__ = matrix_atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = svd_atom.bound_prox.__doc__ % _doc_dict
 
 conjugate_seminorm_pairs[nuclear_norm] = operator_norm
 conjugate_seminorm_pairs[operator_norm] = nuclear_norm

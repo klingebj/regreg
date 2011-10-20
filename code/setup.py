@@ -21,7 +21,7 @@ def configuration(parent_package='',top_path=None):
 
 if __name__ == '__main__':
 
-    cython_extension("regreg/projl1.pyx")
+    cython_extension("regreg/projl1_cython.pyx")
     
     from numpy.distutils.core import setup
 

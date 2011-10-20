@@ -14,7 +14,8 @@ class container(composite):
     """
     A container class for storing/combining seminorm_atom classes
     """
-    def __init__(self, *atoms):
+    def __init__(self, *atoms, **keywords):
+        self.compute_difference = keywords.pop('compute_difference', True)
         self.nonsmooth_atoms = []
         self.smooth_atoms = []
         for atom in atoms:
@@ -91,7 +92,7 @@ class container(composite):
         """
 
         transform, separable_atom = self.dual
-
+        
         if not (isinstance(transform, afidentity) or
                 isinstance(transform, afselector)):
             #Default fitting parameters
@@ -99,7 +100,8 @@ class container(composite):
                              'min_its': 5,
                              'return_objective_hist': False,
                              'tol': 1e-14,
-                             'debug':False}
+                             'debug':False,
+                             'backtrack':False}
 
             if prox_control is not None:
                 prox_defaults.update(prox_control)
@@ -115,9 +117,20 @@ class container(composite):
                 self.dualp = composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipschitz)
 
                 #Approximate Lipschitz constant
-                self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
+                if not 'dual_reference_lipschitz' in prox_control.keys():
+                    self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
+
                 self.dualopt = container.default_solver(self.dualp)
                 self.dualopt.debug = prox_control['debug']
+
+            if 'dual_reference_lipschitz' in prox_control.keys():
+                self.dual_reference_lipschitz = prox_control['dual_reference_lipschitz']
+                prox_control.pop('dual_reference_lipschitz')
+            if prox_control['backtrack']:
+                #If backtracking set start_inv_step
+                prox_control['start_inv_step'] = self.dual_reference_lipschitz / lipschitz
+
+
 
             self.dualopt.composite.smooth_multiplier = 1./lipschitz
             self.dualp.lipschitz = self.dual_reference_lipschitz / lipschitz
@@ -130,7 +143,13 @@ class container(composite):
                 return y - transform.adjoint_map(self.dualopt.composite.coefs/lipschitz)
         else:
             primal = separable_atom.conjugate
-            return primal.proximal(y, lipschitz=lipschitz)
+            if isinstance(transform, afselector):
+                z = y.copy()
+                z[transform.index_obj] = primal.proximal(y[transform.index_obj],
+                                                         lipschitz=lipschitz)
+                return z
+            else:
+                return primal.proximal(y, lipschitz=lipschitz)
 
     def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
 

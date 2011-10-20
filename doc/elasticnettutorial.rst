@@ -33,8 +33,8 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = rr.l2normsq.affine(X,-Y, coef=0.5)
-   grouping = rr.l2normsq(1000, coef=1.)
+   loss = rr.quadratic.affine(X,-Y, coef=0.5)
+   grouping = rr.quadratic(1000, coef=1.)
    sparsity = rr.l1norm(1000, lagrange=5.)
 
 The penalty contains the regularization parameter that can be easily accessed and changed,

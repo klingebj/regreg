@@ -36,7 +36,7 @@ for epsilon in [0.6**i for i in range(20)]:
 basis_pursuit_soln = smooth_linf_constraint.sm_atom.argmin
 
 sparsity = R.l1norm(1000, bound=np.fabs(basis_pursuit_soln).sum())
-loss = R.l2normsq.affine(X, -Y)
+loss = R.quadratic.affine(X, -Y)
 lasso = R.container(loss, sparsity)
 lasso_solver = R.FISTA(lasso)
 lasso_solver.fit(max_its=2000, tol=1.0e-10)
