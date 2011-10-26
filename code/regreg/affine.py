@@ -589,8 +589,7 @@ def power_L(transform, max_its=500,tol=1e-8, debug=False):
     a transform using power iterations
     """
 
-    if isinstance(transform, np.ndarray):
-        transform = linear_transform(transform)
+    transform = astransform(transform)
     v = np.random.standard_normal(transform.primal_shape)
     old_norm = 0.
     norm = 1.
