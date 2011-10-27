@@ -587,10 +587,11 @@ def power_L(transform, max_its=500,tol=1e-8, debug=False):
     """
     Approximate the largest singular value (squared) of the linear part of
     a transform using power iterations
+    
+    TODO: should this be the largest singular value instead (i.e. not squared?)
     """
 
-    if isinstance(transform, np.ndarray):
-        transform = linear_transform(transform)
+    transform = astransform(transform)
     v = np.random.standard_normal(transform.primal_shape)
     old_norm = 0.
     norm = 1.
@@ -622,10 +623,10 @@ class adjoint(object):
     that is the adjoint of its linear part.
     """
     def __init__(self, transform):
-        self.transform = transform
+        self.transform = astransform(transform)
         self.affine_offset = None
-        self.primal_shape = transform.dual_shape
-        self.dual_shape = transform.primal_shape
+        self.primal_shape = self.transform.dual_shape
+        self.dual_shape = self.transform.primal_shape
 
     def linear_map(self, x):
         return self.transform.adjoint_map(x)
@@ -669,9 +670,9 @@ class composition(object):
     """
 
     def __init__(self, *transforms):
-        self.transforms = transforms
-        self.primal_shape = transforms[-1].primal_shape
-        self.dual_shape = transforms[0].dual_shape
+        self.transforms = [astransform(t) for t in transforms]
+        self.primal_shape = self.transforms[-1].primal_shape
+        self.dual_shape = self.transforms[0].dual_shape
 
         # compute the affine_offset
         affine_offset = self.affine_map(np.zeros(self.primal_shape))
@@ -752,3 +753,46 @@ class affine_sum(object):
             output += weight * transform.adjoint_map(x)
         return output
 
+def difference_transform(X, order=4, sorted=False,
+                         transform=False):
+    """
+    Compute the divided difference matrix for X
+    after sorting X.
+
+    Parameters
+    ----------
+
+    X: np.array, np.float, ndim=1
+
+    order: int
+        What order of difference should we compute?
+
+    sorted: bool
+        Is X sorted?
+
+    transform: bool
+        If True, return a linear_transform rather
+        than a sparse matrix.
+
+    Returns
+    -------
+
+    D: np.array, ndim=2, shape=(n-order,order)
+        Matrix of divided differences of sorted X.
+
+    """
+    if not sorted:
+        X = np.sort(X)
+    X = np.asarray(X)
+    n = X.shape[0]
+    Dfinal = np.identity(n)
+    for j in range(1, order+1):
+        D = (-np.identity(n-j+1)+np.diag(np.ones(n-j),k=1))[:-1]
+        steps = X[j:]-X[:-j]
+        inv_steps = np.zeros(steps.shape)
+        inv_steps[steps != 0] = 1. / steps[steps != 0]
+        D = np.dot(np.diag(inv_steps), D)
+        Dfinal = np.dot(D, Dfinal)
+    if not transform:
+        return sparse.csr_matrix(Dfinal)
+    return astransform(Dfinal)
