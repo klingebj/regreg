@@ -355,7 +355,8 @@ class normalize(object):
             Set the std of the columns to be value.
 
         inplace : bool
-            If an ndarray and True, modify values in place.
+            If sensible, modify values in place. For a sparse matrix,
+            this will raise an exception if True and center==True.
 
         '''
         n, p = M.shape
@@ -372,9 +373,17 @@ class normalize(object):
         # so that np.std is constant
         
         if self.center:
-            col_means = np.mean(M,0)
+            if inplace and self.sparseD:
+                raise ValueError('resulting matrix will not be sparse if centering performed inplace')
             if self.scale:
-                self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * value 
+                col_means = M.mean(0)
+                if not self.sparseD:
+                    self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * value 
+                else:
+                    tmp = M.copy()
+                    col_means = np.asarray(tmp.mean(0)).reshape(-1)
+                    tmp.data **= 2
+                    self.invcol_scalings = np.sqrt((np.asarray(tmp.sum(0)).reshape(-1) - n * col_means**2) / n) * value
             if not self.sparseD and inplace:
                 self.M -= col_means[np.newaxis,:]
                 if self.scale:
@@ -383,14 +392,20 @@ class normalize(object):
                     # no need to do it again
                     self.scale = False
         elif self.scale:
-            self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) 
-            if not self.sparseD and inplace:
+            if not self.sparseD:
+                self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) * value
+            else:
+                tmp = M.copy()
+                tmp.data **= 2
+                self.invcol_scalings = np.sqrt((tmp.sum(0)) / n) * value
+            if inplace:
                 self.M /= self.invcol_scalings[np.newaxis,:]
                 # if scaling has been applied in place, 
                 # no need to do it again
                 self.scale = False
-        self.affine_offset = None
 
+        self.affine_offset = None
+        
     def linear_map(self, x):
         if self.scale:
             x = x / self.invcol_scalings
