@@ -355,10 +355,12 @@ class normalize(object):
             Set the std of the columns to be value.
 
         inplace : bool
-            If an ndarray and True, modify values in place.
+            If sensible, modify values in place. For a sparse matrix,
+            this will raise an exception if True and center==True.
 
         '''
         n, p = M.shape
+        self.value = value
         self.primal_shape = (p,)
         self.dual_shape = (n,)
         self.M = M
@@ -372,9 +374,17 @@ class normalize(object):
         # so that np.std is constant
         
         if self.center:
-            col_means = np.mean(M,0)
+            if inplace and self.sparseD:
+                raise ValueError('resulting matrix will not be sparse if centering performed inplace')
             if self.scale:
-                self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * value 
+                col_means = M.mean(0)
+                if not self.sparseD:
+                    self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * self.value 
+                else:
+                    tmp = M.copy()
+                    col_means = np.asarray(tmp.mean(0)).reshape(-1)
+                    tmp.data **= 2
+                    self.invcol_scalings = np.sqrt((np.asarray(tmp.sum(0)).reshape(-1) - n * col_means**2) / n) * self.value
             if not self.sparseD and inplace:
                 self.M -= col_means[np.newaxis,:]
                 if self.scale:
@@ -383,14 +393,20 @@ class normalize(object):
                     # no need to do it again
                     self.scale = False
         elif self.scale:
-            self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) 
-            if not self.sparseD and inplace:
+            if not self.sparseD:
+                self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) * self.value
+            else:
+                tmp = M.copy()
+                tmp.data **= 2
+                self.invcol_scalings = np.sqrt((tmp.sum(0)) / n) * self.value
+            if inplace:
                 self.M /= self.invcol_scalings[np.newaxis,:]
                 # if scaling has been applied in place, 
                 # no need to do it again
                 self.scale = False
-        self.affine_offset = None
 
+        self.affine_offset = None
+        
     def linear_map(self, x):
         if self.scale:
             x = x / self.invcol_scalings
@@ -419,6 +435,59 @@ class normalize(object):
             v /= self.invcol_scalings
         return v
 
+    def slice_columns(self, index_obj):
+        """
+
+        Parameters
+        ----------
+
+        index_obj: slice, list, np.bool
+            An object on which to index the columns of self.M.
+            Must be a slice object or list so scipy.sparse matrices
+            can be sliced.
+
+        Returns
+        -------
+        
+        n : normalize
+            A transform which agrees with self having zeroed out
+            all coefficients not captured by index_obj.
+
+        >>> X = np.array([1.2,3.4,5.6,7.8,1.3,4.5,5.6,7.8,1.1,3.4])
+        >>> D = np.identity(X.shape[0]) - np.diag(np.ones(X.shape[0]-1),1)
+        >>> nD = ra.normalize(D)
+        >>> X_sliced = X.copy()
+        >>> X_sliced[:4] = 0; X_sliced[6:] = 0
+
+        >>> nD.linear_map(X_sliced)
+        array([  0.        ,   0.        ,   0.        ,  -2.90688837,
+                -7.15541753,  10.0623059 ,   0.        ,   0.        ,
+                 0.        ,   0.        ])
+
+        >>> nD_slice = nD.slice_columns(slice(4,6))
+        >>> nD_slice.linear_map(X[slice(4,6)])
+        array([  0.        ,   0.        ,   0.        ,  -2.90688837,
+                -7.15541753,  10.0623059 ,   0.        ,   0.        ,
+                 0.        ,   0.        ])
+        >>> 
+
+        
+        """
+        if type(index_obj) not in [type(slice(0,4)), type([])]:
+            # try to find nonzero indices
+            index_obj = np.nonzero(index_obj)[0]
+        new_obj = normalize.__new__(normalize)
+        new_obj.sparseD = self.sparseD
+        new_obj.M = self.M[:,index_obj]
+        new_obj.primal_shape = new_obj.M.shape[1]
+        new_obj.dual_shape = new_obj.M.shape[0]
+        new_obj.scale = self.scale
+        new_obj.center = self.center
+        if self.scale:
+            new_obj.invcol_scalings = self.invcol_scalings[index_obj]
+        new_obj.affine_offset = self.affine_offset
+        return new_obj
+        
 class identity(object):
 
     def __init__(self, primal_shape):
@@ -587,6 +656,8 @@ def power_L(transform, max_its=500,tol=1e-8, debug=False):
     """
     Approximate the largest singular value (squared) of the linear part of
     a transform using power iterations
+    
+    TODO: should this be the largest singular value instead (i.e. not squared?)
     """
 
     transform = astransform(transform)
@@ -621,10 +692,10 @@ class adjoint(object):
     that is the adjoint of its linear part.
     """
     def __init__(self, transform):
-        self.transform = transform
+        self.transform = astransform(transform)
         self.affine_offset = None
-        self.primal_shape = transform.dual_shape
-        self.dual_shape = transform.primal_shape
+        self.primal_shape = self.transform.dual_shape
+        self.dual_shape = self.transform.primal_shape
 
     def linear_map(self, x):
         return self.transform.adjoint_map(x)
@@ -668,9 +739,9 @@ class composition(object):
     """
 
     def __init__(self, *transforms):
-        self.transforms = transforms
-        self.primal_shape = transforms[-1].primal_shape
-        self.dual_shape = transforms[0].dual_shape
+        self.transforms = [astransform(t) for t in transforms]
+        self.primal_shape = self.transforms[-1].primal_shape
+        self.dual_shape = self.transforms[0].dual_shape
 
         # compute the affine_offset
         affine_offset = self.affine_map(np.zeros(self.primal_shape))
@@ -751,3 +822,46 @@ class affine_sum(object):
             output += weight * transform.adjoint_map(x)
         return output
 
+def difference_transform(X, order=1, sorted=False,
+                         transform=False):
+    """
+    Compute the divided difference matrix for X
+    after sorting X.
+
+    Parameters
+    ----------
+
+    X: np.array, np.float, ndim=1
+
+    order: int
+        What order of difference should we compute?
+
+    sorted: bool
+        Is X sorted?
+
+    transform: bool
+        If True, return a linear_transform rather
+        than a sparse matrix.
+
+    Returns
+    -------
+
+    D: np.array, ndim=2, shape=(n-order,order)
+        Matrix of divided differences of sorted X.
+
+    """
+    if not sorted:
+        X = np.sort(X)
+    X = np.asarray(X)
+    n = X.shape[0]
+    Dfinal = np.identity(n)
+    for j in range(1, order+1):
+        D = (-np.identity(n-j+1)+np.diag(np.ones(n-j),k=1))[:-1]
+        steps = X[j:]-X[:-j]
+        inv_steps = np.zeros(steps.shape)
+        inv_steps[steps != 0] = 1. / steps[steps != 0]
+        D = np.dot(np.diag(inv_steps), D)
+        Dfinal = np.dot(D, Dfinal)
+    if not transform:
+        return sparse.csr_matrix(Dfinal)
+    return astransform(Dfinal)
