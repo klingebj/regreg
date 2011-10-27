@@ -360,6 +360,7 @@ class normalize(object):
 
         '''
         n, p = M.shape
+        self.value = value
         self.primal_shape = (p,)
         self.dual_shape = (n,)
         self.M = M
@@ -378,12 +379,12 @@ class normalize(object):
             if self.scale:
                 col_means = M.mean(0)
                 if not self.sparseD:
-                    self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * value 
+                    self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * self.value 
                 else:
                     tmp = M.copy()
                     col_means = np.asarray(tmp.mean(0)).reshape(-1)
                     tmp.data **= 2
-                    self.invcol_scalings = np.sqrt((np.asarray(tmp.sum(0)).reshape(-1) - n * col_means**2) / n) * value
+                    self.invcol_scalings = np.sqrt((np.asarray(tmp.sum(0)).reshape(-1) - n * col_means**2) / n) * self.value
             if not self.sparseD and inplace:
                 self.M -= col_means[np.newaxis,:]
                 if self.scale:
@@ -393,11 +394,11 @@ class normalize(object):
                     self.scale = False
         elif self.scale:
             if not self.sparseD:
-                self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) * value
+                self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) * self.value
             else:
                 tmp = M.copy()
                 tmp.data **= 2
-                self.invcol_scalings = np.sqrt((tmp.sum(0)) / n) * value
+                self.invcol_scalings = np.sqrt((tmp.sum(0)) / n) * self.value
             if inplace:
                 self.M /= self.invcol_scalings[np.newaxis,:]
                 # if scaling has been applied in place, 
@@ -434,6 +435,59 @@ class normalize(object):
             v /= self.invcol_scalings
         return v
 
+    def slice_columns(self, index_obj):
+        """
+
+        Parameters
+        ----------
+
+        index_obj: slice, list, np.bool
+            An object on which to index the columns of self.M.
+            Must be a slice object or list so scipy.sparse matrices
+            can be sliced.
+
+        Returns
+        -------
+        
+        n : normalize
+            A transform which agrees with self having zeroed out
+            all coefficients not captured by index_obj.
+
+        >>> X = np.array([1.2,3.4,5.6,7.8,1.3,4.5,5.6,7.8,1.1,3.4])
+        >>> D = np.identity(X.shape[0]) - np.diag(np.ones(X.shape[0]-1),1)
+        >>> nD = ra.normalize(D)
+        >>> X_sliced = X.copy()
+        >>> X_sliced[:4] = 0; X_sliced[6:] = 0
+
+        >>> nD.linear_map(X_sliced)
+        array([  0.        ,   0.        ,   0.        ,  -2.90688837,
+                -7.15541753,  10.0623059 ,   0.        ,   0.        ,
+                 0.        ,   0.        ])
+
+        >>> nD_slice = nD.slice_columns(slice(4,6))
+        >>> nD_slice.linear_map(X[slice(4,6)])
+        array([  0.        ,   0.        ,   0.        ,  -2.90688837,
+                -7.15541753,  10.0623059 ,   0.        ,   0.        ,
+                 0.        ,   0.        ])
+        >>> 
+
+        
+        """
+        if type(index_obj) not in [type(slice(0,4)), type([])]:
+            # try to find nonzero indices
+            index_obj = np.nonzero(index_obj)[0]
+        new_obj = normalize.__new__(normalize)
+        new_obj.sparseD = self.sparseD
+        new_obj.M = self.M[:,index_obj]
+        new_obj.primal_shape = new_obj.M.shape[1]
+        new_obj.dual_shape = new_obj.M.shape[0]
+        new_obj.scale = self.scale
+        new_obj.center = self.center
+        if self.scale:
+            new_obj.invcol_scalings = self.invcol_scalings[index_obj]
+        new_obj.affine_offset = self.affine_offset
+        return new_obj
+        
 class identity(object):
 
     def __init__(self, primal_shape):
@@ -768,7 +822,7 @@ class affine_sum(object):
             output += weight * transform.adjoint_map(x)
         return output
 
-def difference_transform(X, order=4, sorted=False,
+def difference_transform(X, order=1, sorted=False,
                          transform=False):
     """
     Compute the divided difference matrix for X
