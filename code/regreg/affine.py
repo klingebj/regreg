@@ -391,6 +391,7 @@ class normalize(object):
                     self.M /= self.invcol_scalings[np.newaxis,:]
                     # if scaling has been applied in place, 
                     # no need to do it again
+                    self.invcol_scalings = None
                     self.scale = False
         elif self.scale:
             if not self.sparseD:
@@ -403,8 +404,8 @@ class normalize(object):
                 self.M /= self.invcol_scalings[np.newaxis,:]
                 # if scaling has been applied in place, 
                 # no need to do it again
+                self.invcol_scalings = None
                 self.scale = False
-
         self.affine_offset = None
         
     def linear_map(self, x):
@@ -474,8 +475,9 @@ class normalize(object):
         
         """
         if type(index_obj) not in [type(slice(0,4)), type([])]:
-            # try to find nonzero indices
-            index_obj = np.nonzero(index_obj)[0]
+            # try to find nonzero indices if a boolean array
+            if index_obj.dtype == np.bool:
+                index_obj = np.nonzero(index_obj)[0]
         new_obj = normalize.__new__(normalize)
         new_obj.sparseD = self.sparseD
         new_obj.M = self.M[:,index_obj]

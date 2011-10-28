@@ -6,7 +6,11 @@ problems.
 """
 from md5 import md5
 import numpy as np
-from projl1 import projl1
+try:
+    from projl1_cython import projl1
+except ImportError:
+    from projl1_python import projl1
+    
 from atoms import atom, conjugate_seminorm_pairs
 from copy import copy
 
