@@ -336,7 +336,8 @@ class normalize(object):
     Columns are normalized to have std equal to value.
     '''
 
-    def __init__(self, M, center=True, scale=True, value=1, inplace=False):
+    def __init__(self, M, center=True, scale=True, value=1, inplace=False,
+                 add_intercept=True):
         '''
         Parameters
         ----------
@@ -358,11 +359,19 @@ class normalize(object):
             If sensible, modify values in place. For a sparse matrix,
             this will raise an exception if True and center==True.
 
+        add_intercept : bool
+            If true, the first coefficient will be an "intercept",
+            so primal_shape will be M.shape[1]+1.
         '''
         n, p = M.shape
         self.value = value
-        self.primal_shape = (p,)
+        self.add_intercept = add_intercept
         self.dual_shape = (n,)
+        if not self.add_intercept:
+            self.primal_shape = (p,)
+        else:
+            self.primal_shape = (p+1,)
+
         self.M = M
 
         self.sparseD = sparse.isspmatrix(self.M)
@@ -409,6 +418,11 @@ class normalize(object):
         self.affine_offset = None
         
     def linear_map(self, x):
+        if self.add_intercept:
+            shift = x[0]
+            x = x[1:]
+        else:
+            shift = 0
         if self.scale:
             x = x / self.invcol_scalings
         if self.sparseD:
@@ -417,6 +431,8 @@ class normalize(object):
             v = np.dot(self.M, x)
         if self.center:
             v -= v.mean()
+        if shift:
+            return v + shift
         return v
 
     def affine_map(self, x):
@@ -426,6 +442,8 @@ class normalize(object):
         return x
 
     def adjoint_map(self, u):
+        if self.add_intercept:
+            v0 = u.sum()
         if self.center:
             u = u - u.mean()
         if self.sparseD:
@@ -434,7 +452,10 @@ class normalize(object):
             v = np.dot(u, self.M)
         if self.scale:
             v /= self.invcol_scalings
-        return v
+        if not self.add_intercept:
+            return v
+        else:
+            return np.hstack([v0, v])
 
     def slice_columns(self, index_obj):
         """
@@ -482,9 +503,12 @@ class normalize(object):
         new_obj.sparseD = self.sparseD
         new_obj.M = self.M[:,index_obj]
         new_obj.primal_shape = new_obj.M.shape[1]
+        if self.add_intercept:
+            new_obj.primal_shape += 1
         new_obj.dual_shape = new_obj.M.shape[0]
         new_obj.scale = self.scale
         new_obj.center = self.center
+        new_obj.add_intercept = self.add_intercept
         if self.scale:
             new_obj.invcol_scalings = self.invcol_scalings[index_obj]
         new_obj.affine_offset = self.affine_offset
