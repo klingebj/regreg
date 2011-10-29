@@ -327,6 +327,7 @@ class selector(linear_transform):
         self._output[self.index_obj] = self.affine_transform.adjoint_map(u)
         return self._output
 
+
 class normalize(object):
 
     '''
@@ -502,10 +503,10 @@ class normalize(object):
         new_obj = normalize.__new__(normalize)
         new_obj.sparseD = self.sparseD
         new_obj.M = self.M[:,index_obj]
-        new_obj.primal_shape = new_obj.M.shape[1]
+        new_obj.primal_shape = (new_obj.M.shape[1],)
         if self.add_intercept:
-            new_obj.primal_shape += 1
-        new_obj.dual_shape = new_obj.M.shape[0]
+            new_obj.primal_shape = (new_obj.M.shape[1]+1,)
+        new_obj.dual_shape = (self.M.shape[0],)
         new_obj.scale = self.scale
         new_obj.center = self.center
         new_obj.add_intercept = self.add_intercept

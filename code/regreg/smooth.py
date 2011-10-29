@@ -178,6 +178,11 @@ class affine_smooth(smooth_atom):
             v = self.sm_atom.smooth_objective(eta, mode='func')
             return v 
 
+    @property
+    def composite(self):
+        initial = np.zeros(self.primal_shape)
+        return smooth_composite(self.smooth_objective, initial)
+
 def squaredloss(linear_operator, offset, coef=1):
     # the affine method gets rid of the need for the squaredloss class
     # as previously written squared loss had a factor of 2
