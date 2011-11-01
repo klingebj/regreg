@@ -327,6 +327,7 @@ class selector(linear_transform):
         self._output[self.index_obj] = self.affine_transform.adjoint_map(u)
         return self._output
 
+
 class normalize(object):
 
     '''
@@ -336,7 +337,8 @@ class normalize(object):
     Columns are normalized to have std equal to value.
     '''
 
-    def __init__(self, M, center=True, scale=True, value=1, inplace=False):
+    def __init__(self, M, center=True, scale=True, value=1, inplace=False,
+                 add_intercept=True):
         '''
         Parameters
         ----------
@@ -358,11 +360,19 @@ class normalize(object):
             If sensible, modify values in place. For a sparse matrix,
             this will raise an exception if True and center==True.
 
+        add_intercept : bool
+            If true, the first coefficient will be an "intercept",
+            so primal_shape will be M.shape[1]+1.
         '''
         n, p = M.shape
         self.value = value
-        self.primal_shape = (p,)
+        self.add_intercept = add_intercept
         self.dual_shape = (n,)
+        if not self.add_intercept:
+            self.primal_shape = (p,)
+        else:
+            self.primal_shape = (p+1,)
+
         self.M = M
 
         self.sparseD = sparse.isspmatrix(self.M)
@@ -391,6 +401,7 @@ class normalize(object):
                     self.M /= self.invcol_scalings[np.newaxis,:]
                     # if scaling has been applied in place, 
                     # no need to do it again
+                    self.invcol_scalings = None
                     self.scale = False
         elif self.scale:
             if not self.sparseD:
@@ -403,19 +414,41 @@ class normalize(object):
                 self.M /= self.invcol_scalings[np.newaxis,:]
                 # if scaling has been applied in place, 
                 # no need to do it again
+                self.invcol_scalings = None
                 self.scale = False
-
         self.affine_offset = None
         
     def linear_map(self, x):
+        if self.add_intercept:
+            shift = x[0]
+            x = x[1:]
+        else:
+            shift = None
         if self.scale:
-            x = x / self.invcol_scalings
+            if x.ndim == 1:
+                x = x / self.invcol_scalings
+            elif x.ndim == 2:
+                x = x / self.invcol_scalings[:,np.newaxis]
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
         if self.sparseD:
             v = self.M * x
         else:
             v = np.dot(self.M, x)
         if self.center:
-            v -= v.mean()
+            if x.ndim == 1:
+                v -= v.mean()
+            elif x.ndim == 2:
+                v -= v.mean(0)[np.newaxis,:]
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
+        if shift is not None:
+            if x.ndim == 1:
+                return v + shift
+            elif x.ndim == 2:
+                w = v + shift[np.newaxis,:]
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
         return v
 
     def affine_map(self, x):
@@ -425,15 +458,37 @@ class normalize(object):
         return x
 
     def adjoint_map(self, u):
+        if self.add_intercept:
+            if u.ndim == 1:
+                v0 = u.sum()
+            elif u.ndim == 2:
+                v0 = u.sum(0)
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
         if self.center:
-            u = u - u.mean()
+            if u.ndim == 1:
+                u = u - u.mean()
+            elif u.ndim == 2:
+                u = u - u.mean(0)
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
         if self.sparseD:
-            v = u * self.M
+            v = (u.T * self.M).T
         else:
-            v = np.dot(u, self.M)
+            v = np.dot(u.T, self.M).T
         if self.scale:
             v /= self.invcol_scalings
-        return v
+        if not self.add_intercept:
+            return v
+        else:
+            if v.ndim == 1:
+                return np.hstack([v0, v])
+            elif v.ndim == 2:
+                w = np.vstack([v0, v])
+                return w
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
+                
 
     def slice_columns(self, index_obj):
         """
@@ -474,15 +529,19 @@ class normalize(object):
         
         """
         if type(index_obj) not in [type(slice(0,4)), type([])]:
-            # try to find nonzero indices
-            index_obj = np.nonzero(index_obj)[0]
+            # try to find nonzero indices if a boolean array
+            if index_obj.dtype == np.bool:
+                index_obj = np.nonzero(index_obj)[0]
         new_obj = normalize.__new__(normalize)
         new_obj.sparseD = self.sparseD
         new_obj.M = self.M[:,index_obj]
-        new_obj.primal_shape = new_obj.M.shape[1]
-        new_obj.dual_shape = new_obj.M.shape[0]
+        new_obj.primal_shape = (new_obj.M.shape[1],)
+        if self.add_intercept:
+            new_obj.primal_shape = (new_obj.M.shape[1]+1,)
+        new_obj.dual_shape = (self.M.shape[0],)
         new_obj.scale = self.scale
         new_obj.center = self.center
+        new_obj.add_intercept = self.add_intercept
         if self.scale:
             new_obj.invcol_scalings = self.invcol_scalings[index_obj]
         new_obj.affine_offset = self.affine_offset
@@ -708,6 +767,37 @@ class adjoint(object):
 
     def adjoint_map(self, x):
         return self.transform.linear_map(x)
+
+class tensorize(object):
+
+    """
+    Given an affine_transform, return a linear_transform
+    that expects q copies of something with transform's primal_shape.
+
+    This class effectively makes explicit that a transform
+    may expect a matrix rather than a single vector.
+
+    """
+    def __init__(self, transform, q):
+        self.transform = astransform(transform)
+        self.affine_offset = self.transform.affine_offset
+        self.primal_shape = self.transform.primal_shape + (q,)
+        self.dual_shape = self.transform.dual_shape + (q,)
+
+    def linear_map(self, x):
+        return self.transform.linear_map(x)
+
+    def affine_map(self, x):
+        v = self.linear_map(x) 
+        if self.affine_offset is not None:
+            return v + self.affine_offset[:, np.newaxis]
+        return v
+
+    def offset_map(self, x):
+        return x
+
+    def adjoint_map(self, x):
+        return self.transform.adjoint_map(x)
 
 class residual(object):
 

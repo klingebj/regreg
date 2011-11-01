@@ -202,7 +202,7 @@ class FISTA(algorithm):
                 if t_old == 1.:
                     #Gradient step didn't decrease objective: tolerance composites or incorrect prox op... time to give up?
                     if self.debug:
-                        print "%i    Badstep: current: %f, proposed %f" % (itercount, current_obj, trial_obj)
+                        print "%i  Badstep: current: %f, proposed %f" % (itercount, current_obj, trial_obj)
                     badstep += 1
                     if badstep > 3:
                         warnings.warn('prox is taking bad steps')

@@ -30,7 +30,9 @@ class block_sum(atoms.atom):
         self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)
-
+        else:
+            self.offset = None
+            
         self.linear_term = None
         if linear_term is not None:
             self.linear_term = np.array(linear_term)

@@ -150,7 +150,7 @@ class affine_smooth(smooth_atom):
         if not isinstance(atransform, affine_transform):
             atransform = linear_transform(atransform, diag=diag)
         self.affine_transform = atransform
-        self.primal_shape = self.affine_transform.primal_shape
+        self.primal_shape = atransform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
 
     def _get_coef(self):
@@ -177,6 +177,11 @@ class affine_smooth(smooth_atom):
         elif mode == 'func':
             v = self.sm_atom.smooth_objective(eta, mode='func')
             return v 
+
+    @property
+    def composite(self):
+        initial = np.zeros(self.primal_shape)
+        return smooth_composite(self.smooth_objective, initial)
 
 def squaredloss(linear_operator, offset, coef=1):
     # the affine method gets rid of the need for the squaredloss class
@@ -219,7 +224,7 @@ class linear(smooth_atom):
 def signal_approximator(offset, coef=1):
     return quadratic.shift(-offset, coef)
 
-class logistic_loglikelihood(smooth_atom):
+class logistic_deviance(smooth_atom):
 
     """
     A class for combining the logistic log-likelihood with a general seminorm
@@ -242,15 +247,18 @@ class logistic_loglikelihood(smooth_atom):
         if trials is None:
             if not set([0,1]).issuperset(np.unique(self.successes)):
                 raise ValueError("Number of successes is not binary - must specify number of trials")
-            self.trials = np.ones(self.successes.shape)
+            self.trials = np.ones(self.successes.shape, np.float)
         else:
             if np.min(trials-self.successes) < 0:
                 raise ValueError("Number of successes greater than number of trials")
             if np.min(self.successes) < 0:
                 raise ValueError("Response coded as negative number - should be non-negative number of successes")
-            self.trials = trials
+            self.trials = trials * 1.
 
-        self.constant_term = constant_term
+        saturated = self.successes / self.trials
+        deviance_terms = np.log(saturated) * self.successes + np.log(1-saturated) * (self.trials - self.successes)
+        deviance_constant = -2 * coef * deviance_terms[~np.isnan(deviance_terms)].sum()
+        self.constant_term = constant_term - deviance_constant
         self.primal_shape = primal_shape
         self.coef = coef
 
@@ -304,13 +312,11 @@ class logistic_loglikelihood(smooth_atom):
             raise ValueError("mode incorrectly specified")
         return self.apply_linear_term(f, g, x, mode)
 
-class poisson_loglikelihood(smooth_atom):
+class poisson_deviance(smooth_atom):
 
     """
     A class for combining the Poisson log-likelihood with a general seminorm
     """
-
-    #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
 
     def __init__(self, primal_shape, counts, coef=1., constant_term=0.,
                  linear_term=None, offset=None):
@@ -328,8 +334,11 @@ class poisson_loglikelihood(smooth_atom):
             raise ValueError("Counts vector is not integer valued")
         if np.min(self.counts) < 0:
             raise ValueError("Counts vector is not non-negative")
-        
 
+        saturated = counts
+        deviance_terms = -2 * coef * ((counts - 1) * np.log(counts))
+        deviance_terms[counts == 0] = 0
+        self.constant_term = constant_term - deviance_terms.sum()
         self.primal_shape = primal_shape
         self.coef = coef
 
@@ -355,9 +364,7 @@ class poisson_loglikelihood(smooth_atom):
         return self.apply_linear_term(f, g, x, mode)
 
 
-
-
-class multinomial_loglikelihood(smooth_atom):
+class multinomial_deviance(smooth_atom):
 
     """
     A class for baseline-category logistic regression for nominal responses (e.g. Agresti, pg 267)
@@ -368,7 +375,6 @@ class multinomial_loglikelihood(smooth_atom):
 
         self.linear_term = linear_term
         self.offset = offset
-        self.constant_term = constant_term
 
         if sparse.issparse(counts):
             #Convert sparse success vector to an array
@@ -389,7 +395,13 @@ class multinomial_loglikelihood(smooth_atom):
 
         if primal_shape[1] != self.J - 1:
             raise ValueError("Primal shape is incorrect - should only have coefficients for first J-1 categories")
-        
+
+        saturated = self.counts / (1. * self.trials[:,np.newaxis])
+        deviance_terms = np.log(saturated) * self.counts
+        deviance_terms[np.isnan(deviance_terms)] = 0
+        deviance_constant = -2 * coef * deviance_terms.sum()
+        self.constant_term = constant_term - deviance_constant
+
         self.primal_shape = primal_shape
         self.coef = coef
 
@@ -405,9 +417,11 @@ class multinomial_loglikelihood(smooth_atom):
         exp_x = np.exp(x)
 
         #TODO: Using transposes to scale the rows of a 2d array - should we use an affine_transform to do this?
+        #JT: should be able to do this with np.newaxis
 
         if mode == 'both':
             ratio = ((self.trials/(1. + np.sum(exp_x, axis=1))) * exp_x.T).T
+            stopnow
             f, g = -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term, - 2 * self.scale(self.firstcounts - ratio) 
         elif mode == 'grad':
             ratio = ((self.trials/(1. + np.sum(exp_x, axis=1))) * exp_x.T).T
@@ -416,5 +430,6 @@ class multinomial_loglikelihood(smooth_atom):
             f, g = -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term, None
         else:
             raise ValueError("mode incorrectly specified")
+
         return self.apply_linear_term(f, g, x, mode)
 
