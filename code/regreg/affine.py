@@ -423,17 +423,32 @@ class normalize(object):
             shift = x[0]
             x = x[1:]
         else:
-            shift = 0
+            shift = None
         if self.scale:
-            x = x / self.invcol_scalings
+            if x.ndim == 1:
+                x = x / self.invcol_scalings
+            elif x.ndim == 2:
+                x = x / self.invcol_scalings[:,np.newaxis]
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
         if self.sparseD:
             v = self.M * x
         else:
             v = np.dot(self.M, x)
         if self.center:
-            v -= v.mean()
-        if shift:
-            return v + shift
+            if x.ndim == 1:
+                v -= v.mean()
+            elif x.ndim == 2:
+                v -= v.mean(0)[np.newaxis,:]
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
+        if shift is not None:
+            if x.ndim == 1:
+                return v + shift
+            elif x.ndim == 2:
+                w = v + shift[np.newaxis,:]
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
         return v
 
     def affine_map(self, x):
@@ -444,19 +459,36 @@ class normalize(object):
 
     def adjoint_map(self, u):
         if self.add_intercept:
-            v0 = u.sum()
+            if u.ndim == 1:
+                v0 = u.sum()
+            elif u.ndim == 2:
+                v0 = u.sum(0)
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
         if self.center:
-            u = u - u.mean()
+            if u.ndim == 1:
+                u = u - u.mean()
+            elif u.ndim == 2:
+                u = u - u.mean(0)
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
         if self.sparseD:
-            v = u * self.M
+            v = (u.T * self.M).T
         else:
-            v = np.dot(u, self.M)
+            v = np.dot(u.T, self.M).T
         if self.scale:
             v /= self.invcol_scalings
         if not self.add_intercept:
             return v
         else:
-            return np.hstack([v0, v])
+            if v.ndim == 1:
+                return np.hstack([v0, v])
+            elif v.ndim == 2:
+                w = np.vstack([v0, v])
+                return w
+            else:
+                raise ValueError('normalize only implemented for 1D and 2D inputs')
+                
 
     def slice_columns(self, index_obj):
         """
@@ -735,6 +767,37 @@ class adjoint(object):
 
     def adjoint_map(self, x):
         return self.transform.linear_map(x)
+
+class tensorize(object):
+
+    """
+    Given an affine_transform, return a linear_transform
+    that expects q copies of something with transform's primal_shape.
+
+    This class effectively makes explicit that a transform
+    may expect a matrix rather than a single vector.
+
+    """
+    def __init__(self, transform, q):
+        self.transform = astransform(transform)
+        self.affine_offset = self.transform.affine_offset
+        self.primal_shape = self.transform.primal_shape + (q,)
+        self.dual_shape = self.transform.dual_shape + (q,)
+
+    def linear_map(self, x):
+        return self.transform.linear_map(x)
+
+    def affine_map(self, x):
+        v = self.linear_map(x) 
+        if self.affine_offset is not None:
+            return v + self.affine_offset[:, np.newaxis]
+        return v
+
+    def offset_map(self, x):
+        return x
+
+    def adjoint_map(self, x):
+        return self.transform.adjoint_map(x)
 
 class residual(object):
 
