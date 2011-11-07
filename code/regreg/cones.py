@@ -266,6 +266,105 @@ class nonnegative(cone):
         return np.maximum(x, 0)
 
 
+
+class nonnegative_definite(cone):
+
+    """
+    The non-negative cone constraint (which is the support
+    function of the non-positive cone constraint).
+    """
+    
+    def constraint(self, y):
+        """
+        The non-negative constraint of x.
+        """
+        p = np.sqrt(y.shape[0])
+        x = y.reshape((p,p))
+        eigvals = np.real(np.linalg.eigvals(x))
+        tol_lim = np.fabs(eigvals).max() * self.tol
+        incone = np.all(np.greater_equal(eigvals, -tol_lim))
+        if incone:
+            return 0
+        return np.inf
+
+
+    def cone_prox(self, y,  lipschitz=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 \ \text{s.t.} \  v_i \geq 0.
+
+        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
+        This is just a element-wise
+        np.maximum(x, 0)
+
+        .. math::
+
+            v^{\lambda}(x)_i = \max(x_i, 0)
+
+        """
+        p = np.sqrt(y.shape[0])
+        x = y.reshape((p,p))
+        vals, vecs = np.linalg.eigh(x)
+        vals = np.maximum(np.real(vals),0)
+        return np.dot(vecs,np.dot(np.diag(vals),vecs.T)).flatten()
+
+
+
+class nonpositive_definite(cone):
+
+    """
+    The non-negative cone constraint (which is the support
+    function of the non-positive cone constraint).
+    """
+    
+    def constraint(self, y):
+        """
+        The non-negative constraint of x.
+        """
+                
+        p = np.sqrt(y.shape[0])
+        x = y.reshape((p,p))
+        eigvals = np.real(np.linalg.eigvals(x))
+        tol_lim = np.fabs(eigvals).max() * self.tol
+        incone = np.all(np.less_equal(eigvals, tol_lim))
+        if incone:
+            return 0
+        return np.inf
+
+
+    def cone_prox(self, y,  lipschitz=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 \ \text{s.t.} \  v_i \geq 0.
+
+        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
+        This is just a element-wise
+        np.maximum(x, 0)
+
+        .. math::
+
+            v^{\lambda}(x)_i = \max(x_i, 0)
+
+        """
+        p = np.sqrt(y.shape[0])
+        x = y.reshape((p,p))
+        vals, vecs = np.linalg.eigh(x)
+        vals = np.minimum(np.real(vals),0)
+        return np.dot(vecs,np.dot(np.diag(vals),vecs.T)).flatten()
+
+
+
+
+
+
 class nonpositive(nonnegative):
 
     """
@@ -331,7 +430,8 @@ class zero_constraint(cone):
 
 conjugate_cone_pairs = {}
 for n1, n2 in [(nonnegative,nonpositive),
-               (zero, zero_constraint)
+               (zero, zero_constraint),
+               (nonnegative_definite, nonpositive_definite)
                ]:
     conjugate_cone_pairs[n1] = n2
     conjugate_cone_pairs[n2] = n1

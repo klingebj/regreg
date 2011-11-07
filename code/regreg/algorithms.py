@@ -42,7 +42,8 @@ class FISTA(algorithm):
             monotonicity_restart=True,
             debug = None,
             prox_control=None,
-            attempt_decrease = False):
+            attempt_decrease = False,
+            initial=None):
 
         """
         Use the FISTA (or ISTA) algorithm to fit the problem
@@ -77,6 +78,8 @@ class FISTA(algorithm):
               A dictionary of arguments for fit(), used when the composite.proximal_step itself is a FISTA problem
         attempt_decrease : bool
               If True, attempt to decrease inv_step on the first iteration
+        initial : float
+              Intial coefficients
     
         Returns
         -------
@@ -97,6 +100,8 @@ class FISTA(algorithm):
             #If inv_step is not available from last fit use start_inv_step
             self.inv_step = start_inv_step
 
+        if initial is not None:
+            self.composite.coefs = initial.copy()
         r = self.composite.coefs
         t_old = 1.
         beta = self.composite.coefs

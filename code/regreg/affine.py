@@ -685,6 +685,32 @@ class composition(object):
         return output
 
 
+
+
+class affine_reshape(object):
+
+    """
+    Reshape an array
+    """
+
+    def __init__(self, primal_shape, dual_shape):
+        self.primal_shape = primal_shape
+        self.dual_shape = dual_shape
+
+    def linear_map(self, x):
+        return x.reshape(self.dual_shape)
+
+    def affine_map(self, x):
+        return self.linear_map(x)
+
+    def offset_map(self, x):
+        return 0.
+
+    def adjoint_map(self, x):
+        return x.reshape(self.primal_shape)
+
+
+
         
 class affine_sum(object):
 

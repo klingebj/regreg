@@ -178,7 +178,7 @@ class linear(smooth_atom):
     def __init__(self, vector, coef=1):
         self.vector = coef * vector
         self.primal_shape = vector.shape
-        self.coef =1
+        self.coef = coef
         self.coefs = np.zeros(self.primal_shape)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
@@ -386,5 +386,110 @@ class multinomial_loglikelihood(smooth_atom):
             return -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term
         else:
             raise ValueError("mode incorrectly specified")
+
+
+
+            
+class trace(smooth_atom):
+
+    def __init__(self, primal_shape, coef=1, constant_term=0):
+        self.constant_term = constant_term
+        self.primal_shape = primal_shape
+        self.coef = coef
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        if x.ndim == 1:
+            p = np.sqrt(x.shape[0])
+            y = x.reshape((p,p))
+            flatten = True
+        elif x.ndim == 2:
+            p = x.shape[0]
+            y = x
+            flatten = False
+        else:
+            raise ValueError("Trace input has too many dimensions")
+
+        if mode == 'both':
+            if flatten:
+                return self.coef * np.sum(np.diag(y)) + self.constant_term, self.coef * np.eye(p).flatten()
+            else:
+                return self.coef * np.sum(np.diag(y)) + self.constant_term, self.coef * np.eye(p)
+        elif mode == 'grad':
+            if flatten:
+                return self.coef * np.eye(p).flatten()
+            else:
+                return self.coef * np.eye(p)
+        elif mode == 'func':
+            return self.coef * np.sum(np.diag(y)) + self.constant_term
+        else:
+            raise ValueError("mode incorrectly specified")
+
+
+            
+class logdet(smooth_atom):
+
+    """
+    A class representing \logdet(X)
+    """
+
+
+    def __init__(self, primal_shape, coef=1, constant_term=0):
+        self.constant_term = constant_term
+        self.primal_shape = primal_shape
+        self.coef = coef
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        if x.ndim == 1:
+            p = np.sqrt(x.shape[0])
+            y = x.reshape((p,p))
+            flatten = True
+        elif x.ndim == 2:
+            y = x
+            flatten = False
+        else:
+            raise ValueError("Logdet input has too many dimensions")
+            
+        self.det_y = np.linalg.det(y)
+
+        if self.det_y == 0.:
+            if mode == 'both':
+                return - self.coef * np.inf, np.ones(p**2) * np.inf
+            elif mode == 'grad':
+                return np.ones(p**2) * np.inf
+            elif mode == 'func':
+                return - self.coef * np.inf
+            else:
+                raise ValueError("mode incorrectly specified")
+        else:
+            if mode == 'both':
+                if flatten:
+                    return self.coef * np.log(self.det_y) + self.constant_term, self.coef * np.linalg.inv(y).flatten()
+                else:
+                    return self.coef * np.log(self.det_y) + self.constant_term, self.coef * np.linalg.inv(y)
+            elif mode == 'grad':
+                if flatten:
+                    return self.coef * np.linalg.inv(y).flatten()
+                else:
+                    return self.coef * np.linalg.inv(y)
+            elif mode == 'func':
+                return self.coef * np.log(self.det_y) + self.constant_term
+            else:
+                raise ValueError("mode incorrectly specified")
 
 
