@@ -25,3 +25,6 @@ from blocks import blockwise
 from conjugate import conjugate
 from composite import (composite, nonsmooth as nonsmooth_composite,
                        smooth as smooth_composite, smoothed as smoothed_atom)
+
+from weighted_atoms import (l1norm as weighted_l1norm,
+                            supnorm as weighted_supnorm)

@@ -5,7 +5,8 @@ from operator import add
 import numpy as np
 import regreg.api as rr
 from regreg.affine import (broadcast_first, affine_transform, 
-                           AffineError, composition, adjoint)
+                           AffineError, composition, adjoint,
+                           intercept, astransform)
 
 from numpy.testing import (assert_array_almost_equal,
                            assert_array_equal)
@@ -160,3 +161,17 @@ def test_affine_sum():
     assert_array_almost_equal(np.dot(X1.T,b) + np.dot(X2.T,b), sum_transform.adjoint_map(b))
     assert_array_almost_equal(b, sum_transform.offset_map(v))
     assert_array_almost_equal(b, sum_transform.affine_offset)
+
+def test_add_intercept():
+    X = astransform(np.random.standard_normal((40,5)))
+    X_int = intercept(X)
+    assert_equal(X_int.primal_shape, (6,))
+    assert_equal(X_int.dual_shape, (40,))
+    
+    z = np.random.standard_normal(X_int.primal_shape)
+    w = np.random.standard_normal(X_int.dual_shape)
+
+    assert_array_almost_equal(X_int.linear_map(z), X.linear_map(z[1:]) + z[0])
+    assert_array_almost_equal(X_int.adjoint_map(w)[0], w.sum())
+    assert_array_almost_equal(X_int.adjoint_map(w)[1:], X.adjoint_map(w))
+

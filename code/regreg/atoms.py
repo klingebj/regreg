@@ -2,7 +2,7 @@ import numpy as np
 from scipy import sparse
 from composite import composite, nonsmooth
 from affine import (linear_transform, identity as identity_transform, 
-                    affine_transform)
+                    affine_transform, selector)
 from copy import copy
 import warnings
 
@@ -388,6 +388,7 @@ class l1norm(atom):
 
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
+        x = np.asarray(x, np.float)
         return projl1(x, self.bound)
     bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
 
@@ -420,6 +421,7 @@ class supnorm(atom):
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
+        x = np.asarray(x, np.float)
         d = projl1(x, lagrange/lipschitz)
         return x - d
     lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
@@ -517,7 +519,7 @@ class positive_part(atom):
     def bound_prox(self, x,  lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         x = np.asarray(x)
-        v = x.copy()
+        v = x.copy().astype(np.float)
         v = np.atleast_1d(v)
         pos = v > 0
         if np.any(pos):
@@ -559,7 +561,7 @@ class constrained_max(atom):
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
         x = np.asarray(x)
-        v = x.copy()
+        v = x.copy().astype(np.float)
         v = np.atleast_1d(v)
         pos = v > 0
         if np.any(pos):
@@ -617,7 +619,7 @@ class constrained_positive_part(atom):
     def bound_prox(self, x,  lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         x = np.asarray(x)
-        v = np.zeros(x.shape)
+        v = np.zeros(x.shape, np.float)
         v = np.atleast_1d(v)
         pos = x > 0
         if np.any(pos):
@@ -658,7 +660,7 @@ class max_positive_part(atom):
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
         x = np.asarray(x)
-        v = np.zeros(x.shape)
+        v = np.zeros(x.shape, np.float)
         v = np.atleast_1d(v)
         pos = x > 0
         if np.any(pos):

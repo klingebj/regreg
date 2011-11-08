@@ -360,22 +360,16 @@ class normalize(object):
             If sensible, modify values in place. For a sparse matrix,
             this will raise an exception if True and center==True.
 
-        add_intercept : bool
-            If true, the first coefficient will be an "intercept",
-            so primal_shape will be M.shape[1]+1.
         '''
         n, p = M.shape
         self.value = value
-        self.add_intercept = add_intercept
         self.dual_shape = (n,)
-        if not self.add_intercept:
-            self.primal_shape = (p,)
-        else:
-            self.primal_shape = (p+1,)
-
-        self.M = M
+        self.primal_shape = (p,)
 
         self.sparseD = sparse.isspmatrix(self.M)
+        self.add_intercept = add_intercept
+        if self.add_intercept:
+            self.M = M
 
         self.center = center
         self.scale = scale
@@ -419,11 +413,7 @@ class normalize(object):
         self.affine_offset = None
         
     def linear_map(self, x):
-        if self.add_intercept:
-            shift = x[0]
-            x = x[1:]
-        else:
-            shift = None
+        shift = None
         if self.scale:
             if x.ndim == 1:
                 x = x / self.invcol_scalings
@@ -458,13 +448,6 @@ class normalize(object):
         return x
 
     def adjoint_map(self, u):
-        if self.add_intercept:
-            if u.ndim == 1:
-                v0 = u.sum()
-            elif u.ndim == 2:
-                v0 = u.sum(0)
-            else:
-                raise ValueError('normalize only implemented for 1D and 2D inputs')
         if self.center:
             if u.ndim == 1:
                 u = u - u.mean()
@@ -478,17 +461,7 @@ class normalize(object):
             v = np.dot(u.T, self.M).T
         if self.scale:
             v /= self.invcol_scalings
-        if not self.add_intercept:
-            return v
-        else:
-            if v.ndim == 1:
-                return np.hstack([v0, v])
-            elif v.ndim == 2:
-                w = np.vstack([v0, v])
-                return w
-            else:
-                raise ValueError('normalize only implemented for 1D and 2D inputs')
-                
+        return v
 
     def slice_columns(self, index_obj):
         """
@@ -508,6 +481,12 @@ class normalize(object):
             A transform which agrees with self having zeroed out
             all coefficients not captured by index_obj.
 
+        Notes
+        -----
+
+        If self.add_intercept is True, then [0] refers to the
+        intercept column.
+        
         >>> X = np.array([1.2,3.4,5.6,7.8,1.3,4.5,5.6,7.8,1.1,3.4])
         >>> D = np.identity(X.shape[0]) - np.diag(np.ones(X.shape[0]-1),1)
         >>> nD = ra.normalize(D)
@@ -536,12 +515,10 @@ class normalize(object):
         new_obj.sparseD = self.sparseD
         new_obj.M = self.M[:,index_obj]
         new_obj.primal_shape = (new_obj.M.shape[1],)
-        if self.add_intercept:
-            new_obj.primal_shape = (new_obj.M.shape[1]+1,)
         new_obj.dual_shape = (self.M.shape[0],)
         new_obj.scale = self.scale
         new_obj.center = self.center
-        new_obj.add_intercept = self.add_intercept
+        print 'index', index_obj
         if self.scale:
             new_obj.invcol_scalings = self.invcol_scalings[index_obj]
         new_obj.affine_offset = self.affine_offset
@@ -955,3 +932,4 @@ def difference_transform(X, order=1, sorted=False,
     if not transform:
         return sparse.csr_matrix(Dfinal)
     return astransform(Dfinal)
+
