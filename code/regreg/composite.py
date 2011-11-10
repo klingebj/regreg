@@ -143,8 +143,7 @@ class smoothed(smooth):
             raise ValueError('to smooth, epsilon must be positive')
         self.primal_shape = atom.primal_shape
 
-        self.dual = atom.dual
-
+        self.atom = atom
         # for TFOCS the argmin corresponds to the 
         # primal solution 
 
@@ -189,3 +188,10 @@ class smoothed(smooth):
 
     def proximal(self, x, lipschitz=1):
         return x
+
+    def _get_atom(self):
+        return self._atom
+    def _set_atom(self, atom):
+        self._atom = atom
+        self.dual= self._atom.dual
+    atom = property(_get_atom, _set_atom)
