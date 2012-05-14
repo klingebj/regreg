@@ -29,7 +29,7 @@ The only code needed to add logistic regression is a class
 with one method which computes the objective and its gradient.
 
 .. literalinclude:: ../code/regreg/smooth.py
-   :pyobject: logistic_loglikelihood
+   :pyobject: logistic_deviance
    
 
 [TODO: Add some real or more interesting data.]
@@ -45,7 +45,7 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = rr.logistic_loglikelihood.linear(X,successes=Y)
+   loss = rr.logistic_deviance.linear(X,successes=Y)
    penalty = rr.quadratic(1000, coef=1.)
 
 The logistic log-likelihood function is written without a matrix :math:`X`. We use the ".linear" to specify the linear composition :math:`X\beta`. Similarly, we could use ".affine" to specify an offset :math:`X\beta + \alpha`.
