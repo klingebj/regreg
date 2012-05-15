@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import sparse
-from composite import nonsmooth, smooth, identity_quadratic
+from identity_quadratic import identity_quadratic
+from composite import nonsmooth, smooth
 from affine import (linear_transform, identity as identity_transform, 
                     affine_transform, selector)
 from smooth import affine_smooth
@@ -23,7 +24,7 @@ class atom(nonsmooth):
     def __init__(self, primal_shape, lagrange=None, bound=None, 
                  linear_term=None,
                  constant_term=0., offset=None,
-                 quadratic_spec=(None, None, None)):
+                 quadratic_spec=(None, None, None, 0)):
 
         self.offset = offset
         self.constant_term = constant_term
@@ -56,7 +57,7 @@ class atom(nonsmooth):
             self._bound = bound
             self._lagrange = None
         
-        self.quadratic = quadratic_spec
+        self.set_quadratic(*quadratic_spec)
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -74,7 +75,7 @@ class atom(nonsmooth):
                                   offset=copy(self.offset))
         q = self.quadratic
         if q is not None:
-            new_atom.quadratic = (q.coef, q.offset, q.linear)
+            new_atom.set_quadratic(q.coef, q.offset, q.linear_term, q.constant_term)
         return new_atom
 
     def __repr__(self):
@@ -97,6 +98,7 @@ class atom(nonsmooth):
                  self.constant_term)
     
     def get_conjugate(self):
+
         if self.quadratic is None:
             if self.offset is not None:
                 linear_term = -self.offset
@@ -242,38 +244,31 @@ class atom(nonsmooth):
 
         """
 
+        proxq = identity_quadratic(lipschitz, -x, self.linear_term, 0)
         if self.quadratic is not None:
-            qcoef, qoffset, qlinear  = self.quadratic.coef, self.quadratic.offset, self.quadratic.linear
-            if qoffset is None:
-                qoffset = 0
-            if qlinear is None:
-                qlinear = 0
+            totalq = self.quadratic + proxq
         else:
-            qcoef = qoffset = qlinear = 0
+            totalq = proxq.collapsed()
 
-        if self.offset is not None:
-            offset = self.offset
-        else:
-            offset = 0
-
-        # compute linear and quadratic parts 
-        total_quadratic_term = qcoef + lipschitz
-        if qoffset is not None:
-            total_linear_term = lipschitz * (x + offset) + qcoef * (-qoffset + offset) - qlinear
-        if self.linear_term is not None:
-            total_linear_term -= self.linear_term
-        prox_arg = total_linear_term / total_quadratic_term
-
-        if np.all(np.equal(offset, 0)):
+        if self.offset is None or np.all(np.equal(self.offset, 0)):
             offset = None
 
-        if total_quadratic_term == 0:
+        if offset is not None:
+            totalq.offset = -offset
+            totalq = totalq.collapsed()
+
+        if totalq.coef == 0:
             raise ValueError('lipschitz + quadratic coef must be positive')
 
+        prox_arg = -totalq.linear_term / totalq.coef
+        print 'proxarg: ', prox_arg
+        print 'totalq: ', totalq
+        print 'proxq: ', proxq
+
         if self.bound is not None:
-            eta = self.bound_prox(prox_arg, lipschitz=total_quadratic_term, bound=self.bound)
+            eta = self.bound_prox(prox_arg, lipschitz=totalq.coef, bound=self.bound)
         else:
-            eta = self.lagrange_prox(prox_arg, lipschitz=total_quadratic_term, lagrange=self.lagrange)
+            eta = self.lagrange_prox(prox_arg, lipschitz=totalq.coef, lagrange=self.lagrange)
 
         if offset is None:
             return eta
@@ -389,22 +384,13 @@ class atom(nonsmooth):
         sq = smoothing_quadratic
         if sq.coef in [None, 0]:
             raise ValueError('quadratic term of smoothing_quadratic must be non 0')
-        total_q = sq.coef
-
-        total_l = 0
-        if sq.offset is not None:
-            total_l += sq.coef * sq.offset
-        if sq.linear is not None:
-            total_l += sq.linear
+        total_q = sq
 
         if conjugate_atom.quadratic is not None:
-            if q.coef:
-                total_q += q.coef
-            if q.offset is not None:
-                total_l += q.coef * q.offset
-            if q.linear is not None:
-                total_l += q.linear
-        conjugate_atom.quadratic = (total_q, None, total_l)
+            total_q = sq + conjugate_atom.quadratic
+        conjugate_atom.set_quadratic(total_q.coef, total_q.offset,
+                                     total_q.linear_term, 
+                                     total_q.constant_term)
         smoothed_atom = conjugate_atom.conjugate
         return smoothed_atom
 
@@ -802,24 +788,15 @@ class affine_atom(object):
         Add quadratic smoothing term
         '''
         ltransform, conjugate_atom = self.dual
-        sq = smoothing_quadratic
-        if sq.coef in [None, 0]:
-            raise ValueError('quadratic term of smoothing_quadratic must be non 0')
-        total_q = sq.coef
-        total_l = 0
-        if sq.offset is not None:
-            total_l += sq.coef * sq.offset
-        if sq.linear is not None:
-            total_l += sq.linear
-
         if conjugate_atom.quadratic is not None:
-            if q.coef:
-                total_q += q.coef
-            if q.offset is not None:
-                total_l += q.coef * q.offset
-            if q.linear is not None:
-                total_l += q.linear
-        conjugate_atom.quadratic = (total_q, None, total_l)
+            total_q = smoothing_quadratic + conjugate_atom.quadratic
+        else:
+            total_q = smoothing_quadratic
+        if total_q.coef in [None, 0]:
+            raise ValueError('quadratic term of smoothing_quadratic must be non 0')
+        conjugate_atom.set_quadratic(total_q.coef, total_q.offset,
+                                     total_q.linear_term, 
+                                     total_q.constant_term)
         smoothed_atom = conjugate_atom.conjugate
         return affine_smooth(smoothed_atom, ltransform)
 
@@ -839,8 +816,8 @@ class smooth_conjugate(smooth):
         self.atom = collapse_linear_terms(atom)
         if self.atom.quadratic.coef in [0,None]:
             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
-        self.quadratic = (self.atom.quadratic.coef, None, None)
-        self.atom.quadratic = (None, None, None)
+        self.set_quadratic(self.atom.quadratic.coef, None, None, 0)
+        self.atom.set_quadratic(None, None, None, 0)
         self.primal_shape = atom.primal_shape
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
@@ -884,18 +861,14 @@ for n1, n2 in [(l1norm,supnorm),
     conjugate_seminorm_pairs[n2] = n1
 
 def collapse_linear_terms(atom):
+    # check the constant term is handled correctly
     atom_copy = copy(atom)
     q = atom.quadratic
-
-    total_l = 0
-    if atom.linear_term is not None:
-        total_l += atom.linear_term
-    if q:
-        if q.offset is not None:
-            total_l += q.offset * q.coef
-        if q.linear is not None:
-            total_l += q.linear 
-        atom_copy.quadratic = (q.coef, None, None)
-        atom_copy.linear_term = total_l
-
+    aq = identity_quadratic(None, None, atom.linear_term, atom.constant_term)
+    tq = q + aq
+    if not np.all(np.equal(atom_copy.linear_term,0)):
+        atom_copy.linear_term = tq.linear_term
+    tq.linear_term = None
+    atom_copy.constant_term = tq.constant_term
+    atom_copy.set_quadratic(q.coef, None, None, 0)
     return atom_copy

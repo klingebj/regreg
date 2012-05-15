@@ -1,6 +1,10 @@
 from numpy.linalg import norm
 from numpy import zeros
 
+# local import
+
+from identity_quadratic import identity_quadratic
+
 class composite(object):
     """
     A generic way to specify a problem in composite form.
@@ -9,7 +13,7 @@ class composite(object):
     def __init__(self, smooth_objective, nonsmooth_objective, proximal, 
                  initial, smooth_multiplier=1, lipschitz=None, 
                  compute_difference=True,
-                 quadratic_spec=(None,None,None)):
+                 quadratic_spec=(None,None,None,0)):
 
         self.coefs = initial.copy()
         self._nonsmooth_objective = nonsmooth_objective
@@ -85,15 +89,15 @@ class composite(object):
         else:
             return self.proximal(x, grad, lipschitz)
         
-    def set_quadratic_spec(self, quadratic_spec):
-        self._quadratic = identity_quadratic(*quadratic_spec)
+    def set_quadratic(self, coef, offset, linear_term, constant_term):
+        self._quadratic = identity_quadratic(coef, offset, linear_term, constant_term)
 
-    def get_quadratic_spec(self):
+    def get_quadratic(self):
         if hasattr(self, "_quadratic") and self._quadratic.anything_to_return:
             return self._quadratic
         else:
             return None
-    quadratic = property(get_quadratic_spec, set_quadratic_spec)
+    quadratic = property(get_quadratic)
 
     def get_lipschitz(self):
         return self._lipschitz
@@ -246,54 +250,3 @@ class smoothed(smooth):
             raise ValueError("mode incorrectly specified")
 
 
-class identity_quadratic(object):
-
-    def __init__(self, coef, offset, linear):
-        self.coef = coef
-        self.offset = offset
-        self.linear = linear
-        if self.coef is not None or self.linear is not None:
-            self.anything_to_return = True
-        else:
-            self.anything_to_return = False
-
-    def objective(self, x, mode='both'):
-        coef, offset, linear = self.coef, self.offset, self.linear
-        if linear is None:
-            linear = 0
-        if offset is not None:
-            r = x + offset
-        else:
-            r = x
-        if mode == 'both':
-            if linear is not None:
-                return (norm(r)**2 * coef / 2. + (linear * x).sum(),
-                    coef * r + linear)
-            else:
-                return (norm(r)**2 * coef / 2.,
-                    coef * r)
-        elif mode == 'func':
-            if linear is not None:
-                return norm(r)**2 * coef / 2. + (linear * x).sum()
-            else:
-                return norm(r)**2 * coef / 2.
-        elif mode == 'grad':
-            if linear is not None:
-                return coef * r + linear
-            else:
-                return coef * r
-        else:
-            raise ValueError("Mode incorrectly specified")
-                        
-    def update_smooth_output(self, x, smooth_output, mode='both'):
-        quadratic_output = self.objective(x, mode=mode)
-        if mode == 'both':
-            smooth_output = (smooth_output[0] + quadratic_output[0],
-                             smooth_output[1] + quadratic_output[1])
-        else:
-            smooth_output = smooth_output + quadratic_output
-
-        return smooth_output
-
-    def __repr__(self):
-        return 'identity_quadratic(%f, %s, %s)' % (self.coef, `self.offset`, `self.linear`)

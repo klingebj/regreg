@@ -1,0 +1,94 @@
+"""
+This module contains a single class that is meant to represent
+a quadratic of the form
+
+.. math::
+
+   \frac{\kappa}{2} \|x+\gamma\|^2_2 + \alpha^Tx + c
+
+with :math:`\kappa, \gamma, \alpha, c` = (coef, offset, linear_term, constant_term).
+"""
+
+from numpy.linalg import norm
+
+class identity_quadratic(object):
+
+    def __init__(self, coef, offset, linear_term, constant_term=0):
+        self.coef = coef
+        self.offset = offset
+        self.linear_term = linear_term
+        self.constant_term = constant_term
+        if self.coef is not None or self.linear_term is not None:
+            self.anything_to_return = True
+        else:
+            self.anything_to_return = False
+
+    def objective(self, x, mode='both'):
+        coef, offset, linear_term = self.coef, self.offset, self.linear_term
+        cons = self.constant_term
+        if linear_term is None:
+            linear_term = 0
+        if offset is not None:
+            r = x + offset
+        else:
+            r = x
+        if mode == 'both':
+            if linear_term is not None:
+                return (norm(r)**2 * coef / 2. + (linear_term * x).sum() 
+                        + cons, coef * r + linear_term)
+            else:
+                return (norm(r)**2 * coef / 2. + cons,
+                        coef * r)
+        elif mode == 'func':
+            if linear_term is not None:
+                return norm(r)**2 * coef / 2. + (linear_term * x).sum() + cons
+            else:
+                return norm(r)**2 * coef / 2. + cons
+        elif mode == 'grad':
+            if linear_term is not None:
+                return coef * r + linear_term
+            else:
+                return coef * r
+        else:
+            raise ValueError("Mode incorrectly specified")
+                        
+    def __repr__(self):
+        return 'identity_quadratic(%f, %s, %s, %f)' % (self.coef, str(self.offset), str(self.linear_term), self.constant_term)
+
+    def __add__(self, other):
+        if not (other is None or isinstance(other, identity_quadratic)):
+            raise ValueError('can only add None or other identity_quadratic')
+
+
+        if other is None:
+            return self
+        else:
+            sc = self.collapsed()
+            oc = other.collapsed()
+            newq = identity_quadratic(sc.coef + oc.coef, None, 
+                                      sc.linear_term + oc.linear_term,
+                                      sc.constant_term + oc.constant_term)
+            return newq 
+
+    def collapsed(self):
+        """
+        Return an identity quadratic with a coefficient of 0
+        and no offset.
+        """
+
+        if self.coef is None:
+            coef = 0
+        else:
+            coef = self.coef
+
+        linear_term = 0
+        constant_term = self.constant_term
+        if constant_term is None: 
+            constant_term = 0 
+        if self.offset is not None:
+            linear_term += coef * self.offset
+            constant_term += coef * norm(self.offset)**2/2.
+        if self.linear_term is not None:
+            linear_term += self.linear_term
+
+        return identity_quadratic(coef, None, linear_term, constant_term)
