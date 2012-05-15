@@ -87,14 +87,17 @@ class container(composite):
         for atom in self.nonsmooth_atoms:
             out += atom.nonsmooth_objective(x,
                                             check_feasibility=check_feasibility)
-        return out
+        if self.quadratic is None:
+            return out
+        else:
+            return out + self.quadratic.objective(x, 'func')
 
     default_solver = FISTA
     def proximal(self, x, grad, lipschitz=1, prox_control=None):
         """
         The proximal function for the primal problem
         """
-
+        #TODO put in the self.quadratic term 
         y = x - grad / lipschitz
         transform, separable_atom = self.dual
         

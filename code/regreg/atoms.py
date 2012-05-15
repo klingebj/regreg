@@ -88,24 +88,43 @@ class atom(nonsmooth):
 
     def __repr__(self):
         if self.lagrange is not None:
-            return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
-                (self.__class__.__name__,
-                 `self.primal_shape`, 
-                 self.lagrange,
-                 str(self.linear_term),
-                 str(self.offset),
-                 self.constant_term,
-                 str(self.quadratic))
+            if self.quadratic is None or not self.quadratic.anything_to_return:
+                return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
+                    (self.__class__.__name__,
+                     `self.primal_shape`, 
+                     self.lagrange,
+                     str(self.linear_term),
+                     str(self.offset),
+                     self.constant_term)
+            else:
+                return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
+                    (self.__class__.__name__,
+                     `self.primal_shape`, 
+                     self.lagrange,
+                     str(self.linear_term),
+                     str(self.offset),
+                     self.constant_term,
+                     str(self.quadratic))
 
         else:
-            return "%s(%s, bound=%f, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
-                (self.__class__.__name__,
-                 `self.primal_shape`, 
-                 self.bound,
-                 str(self.linear_term),
-                 str(self.offset),
-                 self.constant_term,
-                 str(self.quadratic))
+            if self.quadratic is None or not self.quadratic.anything_to_return:
+                return "%s(%s, bound=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
+                    (self.__class__.__name__,
+                     `self.primal_shape`, 
+                     self.bound,
+                     str(self.linear_term),
+                     str(self.offset),
+                     self.constant_term)
+
+            else:
+                return "%s(%s, bound=%f, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
+                    (self.__class__.__name__,
+                     `self.primal_shape`, 
+                     self.bound,
+                     str(self.linear_term),
+                     str(self.offset),
+                     self.constant_term,
+                     str(self.quadratic))
     
     def get_conjugate(self):
 
@@ -232,7 +251,7 @@ class atom(nonsmooth):
             v += self.quadratic.objective(x, 'func')
         return v
 
-    def proximal(self, x, grad, lipschitz=1):
+    def proximal(self, x, grad, lipschitz):
         r"""
         The proximal operator. If the atom is in
         Lagrange mode, this has the form
@@ -254,8 +273,11 @@ class atom(nonsmooth):
 
         """
 
-        x = x - grad / lipschitz
-        proxq = identity_quadratic(lipschitz, -x, self.linear_term, 0)
+        proxq = identity_quadratic(lipschitz, -x, grad)
+        if self.linear_term is not None:
+            linearq = identity_quadratic(0, 0, self.linear_term, 0)
+            proxq = proxq + linearq
+
         if self.quadratic is not None:
             totalq = self.quadratic + proxq
         else:
@@ -273,8 +295,12 @@ class atom(nonsmooth):
 
         prox_arg = -totalq.linear_term / totalq.coef
 
-        debug = False
+        debug = True
         if debug:
+            print '='*80
+            print 'x :', x
+            print 'grad: ', grad
+            print 'atom: ', self
             print 'proxq: ', proxq
             print 'proxarg: ', prox_arg
             print 'totalq: ', totalq
@@ -826,7 +852,7 @@ class smooth_conjugate(smooth):
         """
         # this holds a pointer to the original atom,
         # but will be replaced later
-        self.conjugate = atom
+        self._conjugate = atom
 
         if quadratic is not None:
             self.set_quadratic(quadratic.coef,
@@ -870,13 +896,19 @@ class smooth_conjugate(smooth):
         if mode == 'both':
             argmin, optimal_value = self.atom.proximal_optimum(prox_arg, 0, q.coef)
             objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
+            # retain a reference
+            self.argmin = argmin
             return objective, argmin
         elif mode == 'grad':
-            argmin = self.atom.proximal(prox_arg, q.coef)
+            argmin = self.atom.proximal(prox_arg, 0, q.coef)
+            # retain a reference
+            self.argmin = argmin
             return argmin
         elif mode == 'func':
-            _, optimal_value = self.atom.proximal_optimum(prox_arg, 0, q.coef)
-            objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value + constant_term
+            argmin, optimal_value = self.atom.proximal_optimum(prox_arg, 0, q.coef)
+            objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
+            # retain a reference
+            self.argmin = argmin
             return objective
         else:
             raise ValueError("mode incorrectly specified")
@@ -884,7 +916,7 @@ class smooth_conjugate(smooth):
     def nonsmooth_objective(self, x, check_feasibilty=False):
         return self.atom.quadratic.objective(x, 'func')
 
-    def proximal(self, x, lipschitz=1):
+    def proximal(self, x, grad, lipschitz):
         raise ValueError('no proximal defined')
 
 conjugate_seminorm_pairs = {}

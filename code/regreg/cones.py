@@ -1,9 +1,13 @@
-import numpy as np
-from scipy import sparse
-from composite import composite, nonsmooth
-from affine import linear_transform, identity as identity_transform
 from copy import copy
 import warnings
+
+from scipy import sparse
+import numpy as np
+
+from .composite import composite, nonsmooth
+from .affine import linear_transform, identity as identity_transform
+from .identity_quadratic import identity_quadratic
+
 
 try:
     from projl1_cython import projl1
@@ -51,12 +55,21 @@ class cone(nonsmooth):
                               offset=copy(self.offset))
     
     def __repr__(self):
-        return "%s(%s, linear_term=%s, offset=%s, constant_term=%f)" % \
-            (self.__class__.__name__,
-             `self.primal_shape`, 
-             str(self.linear_term),
-             str(self.offset),
-             self.constant_term)
+        if self.quadratic is None:
+            return "%s(%s, linear_term=%s, offset=%s, constant_term=%f)" % \
+                (self.__class__.__name__,
+                 `self.primal_shape`, 
+                 str(self.linear_term),
+                 str(self.offset),
+                 self.constant_term)
+        else:
+            return "%s(%s, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
+                (self.__class__.__name__,
+                 `self.primal_shape`, 
+                 str(self.linear_term),
+                 str(self.offset),
+                 self.constant_term,
+                 str(self.quadratic))
 
     @property
     def conjugate(self):
@@ -114,7 +127,7 @@ class cone(nonsmooth):
         else:
             return v + (self.linear_term * x).sum() + self.constant_term
         
-    def proximal(self, x, lipschitz=1):
+    def proximal(self, x, grad, lipschitz=1):
         r"""
         The proximal operator. If the atom is in
         Lagrange mode, this has the form
@@ -133,25 +146,58 @@ class cone(nonsmooth):
            \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
 
         """
-        if self.offset is not None:
-            offset = self.offset
-        else:
-            offset = 0
-        if self.linear_term is not None:
-            shift = offset - self.linear_term / lipschitz
-        else:
-            shift = offset
 
-        if not np.all(np.equal(shift, 0)):
-            x = x + shift
-        if np.all(np.equal(offset, 0)):
+        proxq = identity_quadratic(lipschitz, -x, grad)
+        if self.linear_term is not None:
+            linearq = identity_quadratic(0, 0, self.linear_term, 0)
+            proxq = proxq + linearq
+        if self.quadratic is not None:
+            totalq = self.quadratic + proxq
+        else:
+            totalq = proxq.collapsed()
+
+        if self.offset is None or np.all(np.equal(self.offset, 0)):
             offset = None
 
-        eta = self.cone_prox(x, lipschitz=lipschitz)
+        if offset is not None:
+            totalq.offset = -offset
+            totalq = totalq.collapsed()
+
+        if totalq.coef == 0:
+            raise ValueError('lipschitz + quadratic coef must be positive')
+
+        prox_arg = -totalq.linear_term / totalq.coef
+
+        debug = True
+        if debug:
+            print '='*80
+            print 'x :', x
+            print 'grad: ', grad
+            print 'cone: ', self
+            print 'proxq: ', proxq
+            print 'proxarg: ', prox_arg
+            print 'totalq: ', totalq
+
+        eta = self.cone_prox(prox_arg, lipschitz=lipschitz)
         if offset is None:
             return eta
         else:
             return eta - offset
+
+#         x = x - grad / lipschitz
+#         if self.offset is not None:
+#             offset = self.offset
+#         else:
+#             offset = 0
+#         if self.linear_term is not None:
+#             shift = offset - self.linear_term / lipschitz
+#         else:
+#             shift = offset
+
+#         if not np.all(np.equal(shift, 0)):
+#             x = x + shift
+#         if np.all(np.equal(offset, 0)):
+#             offset = None
 
     def cone_prox(self, x, lipschitz=1):
         r"""

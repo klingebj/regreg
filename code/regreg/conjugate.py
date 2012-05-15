@@ -13,7 +13,7 @@ from .identity_quadratic import identity_quadratic
 
 class conjugate(composite):
 
-    def __init__(self, atom, quadratic=None, store_argmin=True, tol=1e-12):
+    def __init__(self, atom, quadratic=None, tol=1e-8):
 
         # we copy the atom because we will modify its quadratic part
         self.atom = copy(atom)
@@ -41,7 +41,6 @@ class conjugate(composite):
         else:
             self._backtrack = True
         self._have_solved_once = False
-        self.store_argmin = store_argmin
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -57,8 +56,8 @@ class conjugate(composite):
         self.solver.fit(max_its=5000, tol=self.tol, backtrack=self._backtrack)
         minimizer = self.atom.coefs
             
-        if self.store_argmin:
-            self.argmin = minimizer
+        # retain a reference
+        self.argmin = minimizer
         if mode == 'both':
             v = self.atom.objective(minimizer)
             return -v, minimizer

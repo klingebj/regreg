@@ -588,13 +588,13 @@ class vstack(object):
         if np.all(np.equal(self.affine_offset, 0)):
             self.affine_offset = None
             
-    def linear_map(self, x):
+    def linear_map(self, x, copy=False):
         result = np.empty(self.dual_shape)
         for g, t in zip(self.dual_slices, self.transforms):
             result[g] = t.linear_map(x)
         return result
 
-    def affine_map(self, x):
+    def affine_map(self, x, copy=False):
         result = np.empty(self.dual_shape)
         for g, t in zip(self.dual_slices, self.transforms):
             result[g] = t.linear_map(x)
@@ -603,13 +603,13 @@ class vstack(object):
         else:
             return result
 
-    def offset_map(self, x):
+    def offset_map(self, x, copy=False):
         if self.affine_offset is not None:
             return x + self.affine_offset
         else:
             return x
 
-    def adjoint_map(self, u):
+    def adjoint_map(self, u, copy=False):
         result = np.zeros(self.primal_shape)
         for g, t, s in zip(self.dual_slices, self.transforms,
                            self.dual_shapes):
@@ -655,14 +655,14 @@ class hstack(object):
         if np.all(np.equal(self.affine_offset, 0)):
             self.affine_offset = None
 
-    def linear_map(self, x):
+    def linear_map(self, x, copy=False):
         result = np.zeros(self.dual_shape)
         for g, t, s in zip(self.primal_slices, self.transforms,
                            self.primal_shapes):
             result += t.linear_map(x[g].reshape(s))
         return result
 
-    def affine_map(self, x):
+    def affine_map(self, x, copy=False):
         result = np.zeros(self.dual_shape)
         for g, t, s in zip(self.primal_slices, self.transforms,
                         self.primal_shapes):
@@ -672,13 +672,13 @@ class hstack(object):
         else:
             return result
 
-    def offset_map(self, x):
+    def offset_map(self, x, copy=False):
         if self.affine_offset is not None:
             return x + self.affine_offset
         else:
             return x
 
-    def adjoint_map(self, u):
+    def adjoint_map(self, u, copy=False):
         result = np.empty(self.primal_shape)
         #XXX this reshaping will fail for shapes that aren't
         # 1D, would have to view as self.group_dtype to
@@ -733,17 +733,17 @@ class adjoint(object):
         self.primal_shape = self.transform.dual_shape
         self.dual_shape = self.transform.primal_shape
 
-    def linear_map(self, x):
-        return self.transform.adjoint_map(x)
+    def linear_map(self, x, copy=False):
+        return self.transform.adjoint_map(x, copy)
 
-    def affine_map(self, x):
-        return self.linear_map(x)
+    def affine_map(self, x, copy=False):
+        return self.linear_map(x, copy)
 
-    def offset_map(self, x):
+    def offset_map(self, x, copy=False):
         return x
 
-    def adjoint_map(self, x):
-        return self.transform.linear_map(x)
+    def adjoint_map(self, x, copy=False):
+        return self.transform.linear_map(x, copy)
 
 class tensorize(object):
 
@@ -933,3 +933,36 @@ def difference_transform(X, order=1, sorted=False,
         return sparse.csr_matrix(Dfinal)
     return astransform(Dfinal)
 
+
+class scalar_multiply(object):
+
+    def __init__(self, atransform, scalar):
+        self.primal_shape, self.dual_shape = (atransform.primal_shape, atransform.dual_shape)
+        self.scalar = scalar
+        self.affine_offset = None
+        self._atransform = atransform
+
+    def affine_map(self, x, copy=True):
+        if self.scalar != 1.:
+            return self._atransform.linear_map(x, copy) * self.scalar
+        else:
+            return self._atransform.linear_map(x, copy)
+
+    def offset_map(self, x, copy=True):
+        if self.scalar != 1.:
+            return self._atransform.offset_map(x, copy) * self.scalar # is this correct -- what is offset_map again?
+        else:
+            return self._atransform.offset_map(x, copy)
+
+    def linear_map(self, x, copy=True):
+        if self.scalar != 1.:
+            return self._atransform.linear_map(x, copy) * self.scalar 
+        else:
+            return self._atransform.linear_map(x, copy)
+
+
+    def adjoint_map(self, x, copy=True):
+        if self.scalar != 1.:
+            return self._atransform.adjoint_map(x, copy) * self.scalar 
+        else:
+            return self._atransform.adjoint_map(x, copy)

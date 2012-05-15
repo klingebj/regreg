@@ -143,7 +143,7 @@ class affine_smooth(smooth_atom):
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
-    def __init__(self, smooth_atom, atransform, store_grad=True):
+    def __init__(self, smooth_atom, atransform, store_grad=True, diag=False):
         self.store_grad = store_grad
         self.sm_atom = smooth_atom
         if not isinstance(atransform, affine_transform):

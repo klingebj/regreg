@@ -52,7 +52,7 @@ class composite(object):
     def objective(self, x, check_feasibility=False):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
-    def proximal_optimum(self, x, grad=0, lipschitz=1):
+    def proximal_optimum(self, x, grad, lipschitz):
         """
         Returns
 
@@ -67,14 +67,15 @@ class composite(object):
         part of the composite object.
 
         """
-        x = x - grad / lipschitz
-        argmin = self.proximal(x, 0, lipschitz)
+        argmin = self.proximal(x, grad, lipschitz)
+        print 'grad opt: ', grad
+        print 'lipschitz opt: ', lipschitz
         if self.quadratic is None:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)  
         else:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin) + self.quadratic.objective(argmin, 'func') 
 
-    def proximal_step(self, x, grad=0, lipschitz=1, prox_control=None):
+    def proximal_step(self, x, grad, lipschitz, prox_control=None):
         """
         Compute the proximal optimization
 
@@ -127,19 +128,6 @@ class nonsmooth(composite):
         raise ValueError("Mode not specified correctly")
 
 
-#    def __init__(self, nonsmooth, proximal, initial, smooth_multiplier=1, lipschitz=None, quadratic_spec=(None, None)):
-#         def _smooth_objective(self, x, mode='both', check_feasibility=False):
-#             if mode == 'both':
-#                 return 0., zeros(x.shape)
-#             elif mode == 'func':
-#                 return 0.
-#             elif mode == 'grad':
-#                 return zeros(x.shape)
-#             raise ValueError("Mode not specified correctly")
-
-#        composite.__init__(self, nonsmooth._smooth_objective, nonsmooth, proximal, initial, smooth_multiplier=smooth_multiplier, lipschitz=lipschitz)
-
-
 class smooth(composite):
 
     """
@@ -154,7 +142,7 @@ class smooth(composite):
                            smooth_multiplier=smooth_multiplier,
                            lipschitz=lipschitz)
 
-    def proximal(self, x, grad=0, lipschitz=1):
+    def proximal(self, x, grad, lipschitz):
         if self.quadratic is None:
             return x
         else:
@@ -230,7 +218,7 @@ class smoothed(smooth):
                 self.argmin = argmin
             return objective, grad
         elif mode == 'grad':
-            argmin = dual_atom.proximal(ueps, self.epsilon)     
+            argmin = dual_atom.proximal(ueps, 0, self.epsilon)     
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
                 self.argmin = argmin
