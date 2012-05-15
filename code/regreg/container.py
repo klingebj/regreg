@@ -56,15 +56,19 @@ class container(composite):
         return self._dual
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
+        """
+        The smooth_objective __INCLUDES__ the identity
+        quadratic of all the smooth atoms.
+        """
         value, grad = 0, np.zeros(x.shape)
         if mode == 'func':
             for atom in self.smooth_atoms:
-                value += atom.smooth_objective(x, mode=mode, 
-                                               check_feasibility=check_feasibility)
+                value += atom.total_smooth_objective(x, mode=mode, 
+                                                     check_feasibility=check_feasibility)
             return value
         elif mode == 'both':
             for atom in self.smooth_atoms:
-                v, g = atom.smooth_objective(x, mode=mode, 
+                v, g = atom.total_smooth_objective(x, mode=mode, 
                                                check_feasibility=check_feasibility)
                 value += v
                 grad += g
@@ -72,8 +76,8 @@ class container(composite):
 
         elif mode == 'grad':
             for atom in self.smooth_atoms:
-                grad += atom.smooth_objective(x, mode=mode, 
-                                              check_feasibility=check_feasibility)
+                grad += atom.total_smooth_objective(x, mode=mode, 
+                                                    check_feasibility=check_feasibility)
             return grad
         else:
             raise ValueError("Mode specified incorrectly")
