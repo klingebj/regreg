@@ -24,7 +24,7 @@ class atom(nonsmooth):
     def __init__(self, primal_shape, lagrange=None, bound=None, 
                  linear_term=None,
                  constant_term=0., offset=None,
-                 quadratic_spec=(None, None, None, 0)):
+                 quadratic=None):
 
         self.offset = offset
         self.constant_term = constant_term
@@ -57,7 +57,10 @@ class atom(nonsmooth):
             self._bound = bound
             self._lagrange = None
         
-        self.set_quadratic(*quadratic_spec)
+        if quadratic is not None:
+            self.set_quadratic(quadratic.coef, quadratic.offset,
+                               quadratic.linear_term, 
+                               quadratic.constant_term)
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -80,22 +83,24 @@ class atom(nonsmooth):
 
     def __repr__(self):
         if self.lagrange is not None:
-            return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
+            return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
                 (self.__class__.__name__,
                  `self.primal_shape`, 
                  self.lagrange,
                  str(self.linear_term),
                  str(self.offset),
-                 self.constant_term)
+                 self.constant_term,
+                 str(self.quadratic))
 
         else:
-            return "%s(%s, bound=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
+            return "%s(%s, bound=%f, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
                 (self.__class__.__name__,
                  `self.primal_shape`, 
                  self.bound,
                  str(self.linear_term),
                  str(self.offset),
-                 self.constant_term)
+                 self.constant_term,
+                 str(self.quadratic))
     
     def get_conjugate(self):
 
@@ -261,9 +266,10 @@ class atom(nonsmooth):
             raise ValueError('lipschitz + quadratic coef must be positive')
 
         prox_arg = -totalq.linear_term / totalq.coef
+
+        print 'proxq: ', proxq
         print 'proxarg: ', prox_arg
         print 'totalq: ', totalq
-        print 'proxq: ', proxq
 
         if self.bound is not None:
             eta = self.bound_prox(prox_arg, lipschitz=totalq.coef, bound=self.bound)
@@ -802,7 +808,7 @@ class affine_atom(object):
 
 class smooth_conjugate(smooth):
 
-    def __init__(self, atom):
+    def __init__(self, atom, quadratic=None):
         """
         Given an atom,
         compute the conjugate of this atom plus 
@@ -810,15 +816,36 @@ class smooth_conjugate(smooth):
         a smooth version of the conjugate of the atom.
 
         """
+        # this holds a pointer to the original atom,
+        # but will be replaced later
         self.conjugate = atom
+
+        if quadratic is not None:
+            self.set_quadratic(quadratic.coef,
+                               quadratic.offset,
+                               quadratic.linear_term,
+                               quadratic.constant_term)
+
         # this ensures that the atom has
-        # quadratic_spec (coef, None, None)
+        # quadratic_spec (coef, None, None, 0)
+        # and makes a copy of the atom
         self.atom = collapse_linear_terms(atom)
-        if self.atom.quadratic.coef in [0,None]:
+
+        totalq = self.atom.quadratic + self.quadratic  
+
+        if totalq.coef in [0,None]:
             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
-        self.set_quadratic(self.atom.quadratic.coef, None, None, 0)
+        if self.atom.linear_term is not None:
+            if totalq.linear_term is not None:
+                self.atom.linear_term += totalq.linear_term
+        elif not np.all(totalq.linear_term == 0):
+            self.atom.linear_term = totalq.linear_term
+        self.set_quadratic(totalq.coef, None, None, 0)
         self.atom.set_quadratic(None, None, None, 0)
         self.primal_shape = atom.primal_shape
+
+    def __repr__(self):
+        return 'smooth_conjugate(%s,%s)' % (str(self.atom), str(self.quadratic))
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """

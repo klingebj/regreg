@@ -143,8 +143,7 @@ class affine_smooth(smooth_atom):
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
-    def __init__(self, smooth_atom, atransform, store_grad=True,
-                 diag=False):
+    def __init__(self, smooth_atom, atransform, store_grad=True):
         self.store_grad = store_grad
         self.sm_atom = smooth_atom
         if not isinstance(atransform, affine_transform):
@@ -182,6 +181,12 @@ class affine_smooth(smooth_atom):
     def composite(self):
         initial = np.zeros(self.primal_shape)
         return smooth_composite(self.smooth_objective, initial)
+
+    def __repr__(self):
+        return ("affine_smooth(%s, %s, store_grad=%s)" % 
+                (str(self.sm_atom),
+                str(self.affine_transform),
+                self.store_grad))
 
 def squaredloss(linear_operator, offset, coef=1):
     # the affine method gets rid of the need for the squaredloss class
