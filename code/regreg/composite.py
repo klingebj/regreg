@@ -6,29 +6,43 @@ class composite(object):
     A generic way to specify a problem in composite form.
     """
 
-    def __init__(self, smooth_objective, nonsmooth_objective, proximal, initial, smooth_multiplier=1, lipschitz=None, compute_difference=True):
+    def __init__(self, smooth_objective, nonsmooth_objective, proximal, initial, smooth_multiplier=1, lipschitz=None, compute_difference=True,
+                 quadratic_spec=(None,None,None)):
+
         self.coefs = initial.copy()
         self.nonsmooth_objective = nonsmooth_objective
         self._smooth_objective = smooth_objective
         self.proximal = proximal
         self.smooth_multiplier = smooth_multiplier
         self._lipschitz = lipschitz
+
+        # this is used for atoms that have a different
+        # signature for the proximal method
         self.compute_difference = compute_difference
 
-    def smooth_objective(self, x, mode='both', check_feasibility=False):
-        output = self._smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
-        if self.smooth_multiplier == 1:
-            return output
-        else:
+        self.quadratic_spec = quadratic_spec
+
+    def total_smooth_objective(self, x, mode='both', check_feasibility=False):
+        '''
+        The smooth_objective and the quadratic_objective combined.
+        '''
+        smooth_output = self.smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
+
+        if self.smooth_multiplier != 1:
             if mode == 'both':
-                return self.smooth_multiplier * output[0], self.smooth_multiplier * output[1]
+                smooth_output = (self.smooth_multiplier * smooth_output[0], 
+                                 self.smooth_multiplier * smooth_output[1])
             elif mode == 'grad' or mode == 'func':
-                return self.smooth_multiplier * output
+                smooth_output = self.smooth_multiplier * smooth_output
             else:
                 raise ValueError("Mode incorrectly specified")
 
+        if self.quadratic is not None:
+            smooth_output = self.quadratic.update_smooth_output(x, smooth_output, mode)
+        return smooth_output
+
     def objective(self, x, check_feasibility=False):
-        return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
+        return self.total_smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
     def proximal_optimum(self, x, lipschitz=1):
         """
@@ -41,10 +55,15 @@ class composite(object):
 
         where *p*=x.shape[0] and :math:`h(v)` = self.seminorm(v).
 
+        Here, h represents the nonsmooth part and the quadratic
+        part of the composite object.
+
         """
         argmin = self.proximal(x, lipschitz)
-        return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)
-
+        if self.quadratic is None:
+            return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)  
+        else:
+            return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin) + self.quadratic_objective(argmin) 
 
     def proximal_step(self, x, grad, lipschitz, prox_control=None):
         """
@@ -61,6 +80,16 @@ class composite(object):
         else:
             return self.proximal(x, grad, lipschitz)
         
+    def set_quadratic_spec(self, quadratic_spec):
+        self._quadratic = identity_quadratic(*quadratic_spec)
+
+    def get_quadratic_spec(self):
+        if hasattr(self, "_quadratic") and self._quadratic.anything_to_return:
+            return self._quadratic
+        else:
+            return None
+    quadratic = property(get_quadratic_spec, set_quadratic_spec)
+
     def get_lipschitz(self):
         return self._lipschitz
     def set_lipschitz(self, value):
@@ -71,21 +100,33 @@ class composite(object):
 
 class nonsmooth(composite):
     """
-    A composite subclass that explicitly 0
+    A composite subclass that explicitly returns 0
     as smooth_objective.
     """
 
-    def __init__(self, nonsmooth, proximal, initial, smooth_multiplier=1, lipschitz=None):
-        def _smooth_objective(self, x, mode='both', check_feasibility=False):
-            if mode == 'both':
-                return 0., zeros(x.shape)
-            elif mode == 'func':
-                return 0.
-            elif mode == 'grad':
-                return zeros(x.shape)
-            raise ValueError("Mode not specified correctly")
+    smooth_multiplier = 1
 
-        composite.__init__(self, _smooth_objective, nonsmooth, proximal, initial, smooth_multiplier=smooth_multiplier, lipschitz=lipschitz)
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        if mode == 'both':
+            return 0., zeros(x.shape)
+        elif mode == 'func':
+            return 0.
+        elif mode == 'grad':
+            return zeros(x.shape)
+        raise ValueError("Mode not specified correctly")
+
+
+#    def __init__(self, nonsmooth, proximal, initial, smooth_multiplier=1, lipschitz=None, quadratic_spec=(None, None)):
+#         def _smooth_objective(self, x, mode='both', check_feasibility=False):
+#             if mode == 'both':
+#                 return 0., zeros(x.shape)
+#             elif mode == 'func':
+#                 return 0.
+#             elif mode == 'grad':
+#                 return zeros(x.shape)
+#             raise ValueError("Mode not specified correctly")
+
+#        composite.__init__(self, nonsmooth._smooth_objective, nonsmooth, proximal, initial, smooth_multiplier=smooth_multiplier, lipschitz=lipschitz)
 
 
 class smooth(composite):
@@ -189,4 +230,54 @@ class smoothed(smooth):
     def proximal(self, x, lipschitz=1):
         return x
 
+class identity_quadratic(object):
 
+    def __init__(self, coef, offset, linear):
+        self.coef = coef
+        self.offset = offset
+        self.linear = linear
+        if self.coef is not None or self.linear is not None:
+            self.anything_to_return = True
+        else:
+            self.anything_to_return = False
+
+    def objective(self, x, mode='both'):
+        coef, offset, linear = self.coef, self.offset, self.linear
+        if linear is None:
+            linear = 0
+        if offset is not None:
+            r = x + offset
+        else:
+            r = x
+        if mode == 'both':
+            if linear is not None:
+                return (norm(r)**2 * coef / 2. + (linear * x).sum(),
+                    coef * r + linear)
+            else:
+                return (norm(r)**2 * coef / 2.,
+                    coef * r)
+        elif mode == 'func':
+            if linear is not None:
+                return norm(r)**2 * coef / 2. + (linear * x).sum()
+            else:
+                return norm(r)**2 * coef / 2.
+        elif mode == 'grad':
+            if linear is not None:
+                return coef * r + linear
+            else:
+                return coef * r
+        else:
+            raise ValueError("Mode incorrectly specified")
+                        
+    def update_smooth_output(self, x, smooth_output, mode='both'):
+        quadratic_output = self.objective(x, mode=mode)
+        if mode == 'both':
+            smooth_output = (smooth_output[0] + quadratic_output[0],
+                             smooth_output[1] + quadratic_output[1])
+        else:
+            smooth_output = smooth_output + quadratic_output
+
+        return smooth_output
+
+    def __repr__(self):
+        return 'identity_quadratic(%f, %s, %s)' % (self.coef, `self.offset`, `self.linear`)
