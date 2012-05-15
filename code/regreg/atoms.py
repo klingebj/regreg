@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import sparse
-from composite import composite, nonsmooth
+from composite import nonsmooth, composite, identity_quadratic
 from affine import (linear_transform, identity as identity_transform, 
                     affine_transform, selector)
 from copy import copy
@@ -21,7 +21,8 @@ class atom(nonsmooth):
 
     def __init__(self, primal_shape, lagrange=None, bound=None, 
                  linear_term=None,
-                 constant_term=0., offset=None):
+                 constant_term=0., offset=None,
+                 quadratic_spec=(None, None, None)):
 
         self.offset = offset
         self.constant_term = constant_term
@@ -53,6 +54,8 @@ class atom(nonsmooth):
         if bound is not None:
             self._bound = bound
             self._lagrange = None
+        
+        self.quadratic = quadratic_spec
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -62,13 +65,15 @@ class atom(nonsmooth):
         return False
 
     def __copy__(self):
-        return self.__class__(copy(self.primal_shape),
-                              linear_term=copy(self.linear_term),
-                              constant_term=copy(self.constant_term),
-                              bound=copy(self.bound),
-                              lagrange=copy(self.lagrange),
-                              offset=copy(self.offset))
-    
+        new_atom = self.__class__(copy(self.primal_shape),
+                                  linear_term=copy(self.linear_term),
+                                  constant_term=copy(self.constant_term),
+                                  bound=copy(self.bound),
+                                  lagrange=copy(self.lagrange),
+                                  offset=copy(self.offset))
+        new_atom.quadratic_spec = copy(self.quadratic_spec)
+        return new_atom
+
     def __repr__(self):
         if self.lagrange is not None:
             return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
@@ -89,7 +94,7 @@ class atom(nonsmooth):
                  self.constant_term)
     
     def get_conjugate(self):
-        if not hasattr(self, "_conjugate"):
+        if self.quadratic is None:
             if self.offset is not None:
                 linear_term = -self.offset
             else:
@@ -118,8 +123,10 @@ class atom(nonsmooth):
             else:
                 _constant_term = 0.
             atom.constant_term = self.constant_term - _constant_term
-            self._conjugate = atom
-            self._conjugate._conjugate = self
+        else:
+            atom = smooth_conjugate(self)
+        self._conjugate = atom
+        self._conjugate._conjugate = self
         return self._conjugate
     conjugate = property(get_conjugate)
     
@@ -228,24 +235,37 @@ class atom(nonsmooth):
            \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
 
         """
+
+        if self.quadratic is not None:
+            qcoef, qoffset, qlinear  = self.quadratic.coef, self.quadratic.offset, self.quadratic.linear
+        else:
+            qcoef = 0
+
         if self.offset is not None:
             offset = self.offset
         else:
             offset = 0
-        if self.linear_term is not None:
-            shift = offset - self.linear_term / lipschitz
-        else:
-            shift = offset
 
-        if not np.all(np.equal(shift, 0)):
-            x = x + shift
+        if qoffset is None:
+            qoffset = 0
+        if qlinear is None:
+            qlinear = 0
+
+        # compute linear and quadratic parts 
+        total_quadratic_term = qcoef + lipschitz
+        if qoffset is not None:
+            total_linear_term = lipschitz * (x + offset) + qcoef * (-qoffset + offset) - qlinear
+        if self.linear_term is not None:
+            total_linear_term -= self.linear_term
+        prox_arg = total_linear_term / total_quadratic_term
+
         if np.all(np.equal(offset, 0)):
             offset = None
 
         if self.bound is not None:
-            eta = self.bound_prox(x, lipschitz=lipschitz, bound=self.bound)
+            eta = self.bound_prox(prox_arg, lipschitz=total_quadratic_term, bound=self.bound)
         else:
-            eta = self.lagrange_prox(x, lipschitz=lipschitz, lagrange=self.lagrange)
+            eta = self.lagrange_prox(prox_arg, lipschitz=total_quadratic_term, lagrange=self.lagrange)
 
         if offset is None:
             return eta
@@ -741,6 +761,60 @@ class affine_atom(object):
         else:
             raise AttributeError("atom is in lagrange mode")
     bound = property(get_bound, set_bound)
+
+class smooth_conjugate(composite):
+
+    def __init__(self, atom):
+        """
+        Given an atom,
+        compute the conjugate of this atom plus 
+        an identity_quadratic which will be 
+        a smooth version of the conjugate of the atom.
+
+        """
+        self.atom = atom
+        if self.atom.quadratic.coef in [0,None]:
+            raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
+        self.primal_shape = atom.primal_shape
+        self.conjugate = atom
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+
+        constant_term = -self.atom.constant_term
+        q = self.atom.quadratic
+
+        prox_arg = x / q.coef
+        if q.offset is not None:
+            prox_arg -= q.offset
+        if q.linear is not None:
+            prox_arg -= q.linear / q.coef
+
+        if mode == 'both':
+            argmin, optimal_value = self.atom.proximal_optimum(prox_arg, q.coef)
+            objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
+            return objective, argmin
+        elif mode == 'grad':
+            argmin = self.atom.proximal(prox_arg, q.coef)
+            return argmin
+        elif mode == 'func':
+            _, optimal_value = self.atom.proximal_optimum(prox_arg, q.coef)
+            objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
+            return objective
+        else:
+            raise ValueError("mode incorrectly specified")
+
+    def nonsmooth_objective(self, x, check_feasibilty=False):
+        return 0
+
+    def proximal(self, x, lipschitz=1):
+        raise ValueError('no proximal defined')
 
 conjugate_seminorm_pairs = {}
 for n1, n2 in [(l1norm,supnorm),
