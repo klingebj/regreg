@@ -68,6 +68,9 @@ class Block(object):
             raise ValueError('initial point is not feasible')
         
         self.composite = composite(self.loss.smooth_objective, nonsmooth, prox, initial)
+        if self.loss.quadratic is not None:
+            q = self.loss.quadratic
+            self.composite.quadratic = (q.coef, q.offset, q.linear)
 
     def fit(self, *solver_args, **solver_kw):
         if not hasattr(self, '_solver'):
