@@ -6,7 +6,9 @@ class composite(object):
     A generic way to specify a problem in composite form.
     """
 
-    def __init__(self, smooth_objective, nonsmooth_objective, proximal, initial, smooth_multiplier=1, lipschitz=None, compute_difference=True,
+    def __init__(self, smooth_objective, nonsmooth_objective, proximal, 
+                 initial, smooth_multiplier=1, lipschitz=None, 
+                 compute_difference=True,
                  quadratic_spec=(None,None,None)):
 
         self.coefs = initial.copy()
@@ -41,6 +43,8 @@ class composite(object):
                 smooth_output = self.smooth_multiplier * smooth_output
             else:
                 raise ValueError("Mode incorrectly specified")
+
+        return smooth_output
 
     def objective(self, x, check_feasibility=False):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
@@ -193,6 +197,8 @@ class smoothed(smooth):
         of corresponding convex sets.
 
         """
+        import warnings
+        warnings.warn('to be deprecated, use the smoothed method of atom instead')
         self.epsilon = epsilon
         if self.epsilon <= 0:
             raise ValueError('to smooth, epsilon must be positive')
@@ -221,7 +227,6 @@ class smoothed(smooth):
         ueps = u / self.epsilon
         if mode == 'both':
             argmin, optimal_value = dual_atom.proximal_optimum(ueps, self.epsilon)                    
-            print optimal_value
             objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:

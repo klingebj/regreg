@@ -267,6 +267,9 @@ class atom(nonsmooth):
         if np.all(np.equal(offset, 0)):
             offset = None
 
+        if total_quadratic_term == 0:
+            raise ValueError('lipschitz + quadratic coef must be positive')
+
         if self.bound is not None:
             eta = self.bound_prox(prox_arg, lipschitz=total_quadratic_term, bound=self.bound)
         else:
@@ -798,7 +801,7 @@ class affine_atom(object):
         '''
         Add quadratic smoothing term
         '''
-        conjugate_atom = copy(self.atom.conjugate)
+        ltransform, conjugate_atom = self.dual
         sq = smoothing_quadratic
         if sq.coef in [None, 0]:
             raise ValueError('quadratic term of smoothing_quadratic must be non 0')
@@ -818,7 +821,7 @@ class affine_atom(object):
                 total_l += q.linear
         conjugate_atom.quadratic = (total_q, None, total_l)
         smoothed_atom = conjugate_atom.conjugate
-        return affine_smooth(smoothed_atom, self.linear_transform)
+        return affine_smooth(smoothed_atom, ltransform)
 
 class smooth_conjugate(smooth):
 
@@ -830,11 +833,15 @@ class smooth_conjugate(smooth):
         a smooth version of the conjugate of the atom.
 
         """
-        self.atom = atom
+        self.conjugate = atom
+        # this ensures that the atom has
+        # quadratic_spec (coef, None, None)
+        self.atom = collapse_linear_terms(atom)
         if self.atom.quadratic.coef in [0,None]:
             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
+        self.quadratic = (self.atom.quadratic.coef, None, None)
+        self.atom.quadratic = (None, None, None)
         self.primal_shape = atom.primal_shape
-        self.conjugate = atom
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -845,18 +852,11 @@ class smooth_conjugate(smooth):
         if mode == 'func', return only the function value
         """
 
-        constant_term = -self.atom.constant_term
-        q = self.atom.quadratic
-
+        q = self.quadratic
         prox_arg = x / q.coef
-        if q.offset is not None:
-            prox_arg -= q.offset
-        if q.linear is not None:
-            prox_arg -= q.linear / q.coef
 
         if mode == 'both':
             argmin, optimal_value = self.atom.proximal_optimum(prox_arg, q.coef)
-            print optimal_value
             objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
             return objective, argmin
         elif mode == 'grad':
