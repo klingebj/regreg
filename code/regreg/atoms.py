@@ -24,7 +24,7 @@ class atom(nonsmooth):
     def __init__(self, primal_shape, lagrange=None, bound=None, 
                  linear_term=None,
                  constant_term=0., offset=None,
-                 quadratic=None):
+                 quadratic=None, initial=None):
 
         self.offset = offset
         self.constant_term = constant_term
@@ -61,6 +61,11 @@ class atom(nonsmooth):
             self.set_quadratic(quadratic.coef, quadratic.offset,
                                quadratic.linear_term, 
                                quadratic.constant_term)
+
+        if initial is None:
+            self.coefs = np.zeros(self.primal_shape)
+        else:
+            self.coefs = initial.copy()
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -227,7 +232,7 @@ class atom(nonsmooth):
             v += self.quadratic.objective(x, 'func')
         return v
 
-    def proximal(self, x, lipschitz=1):
+    def proximal(self, x, grad, lipschitz=1):
         r"""
         The proximal operator. If the atom is in
         Lagrange mode, this has the form
@@ -249,6 +254,7 @@ class atom(nonsmooth):
 
         """
 
+        x = x - grad / lipschitz
         proxq = identity_quadratic(lipschitz, -x, self.linear_term, 0)
         if self.quadratic is not None:
             totalq = self.quadratic + proxq
@@ -267,9 +273,11 @@ class atom(nonsmooth):
 
         prox_arg = -totalq.linear_term / totalq.coef
 
-        print 'proxq: ', proxq
-        print 'proxarg: ', prox_arg
-        print 'totalq: ', totalq
+        debug = False
+        if debug:
+            print 'proxq: ', proxq
+            print 'proxarg: ', prox_arg
+            print 'totalq: ', totalq
 
         if self.bound is not None:
             eta = self.bound_prox(prox_arg, lipschitz=totalq.coef, bound=self.bound)
@@ -860,14 +868,14 @@ class smooth_conjugate(smooth):
         prox_arg = x / q.coef
 
         if mode == 'both':
-            argmin, optimal_value = self.atom.proximal_optimum(prox_arg, q.coef)
+            argmin, optimal_value = self.atom.proximal_optimum(prox_arg, 0, q.coef)
             objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
             return objective, argmin
         elif mode == 'grad':
             argmin = self.atom.proximal(prox_arg, q.coef)
             return argmin
         elif mode == 'func':
-            _, optimal_value = self.atom.proximal_optimum(prox_arg, q.coef)
+            _, optimal_value = self.atom.proximal_optimum(prox_arg, 0, q.coef)
             objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value + constant_term
             return objective
         else:
@@ -892,10 +900,13 @@ def collapse_linear_terms(atom):
     atom_copy = copy(atom)
     q = atom.quadratic
     aq = identity_quadratic(None, None, atom.linear_term, atom.constant_term)
-    tq = q + aq
+    tq = aq + q
     if not np.all(np.equal(atom_copy.linear_term,0)):
         atom_copy.linear_term = tq.linear_term
     tq.linear_term = None
     atom_copy.constant_term = tq.constant_term
-    atom_copy.set_quadratic(q.coef, None, None, 0)
+    if q is not None:
+        atom_copy.set_quadratic(q.coef, None, None, 0)
+    else:
+        atom_copy.set_quadratic(0, None, None, 0)
     return atom_copy

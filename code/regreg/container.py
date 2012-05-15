@@ -57,7 +57,7 @@ class container(composite):
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
-        The smooth_objective __INCLUDES__ the identity
+        The smooth_objective DOES NOT INCLUDE the identity
         quadratic of all the smooth atoms.
         """
         value, grad = 0, np.zeros(x.shape)
@@ -90,11 +90,12 @@ class container(composite):
         return out
 
     default_solver = FISTA
-    def proximal(self, y, lipschitz=1, prox_control=None):
+    def proximal(self, x, grad, lipschitz=1, prox_control=None):
         """
         The proximal function for the primal problem
         """
 
+        y = x - grad / lipschitz
         transform, separable_atom = self.dual
         
         if not (isinstance(transform, afidentity) or
@@ -149,11 +150,12 @@ class container(composite):
             primal = separable_atom.conjugate
             if isinstance(transform, afselector):
                 z = y.copy()
-                z[transform.index_obj] = primal.proximal(y[transform.index_obj],
+                z[transform.index_obj] = primal.proximal(x[transform.index_obj],
+                                                         grad[transform.index_obj],
                                                          lipschitz=lipschitz)
                 return z
             else:
-                return primal.proximal(y, lipschitz=lipschitz)
+                return primal.proximal(x, grad, lipschitz=lipschitz)
 
     def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
 

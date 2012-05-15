@@ -14,10 +14,16 @@ from numpy.linalg import norm
 class identity_quadratic(object):
 
     def __init__(self, coef, offset, linear_term, constant_term=0):
-        self.coef = coef
+        if coef is None:
+            self.coef = 0
+        else:
+            self.coef = coef
         self.offset = offset
         self.linear_term = linear_term
-        self.constant_term = constant_term
+        if constant_term is None:
+            self.constant_term = 0
+        else:
+            self.constant_term = constant_term
         if self.coef is not None or self.linear_term is not None:
             self.anything_to_return = True
         else:

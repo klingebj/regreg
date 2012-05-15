@@ -10,8 +10,7 @@ class composite(object):
     A generic way to specify a problem in composite form.
     """
 
-    def __init__(self, smooth_objective, nonsmooth_objective, proximal, 
-                 initial, smooth_multiplier=1, lipschitz=None, 
+    def __init__(self, smooth_objective, initial, smooth_multiplier=1, lipschitz=None, 
                  compute_difference=True,
                  quadratic_spec=(None,None,None,0)):
 
@@ -53,7 +52,7 @@ class composite(object):
     def objective(self, x, check_feasibility=False):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
-    def proximal_optimum(self, x, lipschitz=1):
+    def proximal_optimum(self, x, grad=0, lipschitz=1):
         """
         Returns
 
@@ -68,26 +67,26 @@ class composite(object):
         part of the composite object.
 
         """
-        argmin = self.proximal(x, lipschitz)
+        x = x - grad / lipschitz
+        argmin = self.proximal(x, 0, lipschitz)
         if self.quadratic is None:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)  
         else:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin) + self.quadratic.objective(argmin, 'func') 
 
-    def proximal_step(self, x, grad, lipschitz, prox_control=None):
+    def proximal_step(self, x, grad=0, lipschitz=1, prox_control=None):
         """
         Compute the proximal optimization
 
         prox_control: If not None, then a dictionary of parameters for the prox procedure
         """
-        if self.compute_difference:
-            z = x - grad / lipschitz
-            if prox_control is None:
-                return self.proximal(z, lipschitz)
-            else:
-                return self.proximal(z, lipschitz, prox_control=prox_control)
-        else:
+#         if self.compute_difference:
+#             z = x - grad / lipschitz
+        if prox_control is None:
             return self.proximal(x, grad, lipschitz)
+        else:
+            return self.proximal(x, grad, lipschitz, prox_control=prox_control)
+
         
     def set_quadratic(self, coef, offset, linear_term, constant_term):
         self._quadratic = identity_quadratic(coef, offset, linear_term, constant_term)
@@ -100,7 +99,10 @@ class composite(object):
     quadratic = property(get_quadratic)
 
     def get_lipschitz(self):
+        if self.quadratic.coef is not None:
+            return self._lipschitz + self.quadratic.coef
         return self._lipschitz
+
     def set_lipschitz(self, value):
         if value < 0:
             raise ValueError('Lipschitz constant must be non-negative')
@@ -147,27 +149,18 @@ class smooth(composite):
     """
 
     def __init__(self, smooth_objective, initial, smooth_multiplier=1, lipschitz=None):
-        def zero_func(x, check_feasibility=False):
-            return 0
-        def zero_proximal(x, lipschitz):
-            return x
-        composite.__init__(self, smooth_objective, zero_func, zero_proximal,
+        composite.__init__(self, smooth_objective, 
                            initial,
                            smooth_multiplier=smooth_multiplier,
                            lipschitz=lipschitz)
 
-    def proximal(self, x, lipschitz=1):
+    def proximal(self, x, grad=0, lipschitz=1):
         if self.quadratic is None:
             return x
         else:
-            q = self.quadratic
-            total_q = lipschitz + q.coef
-            total_linear = lipschitz * x
-            if q.offset is not None:
-                total_linear -= q.coef * q.offset
-            if q.linear is not None:
-                total_linear -= q.linear
-            return total_linear / total_q    
+            proxq = identity_quadratic(lipschitz, -x, grad, 0)
+            totalq = self.quadratic + proxq
+            return -totalq.linear_term / totalq.coef
 
 # This can now be done with a method of the atom 
 class smoothed(smooth):
@@ -230,7 +223,7 @@ class smoothed(smooth):
         u = linear_transform.linear_map(beta)
         ueps = u / self.epsilon
         if mode == 'both':
-            argmin, optimal_value = dual_atom.proximal_optimum(ueps, self.epsilon)                    
+            argmin, optimal_value = dual_atom.proximal_optimum(ueps, 0, self.epsilon)                    
             objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
@@ -243,7 +236,7 @@ class smoothed(smooth):
                 self.argmin = argmin
             return grad 
         elif mode == 'func':
-            _, optimal_value = dual_atom.proximal_optimum(ueps, self.epsilon)                    
+            _, optimal_value = dual_atom.proximal_optimum(ueps, 0, self.epsilon)                    
             objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             return objective
         else:
