@@ -1,8 +1,9 @@
 import numpy as np
 from scipy import sparse
-from composite import nonsmooth, composite, identity_quadratic
+from composite import nonsmooth, smooth, identity_quadratic
 from affine import (linear_transform, identity as identity_transform, 
                     affine_transform, selector)
+from smooth import affine_smooth
 from copy import copy
 import warnings
 
@@ -71,7 +72,9 @@ class atom(nonsmooth):
                                   bound=copy(self.bound),
                                   lagrange=copy(self.lagrange),
                                   offset=copy(self.offset))
-        new_atom.quadratic_spec = copy(self.quadratic_spec)
+        q = self.quadratic
+        if q is not None:
+            new_atom.quadratic = (q.coef, q.offset, q.linear)
         return new_atom
 
     def __repr__(self):
@@ -210,10 +213,13 @@ class atom(nonsmooth):
         else:
             v = self.seminorm(x_offset, check_feasibility=check_feasibility)
         if self.linear_term is None:
-            return v + self.constant_term
+            v += self.constant_term
         else:
-            return v + (self.linear_term * x).sum() + self.constant_term
-        
+            v += (self.linear_term * x).sum() + self.constant_term
+        if self.quadratic is not None:
+            v += self.quadratic.objective(x, 'func')
+        return v
+
     def proximal(self, x, lipschitz=1):
         r"""
         The proximal operator. If the atom is in
@@ -238,18 +244,17 @@ class atom(nonsmooth):
 
         if self.quadratic is not None:
             qcoef, qoffset, qlinear  = self.quadratic.coef, self.quadratic.offset, self.quadratic.linear
+            if qoffset is None:
+                qoffset = 0
+            if qlinear is None:
+                qlinear = 0
         else:
-            qcoef = 0
+            qcoef = qoffset = qlinear = 0
 
         if self.offset is not None:
             offset = self.offset
         else:
             offset = 0
-
-        if qoffset is None:
-            qoffset = 0
-        if qlinear is None:
-            qlinear = 0
 
         # compute linear and quadratic parts 
         total_quadratic_term = qcoef + lipschitz
@@ -372,6 +377,33 @@ class atom(nonsmooth):
         atom = cls(offset.shape, lagrange=lagrange, bound=bound,
                    linear_term=linear_term, offset=offset)
         return atom
+
+    def smoothed(self, smoothing_quadratic):
+        '''
+        Add quadratic smoothing term
+        '''
+        conjugate_atom = copy(self.conjugate)
+        sq = smoothing_quadratic
+        if sq.coef in [None, 0]:
+            raise ValueError('quadratic term of smoothing_quadratic must be non 0')
+        total_q = sq.coef
+
+        total_l = 0
+        if sq.offset is not None:
+            total_l += sq.coef * sq.offset
+        if sq.linear is not None:
+            total_l += sq.linear
+
+        if conjugate_atom.quadratic is not None:
+            if q.coef:
+                total_q += q.coef
+            if q.offset is not None:
+                total_l += q.coef * q.offset
+            if q.linear is not None:
+                total_l += q.linear
+        conjugate_atom.quadratic = (total_q, None, total_l)
+        smoothed_atom = conjugate_atom.conjugate
+        return smoothed_atom
 
     
 class l1norm(atom):
@@ -762,7 +794,33 @@ class affine_atom(object):
             raise AttributeError("atom is in lagrange mode")
     bound = property(get_bound, set_bound)
 
-class smooth_conjugate(composite):
+    def smoothed(self, smoothing_quadratic):
+        '''
+        Add quadratic smoothing term
+        '''
+        conjugate_atom = copy(self.atom.conjugate)
+        sq = smoothing_quadratic
+        if sq.coef in [None, 0]:
+            raise ValueError('quadratic term of smoothing_quadratic must be non 0')
+        total_q = sq.coef
+        total_l = 0
+        if sq.offset is not None:
+            total_l += sq.coef * sq.offset
+        if sq.linear is not None:
+            total_l += sq.linear
+
+        if conjugate_atom.quadratic is not None:
+            if q.coef:
+                total_q += q.coef
+            if q.offset is not None:
+                total_l += q.coef * q.offset
+            if q.linear is not None:
+                total_l += q.linear
+        conjugate_atom.quadratic = (total_q, None, total_l)
+        smoothed_atom = conjugate_atom.conjugate
+        return affine_smooth(smoothed_atom, self.linear_transform)
+
+class smooth_conjugate(smooth):
 
     def __init__(self, atom):
         """
@@ -798,6 +856,7 @@ class smooth_conjugate(composite):
 
         if mode == 'both':
             argmin, optimal_value = self.atom.proximal_optimum(prox_arg, q.coef)
+            print optimal_value
             objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
             return objective, argmin
         elif mode == 'grad':
@@ -805,13 +864,13 @@ class smooth_conjugate(composite):
             return argmin
         elif mode == 'func':
             _, optimal_value = self.atom.proximal_optimum(prox_arg, q.coef)
-            objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
+            objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value + constant_term
             return objective
         else:
             raise ValueError("mode incorrectly specified")
 
     def nonsmooth_objective(self, x, check_feasibilty=False):
-        return 0
+        return self.atom.quadratic.objective(x, 'func')
 
     def proximal(self, x, lipschitz=1):
         raise ValueError('no proximal defined')
@@ -823,3 +882,20 @@ for n1, n2 in [(l1norm,supnorm),
                (constrained_positive_part, max_positive_part)]:
     conjugate_seminorm_pairs[n1] = n2
     conjugate_seminorm_pairs[n2] = n1
+
+def collapse_linear_terms(atom):
+    atom_copy = copy(atom)
+    q = atom.quadratic
+
+    total_l = 0
+    if atom.linear_term is not None:
+        total_l += atom.linear_term
+    if q:
+        if q.offset is not None:
+            total_l += q.offset * q.coef
+        if q.linear is not None:
+            total_l += q.linear 
+        atom_copy.quadratic = (q.coef, None, None)
+        atom_copy.linear_term = total_l
+
+    return atom_copy

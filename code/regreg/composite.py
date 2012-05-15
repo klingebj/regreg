@@ -10,7 +10,7 @@ class composite(object):
                  quadratic_spec=(None,None,None)):
 
         self.coefs = initial.copy()
-        self.nonsmooth_objective = nonsmooth_objective
+        self._nonsmooth_objective = nonsmooth_objective
         self._smooth_objective = smooth_objective
         self.proximal = proximal
         self.smooth_multiplier = smooth_multiplier
@@ -22,11 +22,16 @@ class composite(object):
 
         self.quadratic_spec = quadratic_spec
 
-    def total_smooth_objective(self, x, mode='both', check_feasibility=False):
+    def nonsmooth_objective(self, x, check_feasibility=False):
+        if self.quadratic is not None:
+            return self.quadratic.objective(x, 'func')
+        return 0
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         '''
         The smooth_objective and the quadratic_objective combined.
         '''
-        smooth_output = self.smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
+        smooth_output = self._smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
 
         if self.smooth_multiplier != 1:
             if mode == 'both':
@@ -37,12 +42,8 @@ class composite(object):
             else:
                 raise ValueError("Mode incorrectly specified")
 
-        if self.quadratic is not None:
-            smooth_output = self.quadratic.update_smooth_output(x, smooth_output, mode)
-        return smooth_output
-
     def objective(self, x, check_feasibility=False):
-        return self.total_smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
+        return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
     def proximal_optimum(self, x, lipschitz=1):
         """
@@ -63,7 +64,7 @@ class composite(object):
         if self.quadratic is None:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)  
         else:
-            return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin) + self.quadratic_objective(argmin) 
+            return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin) + self.quadratic.objective(argmin, 'func') 
 
     def proximal_step(self, x, grad, lipschitz, prox_control=None):
         """
@@ -147,6 +148,20 @@ class smooth(composite):
                            smooth_multiplier=smooth_multiplier,
                            lipschitz=lipschitz)
 
+    def proximal(self, x, lipschitz=1):
+        if self.quadratic is None:
+            return x
+        else:
+            q = self.quadratic
+            total_q = lipschitz + q.coef
+            total_linear = lipschitz * x
+            if q.offset is not None:
+                total_linear -= q.coef * q.offset
+            if q.linear is not None:
+                total_linear -= q.linear
+            return total_linear / total_q    
+
+# This can now be done with a method of the atom 
 class smoothed(smooth):
 
     def __init__(self, atom, epsilon=0.1,
@@ -206,6 +221,7 @@ class smoothed(smooth):
         ueps = u / self.epsilon
         if mode == 'both':
             argmin, optimal_value = dual_atom.proximal_optimum(ueps, self.epsilon)                    
+            print optimal_value
             objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
@@ -224,11 +240,6 @@ class smoothed(smooth):
         else:
             raise ValueError("mode incorrectly specified")
 
-    def nonsmooth_objective(self, x, check_feasibilty=False):
-        return 0
-
-    def proximal(self, x, lipschitz=1):
-        return x
 
 class identity_quadratic(object):
 

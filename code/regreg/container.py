@@ -63,21 +63,21 @@ class container(composite):
         value, grad = 0, np.zeros(x.shape)
         if mode == 'func':
             for atom in self.smooth_atoms:
-                value += atom.total_smooth_objective(x, mode=mode, 
-                                                     check_feasibility=check_feasibility)
+                value += atom.smooth_objective(x, mode=mode, 
+                                               check_feasibility=check_feasibility)
             return value
         elif mode == 'both':
             for atom in self.smooth_atoms:
-                v, g = atom.total_smooth_objective(x, mode=mode, 
-                                               check_feasibility=check_feasibility)
+                v, g = atom.smooth_objective(x, mode=mode, 
+                                             check_feasibility=check_feasibility)
                 value += v
                 grad += g
             return value, grad
 
         elif mode == 'grad':
             for atom in self.smooth_atoms:
-                grad += atom.total_smooth_objective(x, mode=mode, 
-                                                    check_feasibility=check_feasibility)
+                grad += atom.smooth_objective(x, mode=mode, 
+                                              check_feasibility=check_feasibility)
             return grad
         else:
             raise ValueError("Mode specified incorrectly")

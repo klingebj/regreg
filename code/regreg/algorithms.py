@@ -100,7 +100,7 @@ class FISTA(algorithm):
         r = self.composite.coefs
         t_old = 1.
         beta = self.composite.coefs
-        current_f = self.composite.total_smooth_objective(r,mode='func')
+        current_f = self.composite.smooth_objective(r,mode='func')
         current_obj = current_f + self.composite.nonsmooth_objective(self.composite.coefs, check_feasibility=True)
         
         itercount = 0
@@ -121,7 +121,7 @@ class FISTA(algorithm):
                 if np.mod(itercount+1,100)==0 or attempt_decrease:
                     self.inv_step *= 1/alpha
                     attempt_decrease = True
-                current_f, grad = self.composite.total_smooth_objective(r,mode='both')
+                current_f, grad = self.composite.smooth_objective(r,mode='both')
                 stop = False
                 while not stop:
                     if set_prox_control:
@@ -129,14 +129,14 @@ class FISTA(algorithm):
                     else:
                         beta = self.composite.proximal_step(r, grad, self.inv_step)
 
-                    trial_f = self.composite.total_smooth_objective(beta,mode='func')
+                    trial_f = self.composite.smooth_objective(beta,mode='func')
 
                     if not np.isfinite(trial_f):
                         stop = False
                     elif np.fabs(trial_f - current_f)/np.max([1.,trial_f]) > 1e-10:
                         stop = trial_f <= current_f + np.dot((beta-r).reshape(-1),grad.reshape(-1)) + 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     else:
-                        trial_grad = self.composite.total_smooth_objective(beta,mode='grad')
+                        trial_grad = self.composite.smooth_objective(beta,mode='grad')
                         stop = np.fabs(np.dot((beta-r).reshape(-1),(grad-trial_grad).reshape(-1))) <= 0.5*self.inv_step*np.linalg.norm(beta-r)**2
                     if not stop:
                         attempt_decrease = False
@@ -148,13 +148,13 @@ class FISTA(algorithm):
                      
             else:
                 #Use specified Lipschitz constant
-                grad = self.composite.total_smooth_objective(r,mode='grad')
+                grad = self.composite.smooth_objective(r,mode='grad')
                 self.inv_step = self.composite.lipschitz
                 if set_prox_control:
                     beta = self.composite.proximal_step(r, grad, self.inv_step, prox_control=prox_control)
                 else:
                     beta = self.composite.proximal_step(r, grad, self.inv_step)
-                trial_f = self.composite.total_smooth_objective(beta,mode='func')
+                trial_f = self.composite.smooth_objective(beta,mode='func')
                 
             trial_obj = trial_f + self.composite.nonsmooth_objective(beta)
 
