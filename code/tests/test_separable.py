@@ -13,24 +13,24 @@ def test_lasso_separable():
     X = np.random.standard_normal((100,20))
     Y = np.random.standard_normal((100,)) + np.dot(X, np.random.standard_normal(20))
 
-    penalty1 = rr.l1norm(10, lagrange=.2)
-    penalty2 = rr.l1norm(10, lagrange=.2)
+    penalty1 = rr.l1norm(10, lagrange=1.2)
+    penalty2 = rr.l1norm(10, lagrange=1.2)
     penalty = rr.separable((20,), [penalty1, penalty2], [slice(0,10), slice(10,20)])
 
     # solve using separable
     
     loss = rr.quadratic.affine(X, -Y, coef=0.5)
-    problem = rr.container(loss, penalty)
+    problem = rr.separable_problem.fromatom(penalty, loss)
     solver = rr.FISTA(problem)
     solver.fit(min_its=200, tol=1.0e-12)
     coefs = solver.composite.coefs
 
     # solve using the usual composite
 
-    penalty_all = rr.l1norm(20, lagrange=.2)
+    penalty_all = rr.l1norm(20, lagrange=1.2)
     problem_all = rr.container(loss, penalty_all)
     solver_all = rr.FISTA(problem_all)
-    solver_all.fit(min_its=200, tol=1.0e-12)
+    solver_all.fit(min_its=100, tol=1.0e-12)
 
     coefs_all = solver_all.composite.coefs
 
@@ -40,7 +40,7 @@ def test_lasso_separable():
                  zip(penalty.atoms, penalty.groups)]
     problem_s = rr.container(loss, *penalty_s)
     solver_s = rr.FISTA(problem_s)
-    solver_s.fit(min_its=200, tol=1.0e-12)
+    solver_s.fit(min_its=500, tol=1.0e-12)
     coefs_s = solver_s.composite.coefs
 
     np.testing.assert_almost_equal(coefs, coefs_all)
@@ -65,7 +65,7 @@ def test_group_lasso_separable():
     # solve using separable
     
     loss = rr.quadratic.affine(X, -Y, coef=0.5)
-    problem = rr.container(loss, penalty)
+    problem = rr.separable_problem.fromatom(penalty, loss)
     solver = rr.FISTA(problem)
     solver.fit(min_its=200, tol=1.0e-12)
     coefs = solver.composite.coefs
@@ -116,9 +116,8 @@ def test_nonnegative_positive_part(debug=False):
     penalty = rr.nonnegative(P, linear_term=weights)
 
     # Solution
-    problem = rr.container(loss, penalty)
-    composite_form = rr.composite(loss.smooth_objective,
-                                  penalty.nonsmooth_objective, penalty.proximal, np.random.standard_normal(P))
+
+    composite_form = rr.separable_problem.singleton(penalty, loss)
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -132,10 +131,7 @@ def test_nonnegative_positive_part(debug=False):
     groups_s = [slice(0,25), slice(25,30)]
     penalty_s = rr.separable((P,), penalties_s,
                              groups_s)
-    composite_form_s = rr.composite(loss.smooth_objective,
-                                    penalty_s.nonsmooth_objective,
-                                    penalty_s.proximal,
-                                    np.random.standard_normal(P))
+    composite_form_s = rr.separable_problem.singleton(penalty_s, loss)
     solver_s = rr.FISTA(composite_form_s)
     solver_s.debug = debug
     solver_s.fit(tol=1.0e-12, min_its=200)

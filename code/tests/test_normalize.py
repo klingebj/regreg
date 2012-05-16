@@ -141,10 +141,8 @@ def test_centering_fit(debug=False):
     penalty = rr.separable((P,), penalties,
                            groups)
     initial = np.random.standard_normal(P)
-    composite_form = rr.composite(loss.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial)
+
+    composite_form = rr.separable_problem.singleton(penalty, loss)
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -154,18 +152,15 @@ def test_centering_fit(debug=False):
     loss2 = rr.quadratic.affine(X2, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
-    composite_form2 = rr.composite(loss2.smooth_objective,
-                                   penalty.nonsmooth_objective,
-                                   penalty.proximal,
-                                   initial2)
+    composite_form2 = rr.separable_problem.singleton(penalty, loss2)
 
     for _ in range(10):
         beta = np.random.standard_normal(P)
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(beta - g1)
-        b2 = penalty.proximal(beta - g2)
+        b1 = penalty.proximal(1, beta - g1, 0)
+        b2 = penalty.proximal(1, beta - g2, 0)
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -213,10 +208,8 @@ def test_scaling_fit(debug=False):
     penalty = rr.separable((P,), penalties,
                            groups)
     initial = np.random.standard_normal(P)
-    composite_form = rr.composite(loss.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial)
+    composite_form = rr.separable_problem.singleton(penalty, loss)
+
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -226,10 +219,8 @@ def test_scaling_fit(debug=False):
     loss2 = rr.quadratic.affine(X2, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
-    composite_form2 = rr.composite(loss2.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial2)
+    composite_form2 = rr.separable_problem.singleton(penalty, loss2)
+
     solver2 = rr.FISTA(composite_form2)
     solver2.debug = debug
     solver2.fit(tol=1.0e-12, min_its=200)
@@ -240,8 +231,8 @@ def test_scaling_fit(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(beta - g1)
-        b2 = penalty.proximal(beta - g2)
+        b1 = penalty.proximal(1, beta - g1, 0)
+        b2 = penalty.proximal(1, beta - g2, 0)
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -286,10 +277,7 @@ def test_scaling_and_centering_fit(debug=False):
                            groups)
 
     initial = np.random.standard_normal(P)
-    composite_form = rr.composite(loss.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial)
+    composite_form = rr.separable_problem.singleton(penalty, loss)
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -299,10 +287,8 @@ def test_scaling_and_centering_fit(debug=False):
     loss2 = rr.quadratic.affine(X2, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
-    composite_form2 = rr.composite(loss2.smooth_objective,
-                                   penalty.nonsmooth_objective,
-                                   penalty.proximal,
-                                   initial2)
+    composite_form2 = rr.separable_problem.singleton(penalty, loss2)
+
     solver2 = rr.FISTA(composite_form2)
     solver2.debug = debug
     solver2.fit(tol=1.0e-12, min_its=200)
@@ -313,8 +299,8 @@ def test_scaling_and_centering_fit(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(beta - g1)
-        b2 = penalty.proximal(beta - g2)
+        b1 = penalty.proximal(1, beta - g1, 0)
+        b2 = penalty.proximal(1, beta - g2, 0)
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -360,10 +346,8 @@ def test_scaling_and_centering_fit_inplace(debug=False):
                            groups)
 
     initial = np.random.standard_normal(P)
-    composite_form = rr.composite(loss.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial)
+    composite_form = rr.separable_problem.singleton(penalty, loss)
+
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -373,10 +357,8 @@ def test_scaling_and_centering_fit_inplace(debug=False):
     loss2 = rr.quadratic.affine(X, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
-    composite_form2 = rr.composite(loss2.smooth_objective,
-                                   penalty.nonsmooth_objective,
-                                   penalty.proximal,
-                                   initial2)
+    composite_form2 = rr.separable_problem.singleton(penalty, loss2)
+
     solver2 = rr.FISTA(composite_form2)
     solver2.debug = debug
     solver2.fit(tol=1.0e-12, min_its=200)
@@ -387,8 +369,8 @@ def test_scaling_and_centering_fit_inplace(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(beta - g1)
-        b2 = penalty.proximal(beta - g2)
+        b1 = penalty.proximal(1, beta - g1, 0)
+        b2 = penalty.proximal(1, beta - g2, 0)
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -433,10 +415,8 @@ def test_scaling_fit_inplace(debug=False):
     penalty = rr.separable((P,), penalties,
                            groups)
     initial = np.random.standard_normal(P)
-    composite_form = rr.composite(loss.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial)
+    composite_form = rr.separable_problem.singleton(penalty, loss)
+
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -446,10 +426,8 @@ def test_scaling_fit_inplace(debug=False):
     loss2 = rr.quadratic.affine(X, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
-    composite_form2 = rr.composite(loss2.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial2)
+    composite_form2 = rr.separable_problem.singleton(penalty, loss2)
+
     solver2 = rr.FISTA(composite_form2)
     solver2.debug = debug
     solver2.fit(tol=1.0e-12, min_its=200)
@@ -460,8 +438,8 @@ def test_scaling_fit_inplace(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(beta - g1)
-        b2 = penalty.proximal(beta - g2)
+        b1 = penalty.proximal(1, beta - g1, 0)
+        b2 = penalty.proximal(1, beta - g2, 0)
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -506,10 +484,9 @@ def test_centering_fit_inplace(debug=False):
     penalty = rr.separable((P,), penalties,
                            groups)
     initial = np.random.standard_normal(P)
-    composite_form = rr.composite(loss.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial)
+
+    composite_form = rr.separable_problem.singleton(penalty, loss)
+
     solver = rr.FISTA(composite_form)
     solver.debug = debug
     solver.fit(tol=1.0e-12, min_its=200)
@@ -519,10 +496,8 @@ def test_centering_fit_inplace(debug=False):
     loss2 = rr.quadratic.affine(X, -Y, coef=coef)
 
     initial2 = np.random.standard_normal(P)
-    composite_form2 = rr.composite(loss2.smooth_objective,
-                                  penalty.nonsmooth_objective,
-                                  penalty.proximal,
-                                  initial2)
+    composite_form2 = rr.separable_problem.singleton(penalty, loss2)
+
     solver2 = rr.FISTA(composite_form2)
     solver2.debug = debug
     solver2.fit(tol=1.0e-12, min_its=200)
@@ -533,8 +508,8 @@ def test_centering_fit_inplace(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(beta - g1)
-        b2 = penalty.proximal(beta - g2)
+        b1 = penalty.proximal(1, beta - g1, 0)
+        b2 = penalty.proximal(1, beta - g2, 0)
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
