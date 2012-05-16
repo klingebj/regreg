@@ -47,7 +47,7 @@ class composite(object):
     def objective(self, x, check_feasibility=False):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
-    def proximal_optimum(self, x, grad, lipschitz):
+    def proximal_optimum(self, lipschitz, x, grad):
         """
         Returns
 
@@ -62,22 +62,22 @@ class composite(object):
         part of the composite object.
 
         """
-        argmin = self.proximal(x, grad, lipschitz)
+        argmin = self.proximal(lipschitz, x, grad)
         if self.quadratic is None:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)  
         else:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin) + self.quadratic.objective(argmin, 'func') 
 
-    def proximal_step(self, x, grad, lipschitz, prox_control=None):
+    def proximal_step(self, lipschitz, x, grad, prox_control=None):
         """
         Compute the proximal optimization
 
         prox_control: If not None, then a dictionary of parameters for the prox procedure
         """
         if prox_control is None:
-            return self.proximal(x, grad, lipschitz)
+            return self.proximal(lipschitz, x, grad)
         else:
-            return self.proximal(x, grad, lipschitz, prox_control=prox_control)
+            return self.proximal(lipschitz, x, grad, prox_control=prox_control)
 
         
     def set_quadratic(self, coef, offset, linear_term, constant_term):
@@ -133,7 +133,7 @@ class smooth(composite):
                            smooth_multiplier=smooth_multiplier,
                            lipschitz=lipschitz)
 
-    def proximal(self, x, grad, lipschitz):
+    def proximal(self, lipschitz, x, grad):
         if self.quadratic is None:
             return x
         else:
@@ -202,20 +202,20 @@ class smoothed(smooth):
         u = linear_transform.linear_map(beta)
         ueps = u / self.epsilon
         if mode == 'both':
-            argmin, optimal_value = dual_atom.proximal_optimum(ueps, 0, self.epsilon)                    
+            argmin, optimal_value = dual_atom.proximal_optimum(self.epsilon, ueps, 0)                    
             objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
                 self.argmin = argmin
             return objective, grad
         elif mode == 'grad':
-            argmin = dual_atom.proximal(ueps, 0, self.epsilon)     
+            argmin = dual_atom.proximal(self.epsilon, ueps, 0)
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
                 self.argmin = argmin
             return grad 
         elif mode == 'func':
-            _, optimal_value = dual_atom.proximal_optimum(ueps, 0, self.epsilon)                    
+            _, optimal_value = dual_atom.proximal_optimum(self.epsilon, ueps, 0)                    
             objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             return objective
         else:

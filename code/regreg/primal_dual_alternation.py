@@ -79,72 +79,20 @@ class problem_spec(composite):
             return out + self.quadratic.objective(x, 'func')
 
     default_solver = FISTA
-    def proximal(self, x, grad, lipschitz=1, prox_control=None):
+    def proximal(self, lipschitz, x, grad, prox_control=None):
         """
         The proximal function for the primal problem
         """
-        #TODO put in the self.quadratic term 
-        y = x - grad / lipschitz
         transform, separable_atom = self.dual
         
-#         if not (isinstance(transform, afidentity) or
-#                 isinstance(transform, afselector)):
-#             #Default fitting parameters
-#             prox_defaults = {'max_its': 5000,
-#                              'min_its': 5,
-#                              'return_objective_hist': False,
-#                              'tol': 1e-14,
-#                              'debug':False,
-#                              'backtrack':False}
-
-#             if prox_control is not None:
-#                 prox_defaults.update(prox_control)
-#             prox_control = prox_defaults
-
-#             yL = lipschitz * y
-#             if not hasattr(self, 'dualopt'):
-
-#                 self._dual_response = yL
-#                 initial = np.random.standard_normal(transform.dual_shape)
-#                 nonsmooth_objective = separable_atom.nonsmooth_objective
-#                 prox = separable_atom.proximal
-#                 self.dualp = composite(self._dual_smooth_objective, nonsmooth_objective, prox, initial, 1./lipschitz)
-
-#                 #Approximate Lipschitz constant
-#                 if not 'dual_reference_lipschitz' in prox_control.keys():
-#                     self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
-
-#                 self.dualopt = container.default_solver(self.dualp)
-#                 self.dualopt.debug = prox_control['debug']
-
-#             if 'dual_reference_lipschitz' in prox_control.keys():
-#                 self.dual_reference_lipschitz = prox_control['dual_reference_lipschitz']
-#                 prox_control.pop('dual_reference_lipschitz')
-#             if prox_control['backtrack']:
-#                 #If backtracking set start_inv_step
-#                 prox_control['start_inv_step'] = self.dual_reference_lipschitz / lipschitz
-
-
-
-#             self.dualopt.composite.smooth_multiplier = 1./lipschitz
-#             self.dualp.lipschitz = self.dual_reference_lipschitz / lipschitz
-
-#             self._dual_response = yL
-#             history = self.dualopt.fit(**prox_control)
-#             if prox_control['return_objective_hist']:
-#                 return y - transform.adjoint_map(self.dualopt.composite.coefs/lipschitz), history
-#             else:
-#                 return y - transform.adjoint_map(self.dualopt.composite.coefs/lipschitz)
-#         else:
-
         if isinstance(transform, afselector):
             z = y.copy()
-            z[transform.index_obj] = separable_atom.proximal(x[transform.index_obj],
-                                                             grad[transform.index_obj],
-                                                             lipschitz=lipschitz)
+            z[transform.index_obj] = separable_atom.proximal(lipschitz,
+                                                             x[transform.index_obj],
+                                                             grad[transform.index_obj])
             return z
         else:
-            return separable_atom.proximal(x, grad, lipschitz=lipschitz)
+            return separable_atom.proximal(lipschitz, x, grad)
 
     def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
 

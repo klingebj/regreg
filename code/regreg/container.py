@@ -93,7 +93,7 @@ class container(composite):
             return out + self.quadratic.objective(x, 'func')
 
     default_solver = FISTA
-    def proximal(self, x, grad, lipschitz=1, prox_control=None):
+    def proximal(self, lipschitz, x, grad, prox_control=None):
         """
         The proximal function for the primal problem
         """
@@ -153,12 +153,12 @@ class container(composite):
             primal = separable_atom.conjugate
             if isinstance(transform, afselector):
                 z = y.copy()
-                z[transform.index_obj] = primal.proximal(x[transform.index_obj],
-                                                         grad[transform.index_obj],
-                                                         lipschitz=lipschitz)
+                z[transform.index_obj] = primal.proximal(lipschitz,
+                                                         x[transform.index_obj],
+                                                         grad[transform.index_obj])
                 return z
             else:
-                return primal.proximal(x, grad, lipschitz=lipschitz)
+                return primal.proximal(lipschitz, x, grad)
 
     def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
 

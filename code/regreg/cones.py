@@ -127,7 +127,7 @@ class cone(nonsmooth):
         else:
             return v + (self.linear_term * x).sum() + self.constant_term
         
-    def proximal(self, x, grad, lipschitz=1):
+    def proximal(self, lipschitz, x, grad):
         r"""
         The proximal operator. If the atom is in
         Lagrange mode, this has the form
@@ -183,21 +183,6 @@ class cone(nonsmooth):
             return eta
         else:
             return eta - offset
-
-#         x = x - grad / lipschitz
-#         if self.offset is not None:
-#             offset = self.offset
-#         else:
-#             offset = 0
-#         if self.linear_term is not None:
-#             shift = offset - self.linear_term / lipschitz
-#         else:
-#             shift = offset
-
-#         if not np.all(np.equal(shift, 0)):
-#             x = x + shift
-#         if np.all(np.equal(offset, 0)):
-#             offset = None
 
     def cone_prox(self, x, lipschitz=1):
         r"""

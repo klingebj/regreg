@@ -125,9 +125,9 @@ class FISTA(algorithm):
                 stop = False
                 while not stop:
                     if set_prox_control:
-                        beta = self.composite.proximal_step(r, grad, self.inv_step, prox_control=prox_control)
+                        beta = self.composite.proximal_step(self.inv_step, r, grad, prox_control=prox_control)
                     else:
-                        beta = self.composite.proximal_step(r, grad, self.inv_step)
+                        beta = self.composite.proximal_step(self.inv_step, r, grad)
 
                     trial_f = self.composite.smooth_objective(beta,mode='func')
 
@@ -151,9 +151,9 @@ class FISTA(algorithm):
                 grad = self.composite.smooth_objective(r,mode='grad')
                 self.inv_step = self.composite.lipschitz
                 if set_prox_control:
-                    beta = self.composite.proximal_step(r, grad, self.inv_step, prox_control=prox_control)
+                    beta = self.composite.proximal_step(self.inv_step, r, grad, prox_control=prox_control)
                 else:
-                    beta = self.composite.proximal_step(r, grad, self.inv_step)
+                    beta = self.composite.proximal_step(self.inv_step, r, grad)
                 trial_f = self.composite.smooth_objective(beta,mode='func')
                 
             trial_obj = trial_f + self.composite.nonsmooth_objective(beta)

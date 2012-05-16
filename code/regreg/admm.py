@@ -175,8 +175,8 @@ class node_problem(composite_class):
                                             self.atom.proximal,
                                             self.coefs))
         
-    def proximal(self, x, lipschitz=1):
-        return self.atom.proximal(x, lipschitz)
+    def proximal(self, lipschitz, x, grad):
+        return self.atom.proximal(lipschitz, x, grad)
 
     def _get_beta(self):
         return self._beta
