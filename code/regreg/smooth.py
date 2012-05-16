@@ -434,7 +434,6 @@ class multinomial_deviance(smooth_atom):
 
         if mode == 'both':
             ratio = ((self.trials/(1. + np.sum(exp_x, axis=1))) * exp_x.T).T
-            stopnow
             f, g = -2. * self.scale(np.sum(self.firstcounts * x) -  np.dot(self.trials, np.log(1. + np.sum(exp_x, axis=1)))) + self.constant_term, - 2 * self.scale(self.firstcounts - ratio) 
         elif mode == 'grad':
             ratio = ((self.trials/(1. + np.sum(exp_x, axis=1))) * exp_x.T).T

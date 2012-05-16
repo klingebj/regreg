@@ -285,6 +285,8 @@ class atom(nonsmooth):
 
         if self.offset is None or np.all(np.equal(self.offset, 0)):
             offset = None
+        else:
+            offset = self.offset
 
         if offset is not None:
             totalq.offset = -offset

@@ -107,3 +107,9 @@ class separable_problem(separable):
     @staticmethod
     def singleton(atom, smooth_f):
         return separable_problem(smooth_f, atom.primal_shape, [atom], [slice(None)], False)
+
+    @staticmethod
+    def fromatom(separable_atom, smooth_f):
+        return separable_problem(smooth_f, separable_atom.primal_shape, 
+                                 separable_atom.atoms,
+                                 separable_atom.groups, False)

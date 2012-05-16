@@ -366,7 +366,7 @@ class normalize(object):
         self.dual_shape = (n,)
         self.primal_shape = (p,)
 
-        self.sparseD = sparse.isspmatrix(self.M)
+        self.sparseD = sparse.isspmatrix(M)
         self.add_intercept = add_intercept
         if self.add_intercept:
             self.M = M

@@ -97,19 +97,18 @@ class container(composite):
                 prox_defaults.update(prox_control)
             prox_control = prox_defaults
 
-            if not hasattr(self, 'dualopt'):
-                _problem_objective = zero_nonsmooth(transform.primal_shape)
-                _problem_objective.set_quadratic(lipschitz, -x, grad, 0)
-                self.dualp = dual_problem(_problem_objective,
-                                          self.transform,
-                                          self.separable_atom)
-
-                #Approximate Lipschitz constant
-                if not 'dual_reference_lipschitz' in prox_control.keys():
-                    self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
-
-                self.dualopt = container.default_solver(self.dualp)
-                self.dualopt.debug = prox_control['debug']
+            _problem_objective = zero_nonsmooth(transform.primal_shape)
+            _problem_objective.set_quadratic(lipschitz, -x, grad, 0)
+            self.dualp = dual_problem(_problem_objective,
+                                      self.transform,
+                                      self.separable_atom)
+            #Approximate Lipschitz constant
+            if not 'dual_reference_lipschitz' in prox_control.keys():
+                # shouldn't do this over and over
+                self.dual_reference_lipschitz = 1.05*power_L(transform, debug=prox_control['debug'])
+                
+            self.dualopt = container.default_solver(self.dualp)
+            self.dualopt.debug = prox_control['debug']
 
             if 'dual_reference_lipschitz' in prox_control.keys():
                 self.dual_reference_lipschitz = prox_control['dual_reference_lipschitz']
@@ -124,7 +123,10 @@ class container(composite):
 
             self.dualp.lipschitz = self.dual_reference_lipschitz / lipschitz
 
+            if hasattr(self, 'dual_minimizer'):
+                self.dualopt.composite.coefs[:] = self.dual_minimizer
             history = self.dualopt.fit(**prox_control)
+            self.dual_minimizer = self.dualopt.composite.coefs
             if prox_control['return_objective_hist']:
                 return x - grad / lipschitz - transform.adjoint_map(self.dualopt.composite.coefs/lipschitz), history
             else:
