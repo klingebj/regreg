@@ -48,7 +48,7 @@ def test_affine_linear_offset_l1norm():
     coefs.append(1.*solver.composite.coefs)
     
     loss = rr.quadratic.affine(X,-Y, coef=0.5)
-    sparsity = rr.l1norm.offset(np.zeros(p), lagrange=5.)
+    sparsity = rr.l1norm.shift(np.zeros(p), lagrange=5.)
     problem = rr.container(loss, sparsity)
     solver = rr.FISTA(problem)
     solver.fit(debug=False, tol=1e-10)
