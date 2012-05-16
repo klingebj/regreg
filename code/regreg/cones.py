@@ -7,7 +7,7 @@ import numpy as np
 from .composite import composite, nonsmooth
 from .affine import linear_transform, identity as identity_transform
 from .identity_quadratic import identity_quadratic
-
+from .atoms import smooth_conjugate
 
 try:
     from projl1_cython import projl1
@@ -73,7 +73,7 @@ class cone(nonsmooth):
 
     @property
     def conjugate(self):
-        if not hasattr(self, "_conjugate"):
+        if self.quadratic is None:
             if self.offset is not None:
                 linear_term = -self.offset
             else:
@@ -93,8 +93,10 @@ class cone(nonsmooth):
             else:
                 _constant_term = 0.
             atom.constant_term = self.constant_term - _constant_term
-            self._conjugate = atom
-            self._conjugate._conjugate = self
+        else:
+            atom = smooth_conjugate(self)
+        self._conjugate = atom
+        self._conjugate._conjugate = self
         return self._conjugate
 
     @property
