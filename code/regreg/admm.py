@@ -3,12 +3,11 @@ This is an example of ADMM's general consensus mode.
 """
 import numpy as np
 from scipy import sparse
-from algorithms import FISTA
-from composite import (composite as composite_class,
-                       smooth as smooth_composite_class)
-from conjugate import conjugate
-from container import container
-
+from .algorithms import FISTA
+from .composite import composite
+from .conjugate import conjugate
+from .container import container
+from .simple import simple_problem
 
 #TODO: this is only written for linear compositions, need to add affine
 
@@ -41,6 +40,7 @@ class admm_problem(object):
         self.p = len(self.beta)
         self.total_n = np.sum([len(u) for u in self.us])
 
+        # this should be fixed and documented -- what smooth part is this?
         def _smooth_objective(x, mode='both', check_feasibility=False):
             sc = self.container.smooth_objective(x, mode=mode, 
                                                  check_feasibility=check_feasibility)
@@ -53,8 +53,12 @@ class admm_problem(object):
                 return sc+s
                 raise ValueError("Mode not specified correctly")
 
-        comp = smooth_composite_class(_smooth_objective,
-                                      self.container.coefs)
+        # this will still fail because _smooth_objective is not
+        # a full fledged composite object. it should be 
+        # a subcass of regreg.smooth.smooth_atom.
+
+        comp = simple_problem.smooth(_smooth_objective)
+        comp.coefs = self.container.coefs
         self.beta_solver = FISTA(comp)
 
     def fit(self, tol = 1e-6, max_its = 500, debug=False):
@@ -149,7 +153,7 @@ class admm_problem(object):
     ##     return container(self.smooth, hold_smooth(self.smooth_objective,self.primal_shape))
 
            
-class node_problem(composite_class):
+class node_problem(composite):
     """
     A class for storing and updating the node coefficients $z_i = D_i \beta_i$ for a single node
     """
@@ -170,10 +174,10 @@ class node_problem(composite_class):
         print ('coefs', self.coefs.shape, self.atom.primal_shape,
                self.atom.dual_shape, self.atom)
         
-        self.solver = FISTA(composite_class(self.smooth_objective,
-                                            self.atom.nonsmooth_objective,
-                                            self.atom.proximal,
-                                            self.coefs))
+        self.simple_problem = simple_problem(self,
+                                             self.atom)
+        self.coefs = self.simple_problem.coefs
+        self.solver = FISTA(self.simple_problem)
         
     def proximal(self, lipschitz, x, grad):
         return self.atom.proximal(lipschitz, x, grad)

@@ -32,3 +32,14 @@ class simple_problem(composite):
             proxq = proxq + self.smooth_atom.quadratic
             lipschitz, x, grad = proxq.coef, -proxq.offset, proxq.linear
         return self.nonsmooth_atom.proximal(lipschitz, x, grad)
+
+    @staticmethod
+    def smooth(self, smooth_atom):
+        """
+        A problem with no nonsmooth part except possibly
+        the quadratic of smooth_atom.
+
+        The proximal function is (almost) a nullop.
+        """
+        nonsmooth = zero(smooth_atom.primal_shape)
+        return simple_problem(smooth_atom, nonsmooth)

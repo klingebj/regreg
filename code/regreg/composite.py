@@ -14,7 +14,6 @@ class composite(object):
                  quadratic_spec=(None,None,None,0)):
 
         self.coefs = initial.copy()
-        self._nonsmooth_objective = nonsmooth_objective
         self._smooth_objective = smooth_objective
         self.proximal = proximal
         self.smooth_multiplier = smooth_multiplier

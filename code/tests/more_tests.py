@@ -249,7 +249,7 @@ def test_lasso_dual_from_primal(l1 = .1, L = 2.):
     p= R.container(regloss, sparsity)
 
     z = x - y/L
-    soln = p.proximal(z,L)
+    soln = p.proximal(L,z,0)
     st = np.maximum(np.fabs(z)-l1/L,0) * np.sign(z)
 
     print x[range(10)]
