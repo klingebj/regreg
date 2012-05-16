@@ -295,7 +295,7 @@ class atom(nonsmooth):
 
         prox_arg = -totalq.linear_term / totalq.coef
 
-        debug = True
+        debug = False
         if debug:
             print '='*80
             print 'x :', x

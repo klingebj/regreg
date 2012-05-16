@@ -48,12 +48,16 @@ def has_overlap(shape, groups):
 
 class separable(atom):
 
-    def __init__(self, shape, atoms, groups, test_for_overlap=False):
+    def __init__(self, shape, atoms, groups, test_for_overlap=False,
+                 initial=None):
         if test_for_overlap and has_overlap(shape, groups):
             raise ValueError('groups are not separable')
         self.primal_shape = self.dual_shape = shape
         self.groups = groups
         self.atoms = atoms
+
+        if initial is None:
+            self.coefs = np.zeros(shape)
 
     def seminorm(self, x, check_feasibility=False):
         value = 0.
@@ -73,10 +77,10 @@ class separable(atom):
             value += atom.nonsmooth_objective(x[group], check_feasibility=check_feasibility)
         return value
 
-    def proximal(self, x, lipschitz=1.):
+    def proximal(self, x, grad, lipschitz):
         v = x.copy()
         for atom, group in zip(self.atoms, self.groups):
-            v[group] = atom.proximal(x[group], lipschitz=lipschitz)
+            v[group] = atom.proximal(x[group], grad[group], lipschitz)
         return v
 
     @property
@@ -90,3 +94,16 @@ class separable(atom):
         return "separable(%s, %s, %s)" % (`self.primal_shape`,
                                           `self.atoms`,
                                           `self.groups`)
+
+class separable_problem(separable):
+    
+    def __init__(self, smooth_function, shape, atoms, groups, test_for_overlap=False):
+        self._smooth_function = smooth_function
+        separable.__init__(self, shape, atoms, groups, test_for_overlap)
+        
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        return self._smooth_function.smooth_objective(x, mode, check_feasibility)
+
+    @staticmethod
+    def singleton(atom, smooth_f):
+        return separable_problem(smooth_f, atom.primal_shape, [atom], [slice(None)], False)

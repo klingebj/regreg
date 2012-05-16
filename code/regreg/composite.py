@@ -11,7 +11,6 @@ class composite(object):
     """
 
     def __init__(self, smooth_objective, initial, smooth_multiplier=1, lipschitz=None, 
-                 compute_difference=True,
                  quadratic_spec=(None,None,None,0)):
 
         self.coefs = initial.copy()
@@ -20,10 +19,6 @@ class composite(object):
         self.proximal = proximal
         self.smooth_multiplier = smooth_multiplier
         self._lipschitz = lipschitz
-
-        # this is used for atoms that have a different
-        # signature for the proximal method
-        self.compute_difference = compute_difference
 
         self.quadratic_spec = quadratic_spec
 
@@ -68,8 +63,6 @@ class composite(object):
 
         """
         argmin = self.proximal(x, grad, lipschitz)
-        print 'grad opt: ', grad
-        print 'lipschitz opt: ', lipschitz
         if self.quadratic is None:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)  
         else:
@@ -81,8 +74,6 @@ class composite(object):
 
         prox_control: If not None, then a dictionary of parameters for the prox procedure
         """
-#         if self.compute_difference:
-#             z = x - grad / lipschitz
         if prox_control is None:
             return self.proximal(x, grad, lipschitz)
         else:
