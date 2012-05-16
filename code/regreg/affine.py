@@ -380,14 +380,18 @@ class normalize(object):
         if self.center:
             if inplace and self.sparseD:
                 raise ValueError('resulting matrix will not be sparse if centering performed inplace')
-            if self.scale:
+
+            if not self.sparseD:
                 col_means = M.mean(0)
+            else:
+                tmp = M.copy()
+                col_means = np.asarray(tmp.mean(0)).reshape(-1)
+                tmp.data **= 2
+
+            if self.scale:
                 if not self.sparseD:
                     self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * self.value 
                 else:
-                    tmp = M.copy()
-                    col_means = np.asarray(tmp.mean(0)).reshape(-1)
-                    tmp.data **= 2
                     self.invcol_scalings = np.sqrt((np.asarray(tmp.sum(0)).reshape(-1) - n * col_means**2) / n) * self.value
             if not self.sparseD and inplace:
                 self.M -= col_means[np.newaxis,:]
