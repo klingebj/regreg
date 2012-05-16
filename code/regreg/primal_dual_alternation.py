@@ -11,7 +11,7 @@ from smooth import smooth_atom, affine_smooth
 from atoms import affine_atom as nonsmooth_affine_atom
 from cones import zero_constraint, zero as zero_nonsmooth, affine_cone
 
-class problem_spec(composite):
+class dual_problem(composite):
     """
     A class for specifying a problem of the form
 
@@ -25,37 +25,28 @@ class problem_spec(composite):
 
        \maximize_{u_i} -f^*(-\sum_i D^Tu_i) + \sum_i g_i^*(u_i)
 
+    while the primal variable is stored in the computation
+    of the gradient of :math:`f^*`.
 
     """
-    def __init__(self, f, *g):
+
+    def __init__(self, f, transform, separable_atom):
         self.f = f
         self.f_conjugate = f.conjugate
         if not isinstance(self.f_conjugate, smooth_composite):
             raise ValueError('the conjugate of f should be a smooth_composite')
 
-        if len(g) == 0:
-            g = [zero_nonsmooth(f.primal_shape)]
+        self.transform = transform
+        self.separable_atom = separable_atom
 
-        duals = [gg.dual for gg in g]
-        self.atransforms = [d[0] for d in duals]
-        self.atoms = [d[1] for d in duals]
-
-        transform, _ = self.dual
-        self.affine_fc = affine_smooth(self.f_conjugate, scalar_multiply(adjoint(transform), -1))
+        # the dual problem has f^*(-D^Tu) as objective
+        self.affine_fc = affine_smooth(self.f_conjugate, scalar_multiply(adjoint(self.transform), -1))
         self.coefs = np.zeros(self.affine_fc.primal_shape)
 
-    @property
-    def dual(self):
-        if not hasattr(self, "_dual"):
-            if len(self.atransforms) > 1:            
-                transform = afvstack(self.atransforms)
-                transform = afvstack(transforms)
-                nonsm = separable(transform.dual_shape, self.atoms,
-                                  transform.dual_slices)
-                self._dual = transform, nonsm
-            else:
-                self._dual = (self.atransforms[0], self.atoms[0])
-        return self._dual
+    @staticmethod
+    def fromseq(f, *g):
+        transform, separable_atom = stacked_dual(f.primal_shape, *g)
+        return dual_problem(f, transform, separable_atom)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -69,49 +60,63 @@ class problem_spec(composite):
         return v
 
     def nonsmooth_objective(self, x, check_feasibility=False):
-        out = 0.
-        for atom in self.atoms:
-            out += atom.nonsmooth_objective(x,
-                                            check_feasibility=check_feasibility)
+        out = self.separable_atom.nonsmooth_objective(x, 
+                                                      check_feasibility=check_feasibility)
         if self.quadratic is None:
             return out
         else:
             return out + self.quadratic.objective(x, 'func')
 
-    default_solver = FISTA
     def proximal(self, lipschitz, x, grad, prox_control=None):
         """
-        The proximal function for the primal problem
+        The proximal function for the dual problem
         """
-        transform, separable_atom = self.dual
-        
-        if isinstance(transform, afselector):
-            z = y.copy()
-            z[transform.index_obj] = separable_atom.proximal(lipschitz,
-                                                             x[transform.index_obj],
-                                                             grad[transform.index_obj])
-            return z
-        else:
-            return separable_atom.proximal(lipschitz, x, grad)
+        transform, separable_atom = self.transform, self.separable_atom
+        return separable_atom.proximal(lipschitz, x, grad)
 
-    def _dual_smooth_objective(self,v,mode='both', check_feasibility=False):
 
-        """
-        The smooth component and/or gradient of the dual objective        
-        """
-        
-        # residual is the residual from the fit
-        transform, _ = self.dual
-        residual = self._dual_response - transform.adjoint_map(v)
+def stacked_dual(shape, *primary_atoms):
+    '''
+    Computes a dual of 
 
-        if mode == 'func':
-            return (residual**2).sum() / 2.
-        elif mode == 'both' or mode == 'grad':
-            g = -transform.linear_map(residual)
-            if mode == 'grad':
-                return g
-            if mode == 'both':
-                return (residual**2).sum() / 2., g
-        else:
-            raise ValueError("Mode not specified correctly")
+    .. math::
+
+       \sum_i g_i(D_i\beta)
+
+    under the substitutions :math:`v_i=D_i\beta`.
+    That is, it returns the following dual function after minimizing
+    over :math:`(v_i,\beta_i)`:
+
+    .. math::
+
+       -\sum_i g_i^*(u_i)
+
+    as well as the transform 
+    :math:`D\maps \mathbb{R}^p \prod_i \mathbb{R}^{m_i}` where
+    :math:`p` is the primal shape and :math:`m_i` are the corresponding
+    dual shapes.
+
+    Parameters
+    ----------
+
+    primary_atoms : [atoms]
+        Objects that have dual attributes, which is a pair
+        (ltransform, conjugate).
+
+    '''
+    if len(primary_atoms) == 0:
+        primary_atoms = [zero_nonsmooth(shape)]
+
+    duals = [atom.dual for atom in primary_atoms]
+    transforms = [d[0] for d in duals]
+    dual_atoms = [d[1] for d in duals]
+
+    if len(transforms) > 1:            
+        transform = afvstack(transforms)
+        separable_atom = separable(transform.dual_shape, dual_atoms,
+                                   transform.dual_slices)
+        _dual = transform, separable_atom
+    else:
+        _dual = (transforms[0], dual_atoms[0])
+    return _dual
 

@@ -177,10 +177,18 @@ class affine_smooth(smooth_atom):
             v = self.sm_atom.smooth_objective(eta, mode='func')
             return v 
 
+#     @property
+#     def composite(self):
+#         initial = np.zeros(self.primal_shape)
+#         return smooth_composite(self.smooth_objective, initial)
+
     @property
-    def composite(self):
-        initial = np.zeros(self.primal_shape)
-        return smooth_composite(self.smooth_objective, initial)
+    def dual(self):
+        try: 
+            conj = self.sm_atom.conjugate
+            return self.affine_transform, conj
+        except:
+            return None
 
     def __repr__(self):
         return ("affine_smooth(%s, %s, store_grad=%s)" % 

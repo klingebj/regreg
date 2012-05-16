@@ -91,7 +91,7 @@ class composite(object):
     quadratic = property(get_quadratic)
 
     def get_lipschitz(self):
-        if self.quadratic.coef is not None:
+        if self.quadratic is not None and self.quadratic.coef is not None:
             return self._lipschitz + self.quadratic.coef
         return self._lipschitz
 
