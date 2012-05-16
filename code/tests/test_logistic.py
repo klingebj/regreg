@@ -9,7 +9,7 @@ import regreg.api as rr
 @dec.setastest(True)
 def test_logistic_counts():
     """
-    Test the equivalence of binary/count specification in logistic_likelihood
+    Test the equivalence of binary/count specification in logistic_deviance
     """
 
     #Form the count version of the problem
@@ -19,7 +19,7 @@ def test_logistic_counts():
     p = 2*n
     X = np.random.normal(0,1,n*p).reshape((n,p))
 
-    loss = rr.logistic_loglikelihood.linear(X, successes=successes, trials=trials)
+    loss = rr.logistic_deviance.linear(X, successes=successes, trials=trials)
     penalty = rr.quadratic(p, coef=1.)
 
     prob1 = rr.container(loss, penalty)
@@ -39,7 +39,7 @@ def test_logistic_counts():
     Xnew =  np.vstack(Xnew)
 
 
-    loss = rr.logistic_loglikelihood.linear(Xnew, successes=Ynew)
+    loss = rr.logistic_deviance.linear(Xnew, successes=Ynew)
     penalty = rr.quadratic(p, coef=1.)
 
     prob2 = rr.container(loss, penalty)
@@ -67,7 +67,7 @@ def test_logistic_offset():
 
     X = np.hstack([np.ones((n,1)),np.random.normal(0,1,n*p).reshape((n,p))])
 
-    loss = rr.logistic_loglikelihood.linear(X, successes=successes, trials=trials)
+    loss = rr.logistic_deviance.linear(X, successes=successes, trials=trials)
     weights = np.ones(p+1)
     weights[0] = 0.
     penalty = rr.quadratic.linear(weights, coef=.1, diag=True)
@@ -79,7 +79,7 @@ def test_logistic_offset():
 
     diff = 0.1
 
-    loss = rr.logistic_loglikelihood.affine(X, successes=successes, trials=trials, offset = diff*np.ones(n))
+    loss = rr.logistic_deviance.affine(X, successes=successes, trials=trials, offset = diff*np.ones(n))
     weights = np.ones(p+1)
     weights[0] = 0.
     penalty = rr.quadratic.linear(weights, coef=.1, diag=True)

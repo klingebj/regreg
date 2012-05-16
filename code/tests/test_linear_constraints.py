@@ -16,35 +16,33 @@ def test_proximal_maps():
         p = primal(shape, basis)
         d = p.conjugate
         yield nt.assert_equal, d, dual(shape, basis)
-        yield ac, Z-p.proximal(Z), d.proximal(Z)
+        yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)
 
-        loss = rr.l2normsq.shift(-Z, coef=0.5)
-        problem = rr.composite(loss.smooth_objective, p.nonsmooth_objective,
-                               p.proximal, np.random.standard_normal(shape))
+        loss = rr.quadratic.shift(-Z, coef=0.5)
+        problem = rr.simple_problem(loss, p)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12)
 
-        yield ac, p.proximal(Z), solver.composite.coefs
+        yield ac, p.proximal(1, Z, 0), solver.composite.coefs
 
-        loss = rr.l2normsq.shift(-Z, coef=0.5)
+        loss = rr.quadratic.shift(-Z, coef=0.5)
         problem = rr.container(loss, p)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12)
 
-        yield ac, p.proximal(Z), solver.composite.coefs
+        yield ac, p.proximal(1, Z, 0), solver.composite.coefs
 
-        problem = rr.composite(loss.smooth_objective, d.nonsmooth_objective,
-                               d.proximal, np.random.standard_normal(shape))
+        problem = rr.simple_problem(loss, d)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12)
-        yield ac, d.proximal(Z), solver.composite.coefs
+        yield ac, d.proximal(1, Z, 0), solver.composite.coefs
 
         #yield ac, d.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2, p.proximal_optimum(Z)[1]
 
         d = dual(shape, basis)
         p = d.conjugate
         yield nt.assert_equal, p, primal(shape, basis)
-        yield ac, Z-p.proximal(Z), d.proximal(Z)
+        yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)
 
     #        yield ac, d.proximal_optimum(Z)[1], p.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2
 
@@ -61,28 +59,26 @@ def test_linear_term_proximal():
         d = p.conjugate
         print p, d
         yield nt.assert_equal, d, dual(shape, basis)
-        yield ac, p.proximal(Z), Z-d.proximal(Z)
+        yield ac, p.proximal(1, Z, 0), Z-d.proximal(1, Z, 0)
         ##yield ac, d.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2, p.proximal_optimum(Z)[1]
 
         d = dual(shape, basis, linear_term=W)
         p = d.conjugate
         yield nt.assert_equal, p, primal(shape, basis)
-        yield ac, p.proximal(Z), Z-d.proximal(Z)
+        yield ac, p.proximal(1, Z, 0), Z-d.proximal(1, Z, 0)
 
         ##        yield ac, d.proximal_optimum(Z)[1], p.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2
 
-        loss = rr.l2normsq.shift(-Z, coef=0.5)
-        problem = rr.composite(loss.smooth_objective, p.nonsmooth_objective,
-                               p.proximal, np.random.standard_normal(shape))
+        loss = rr.quadratic.shift(-Z, coef=0.5)
+        problem = rr.simple_problem(loss, p)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12)
 
         yield ac, p.proximal(Z), solver.composite.coefs
-        problem = rr.composite(loss.smooth_objective, d.nonsmooth_objective,
-                               d.proximal, np.random.standard_normal(shape))
+        problem = rr.simple_problem(loss, d)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12)
-        yield ac, d.proximal(Z), solver.composite.coefs
+        yield ac, d.proximal(1, Z, 0), solver.composite.coefs
 
 def test_offset_proximal():
     shape = 50
@@ -96,13 +92,13 @@ def test_offset_proximal():
         d = p.conjugate
         print p, d
         yield nt.assert_equal, d, dual(shape, basis)
-        yield ac, Z-p.proximal(Z), d.proximal(Z)
+        yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)
         #yield ac, d.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2, p.proximal_optimum(Z)[1]
 
         d = dual(shape, basis, offset=W)
         p = d.conjugate
         yield nt.assert_equal, p, primal(shape, basis)
-        yield ac, Z-p.proximal(Z), d.proximal(Z)
+        yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)
 #        yield ac, d.proximal_optimum(Z)[1], p.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2
 
 def test_offset_and_linear_term_proximal():
@@ -118,12 +114,12 @@ def test_offset_and_linear_term_proximal():
         d = p.conjugate
         print p, d
         yield nt.assert_equal, d, dual(shape, basis)
-        yield ac, Z-p.proximal(Z), d.proximal(Z)
+        yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)
         #yield ac, d.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2, p.proximal_optimum(Z)[1]
 
         d = dual(shape, basis, offset=W, linear_term=U)
         p = d.conjugate
         yield nt.assert_equal, p, primal(shape, basis)
-        yield ac, Z-p.proximal(Z), d.proximal(Z)
+        yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)
 #        yield ac, d.proximal_optimum(Z)[1], p.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2
 
