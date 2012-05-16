@@ -18,6 +18,7 @@ from quadratic import quadratic, cholesky
 from factored_matrix import (factored_matrix, compute_iterative_svd, soft_threshold_svd)
 
 from separable import separable, separable_problem
+from simple import simple_problem
 from container import container
 from algorithms import FISTA
 from admm import admm_problem

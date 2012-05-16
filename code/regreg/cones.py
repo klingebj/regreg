@@ -26,7 +26,8 @@ class cone(nonsmooth):
 
     def __init__(self, primal_shape, 
                  linear_term=None,
-                 constant_term=0., offset=None):
+                 constant_term=0., offset=None,
+                 initial=None):
 
         self.offset = None
         self.constant_term = constant_term
@@ -42,6 +43,11 @@ class cone(nonsmooth):
         else:
             self.primal_shape = primal_shape
         self.dual_shape = self.primal_shape
+
+        if initial is None:
+            self.coefs = np.zeros(self.primal_shape)
+        else:
+            self.coefs = initial.copy()
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -160,6 +166,8 @@ class cone(nonsmooth):
 
         if self.offset is None or np.all(np.equal(self.offset, 0)):
             offset = None
+        else:
+            offset = self.offset
 
         if offset is not None:
             totalq.offset = -offset

@@ -29,7 +29,8 @@ class linear_constraint(cone):
     #XXX should basis by a linear operator instead?
     def __init__(self, primal_shape, basis,
                  linear_term=None,
-                 constant_term=0., offset=None):
+                 constant_term=0., offset=None,
+                 initial=None):
 
         self.offset = None
         self.constant_term = constant_term
@@ -47,6 +48,11 @@ class linear_constraint(cone):
         self.dual_shape = self.primal_shape
         self.basis = np.asarray(basis)
         
+        if initial is None:
+            self.coefs = np.zeros(self.primal_shape)
+        else:
+            self.coefs = initial.copy()
+
     def __eq__(self, other):
         if self.__class__ == other.__class__:
             return (self.primal_shape == other.primal_shape

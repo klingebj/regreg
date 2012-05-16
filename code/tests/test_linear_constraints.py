@@ -74,7 +74,7 @@ def test_linear_term_proximal():
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12)
 
-        yield ac, p.proximal(Z), solver.composite.coefs
+        yield ac, p.proximal(1, Z, 0), solver.composite.coefs
         problem = rr.simple_problem(loss, d)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12)

@@ -12,9 +12,10 @@ from .composite import composite
 class simple_problem(composite):
     
     def __init__(self, smooth_atom, nonsmooth_atom):
-        self.smooth_atom
+        self.smooth_atom = smooth_atom
         self.nonsmooth_atom = nonsmooth_atom
-        
+        self.coefs = self.smooth_atom.coefs = self.nonsmooth_atom.coefs
+
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         return self.smooth_atom.smooth_objective(x, mode, check_feasibility)
 
@@ -30,4 +31,4 @@ class simple_problem(composite):
             proxq = identity_quadratic(lipschitz, x, grad)
             proxq = proxq + self.smooth_atom.quadratic
             lipschitz, x, grad = proxq.coef, -proxq.offset, proxq.linear
-        self.nonsmooth_atom.proximal(lipschitz, x, grad)
+        return self.nonsmooth_atom.proximal(lipschitz, x, grad)

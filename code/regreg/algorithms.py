@@ -99,6 +99,7 @@ class FISTA(algorithm):
 
         r = self.composite.coefs
         t_old = 1.
+
         beta = self.composite.coefs
         current_f = self.composite.smooth_objective(r,mode='func')
         current_obj = current_f + self.composite.nonsmooth_objective(self.composite.coefs, check_feasibility=True)
