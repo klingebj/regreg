@@ -154,11 +154,20 @@ def test_affine_sum():
 
     transform1 = rr.affine_transform(X1,b)
     transform2 = rr.linear_transform(X2)
-    sum_transform = rr.affine_sum(transform1, transform2)
+    sum_transform = rr.affine_sum([transform1, transform2])
 
-    assert_array_almost_equal(np.dot(X1,v) + np.dot(X2,v) + b, sum_transform.affine_map(v))
-    assert_array_almost_equal(np.dot(X1,v) + np.dot(X2,v), sum_transform.linear_map(v))
-    assert_array_almost_equal(np.dot(X1.T,b) + np.dot(X2.T,b), sum_transform.adjoint_map(b))
-    assert_array_almost_equal(b, sum_transform.offset_map(v))
-    assert_array_almost_equal(b, sum_transform.affine_offset)
+    yield assert_array_almost_equal, np.dot(X1,v) + np.dot(X2,v) + b, sum_transform.affine_map(v)
+    yield assert_array_almost_equal, np.dot(X1,v) + np.dot(X2,v), sum_transform.linear_map(v)
+    yield assert_array_almost_equal, np.dot(X1.T,b) + np.dot(X2.T,b), sum_transform.adjoint_map(b)
+    yield assert_array_almost_equal, b, sum_transform.offset_map(v)
+    yield assert_array_almost_equal, b, sum_transform.affine_offset
+
+
+    sum_transform = rr.affine_sum([transform1, transform2], weights=[3,4])
+
+    yield assert_array_almost_equal, 3*(np.dot(X1,v) + b) + 4*(np.dot(X2,v)), sum_transform.affine_map(v)
+    yield assert_array_almost_equal, 3*np.dot(X1,v) + 4*np.dot(X2,v), sum_transform.linear_map(v)
+    yield assert_array_almost_equal, 3*np.dot(X1.T,b) + 4*np.dot(X2.T,b), sum_transform.adjoint_map(b)
+    yield assert_array_almost_equal, 3*b, sum_transform.offset_map(v)
+    yield assert_array_almost_equal, 3*b, sum_transform.affine_offset
 
