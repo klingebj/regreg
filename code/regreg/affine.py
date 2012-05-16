@@ -327,7 +327,6 @@ class selector(linear_transform):
         self._output[self.index_obj] = self.affine_transform.adjoint_map(u)
         return self._output
 
-
 class normalize(object):
 
     '''
@@ -359,6 +358,8 @@ class normalize(object):
         inplace : bool
             If sensible, modify values in place. For a sparse matrix,
             this will raise an exception if True and center==True.
+
+        add_intercept : bool
 
         '''
         n, p = M.shape
