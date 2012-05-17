@@ -29,8 +29,8 @@ def test_simple():
     problem = rr.simple_problem.nonsmooth(p)
     simple_nonsmooth_gengrad = gengrad(problem, L, tol=1.0e-10)
 
-    np.testing.assert_allclose(prox_coef, simple_nonsmooth_gengrad)
-    np.testing.assert_allclose(prox_coef, simple_nonsmooth_coef)
-    np.testing.assert_allclose(prox_coef, simple_coef)
+    yield np.testing.assert_allclose, prox_coef, simple_nonsmooth_gengrad
+    yield np.testing.assert_allclose, prox_coef, simple_nonsmooth_coef
+    yield np.testing.assert_allclose, prox_coef, simple_coef
 
 
