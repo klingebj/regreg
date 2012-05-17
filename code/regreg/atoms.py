@@ -210,7 +210,6 @@ class atom(nonsmooth):
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
         return bound
 
-
     def nonsmooth_objective(self, x, check_feasibility=False):
         if self.offset is not None:
             x_offset = x + self.offset
@@ -223,7 +222,6 @@ class atom(nonsmooth):
                 v = 0
         else:
             v = self.seminorm(x_offset, check_feasibility=check_feasibility)
-
         v += self.quadratic.objective(x, 'func')
         return v
 
@@ -259,6 +257,8 @@ class atom(nonsmooth):
 
         if offset is not None:
             totalq.offset += offset
+            totalq = totalq.collapsed()
+        else:
             totalq = totalq.collapsed()
 
         if totalq.coef == 0:
@@ -382,7 +382,7 @@ class atom(nonsmooth):
 
     @classmethod
     def shift(cls, offset, lagrange=None, diag=False,
-               bound=None, quadratic=None):
+              bound=None, quadratic=None):
         atom = cls(offset.shape, lagrange=lagrange, bound=bound,
                    quadratic=quadratic, offset=offset)
         return atom
@@ -528,6 +528,7 @@ class l2norm(atom):
         else:
             return (bound / n) * x
     bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+
 
 class positive_part(atom):
 
@@ -829,9 +830,9 @@ class smooth_conjugate(smooth):
 
         self.atom = atom
         self.smoothing_quadratic = quadratic
-        self.total_quadratic = self.atom.quadratic + self.smoothing_quadratic
+        total_quadratic = self.atom.quadratic + self.smoothing_quadratic
 
-        if self.total_quadratic.coef in [0,None]:
+        if total_quadratic.coef in [0,None]:
             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
 
         self.primal_shape = atom.primal_shape
@@ -848,8 +849,10 @@ class smooth_conjugate(smooth):
         if mode == 'func', return only the function value
         """
 
-        q = self.total_quadratic + identity_quadratic(0,0,-x,0) 
-        prox_arg = x / q.coef
+        if self.smoothing_quadratic is not None:
+            q = self.smoothing_quadratic + identity_quadratic(0,0,-x,0) 
+        else:
+            q = identity_quadratic(0,0,-x,0)
 
         if mode == 'both':
             argmin, optimal_value = self.atom.proximal_optimum(q.coef, q.offset, q.linear_term)
