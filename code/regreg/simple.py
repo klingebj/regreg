@@ -25,7 +25,7 @@ class simple_problem(composite):
     def nonsmooth_objective(self, x, check_feasibility=False):
         vn = self.nonsmooth_atom.nonsmooth_objective(x, check_feasibility=check_feasibility)
         if self.smooth_atom.quadratic is not None:
-            vs = self.nonsmooth_atom.nonsmooth_objective(x, check_feasibility=check_feasibility)
+            vs = self.smooth_atom.nonsmooth_objective(x, check_feasibility=check_feasibility)
             return vn + vs
         return vn
 
