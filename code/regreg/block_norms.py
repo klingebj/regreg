@@ -24,25 +24,31 @@ class block_sum(atoms.atom):
                  lagrange=None,
                  bound=None,
                  offset=None,
-                 linear_term=None,
-                 constant_term=0.):
+                 quadratic=None,
+                 initial=None):
 
-        self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)
         else:
             self.offset = None
             
-        self.linear_term = None
-        if linear_term is not None:
-            self.linear_term = np.array(linear_term)
-
         self.primal_shape = primal_shape
         self.atom = atom_cls(primal_shape[1:], lagrange=lagrange,
                              bound=bound,
                              offset=None,
                              linear_term=None,
                              constant_term=0.)
+        if quadratic is not None:
+            self.set_quadratic(quadratic.coef, quadratic.offset,
+                               quadratic.linear_term, 
+                               quadratic.constant_term)
+        else:
+            self.set_quadratic(0,0,0,0)
+
+        if initial is None:
+            self.coefs = np.zeros(self.primal_shape)
+        else:
+            self.coefs = initial.copy()
 
     def seminorms(self, x, lagrange=None, check_feasibility=False):
         value = np.empty(self.primal_shape[0])
@@ -91,32 +97,35 @@ class block_sum(atoms.atom):
 
     @property
     def conjugate(self):
-        if not hasattr(self, "_conjugate"):
+
+        if self.quadratic.coef == 0:
             if self.offset is not None:
-                linear_term = -self.offset
+                if self.quadratic.linear_term is not None:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
+                else:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
             else:
-                linear_term = None
-            if self.linear_term is not None:
-                offset = -self.linear_term
+                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
+            if self.quadratic.linear_term is not None:
+                offset = -self.quadratic.linear_term
             else:
                 offset = None
 
+            cls = conjugate_seminorm_pairs[self.__class__]
             conj_atom = self.atom.conjugate
             atom_cls = conj_atom.__class__
             cls = conjugate_block_pairs[self.__class__]
+
             atom = cls(atom_cls, self.primal_shape, 
                        linear_term=linear_term,
                        offset=offset,
                        lagrange=conj_atom.lagrange,
                        bound=conj_atom.bound)
 
-            if offset is not None and linear_term is not None:
-                _constant_term = (linear_term * offset).sum()
-            else:
-                _constant_term = 0.
-            atom.constant_term = self.constant_term - _constant_term
-            self._conjugate = atom
-            self._conjugate._conjugate = self
+        else:
+            atom = atoms.smooth_conjugate(self)
+        self._conjugate = atom
+        self._conjugate._conjugate = self
         return self._conjugate
 
 
@@ -163,15 +172,15 @@ class linf_l2(block_max):
                  lagrange=None,
                  bound=None,
                  offset=None,
-                 linear_term=None,
-                 constant_term=0.):
+                 quadratic=None,
+                 initial=None):
         block_max.__init__(self, atoms.l2norm,
                            primal_shape,
                            lagrange=lagrange,
                            bound=bound,
                            offset=offset,
-                           linear_term=linear_term,
-                           constant_term=constant_term)
+                           quadratic=quadratic,
+                           initial=initial)
 
     def constraint(self, x):
         norm_max = np.sqrt((x**2).sum(1)).max()
@@ -195,33 +204,36 @@ class linf_l2(block_max):
 
     @property
     def conjugate(self):
-        if not hasattr(self, "_conjugate"):
+
+        if self.quadratic.coef == 0:
             if self.offset is not None:
-                linear_term = -self.offset
+                if self.quadratic.linear_term is not None:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
+                else:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
             else:
-                linear_term = None
-            if self.linear_term is not None:
-                offset = -self.linear_term
+                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
+            if self.quadratic.linear_term is not None:
+                offset = -self.quadratic.linear_term
             else:
                 offset = None
 
+            cls = conjugate_seminorm_pairs[self.__class__]
             conj_atom = self.atom.conjugate
-            atom_cls = conj_atom.__class__
-            cls = conjugate_block_pairs[self.__class__]
+
             atom = cls(self.primal_shape, 
                        linear_term=linear_term,
                        offset=offset,
                        lagrange=conj_atom.lagrange,
-                       bound=conj_atom.bound)
+                       bound=conj_atom.bound,
+                       quadratic=outq)
 
-            if offset is not None and linear_term is not None:
-                _constant_term = (linear_term * offset).sum()
-            else:
-                _constant_term = 0.
-            atom.constant_term = self.constant_term - _constant_term
-            self._conjugate = atom
-            self._conjugate._conjugate = self
+        else:
+            atom = atoms.smooth_conjugate(self)
+        self._conjugate = atom
+        self._conjugate._conjugate = self
         return self._conjugate
+
 
 class linf_linf(linf_l2):
     
@@ -233,15 +245,15 @@ class linf_linf(linf_l2):
                  lagrange=None,
                  bound=None,
                  offset=None,
-                 linear_term=None,
-                 constant_term=0.):
+                 quadratic=None,
+                 initial=None):
         block_max.__init__(self, atoms.l2norm,
                            primal_shape,
                            lagrange=lagrange,
                            bound=bound,
                            offset=offset,
-                           linear_term=linear_term,
-                           constant_term=constant_term)
+                           quadratic=quadratic,
+                           initial=initial)
 
     def constraint(self, x):
         norm_max = np.fabs(x).max()
@@ -273,15 +285,16 @@ class l1_l2(block_sum):
                  lagrange=None,
                  bound=None,
                  offset=None,
-                 linear_term=None,
-                 constant_term=0.):
+                 quadratic=None,
+                 initial=None):
         block_sum.__init__(self, atoms.l2norm,
                            primal_shape,
                            lagrange=lagrange,
                            bound=bound,
                            offset=offset,
-                           linear_term=linear_term,
-                           constant_term=constant_term)
+                           quadratic=quadratic,
+                           initial=initial)
+
 
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         lagrange = atoms.atom.lagrange_prox(self, x, lipschitz, lagrange)
@@ -291,32 +304,34 @@ class l1_l2(block_sum):
 
     @property
     def conjugate(self):
-        if not hasattr(self, "_conjugate"):
+
+        if self.quadratic.coef == 0:
             if self.offset is not None:
-                linear_term = -self.offset
+                if self.quadratic.linear_term is not None:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
+                else:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
             else:
-                linear_term = None
-            if self.linear_term is not None:
-                offset = -self.linear_term
+                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
+            if self.quadratic.linear_term is not None:
+                offset = -self.quadratic.linear_term
             else:
                 offset = None
 
+            cls = conjugate_seminorm_pairs[self.__class__]
             conj_atom = self.atom.conjugate
-            atom_cls = conj_atom.__class__
-            cls = conjugate_block_pairs[self.__class__]
+
             atom = cls(self.primal_shape, 
                        linear_term=linear_term,
                        offset=offset,
                        lagrange=conj_atom.lagrange,
-                       bound=conj_atom.bound)
+                       bound=conj_atom.bound,
+                       quadratic=outq)
 
-            if offset is not None and linear_term is not None:
-                _constant_term = (linear_term * offset).sum()
-            else:
-                _constant_term = 0.
-            atom.constant_term = self.constant_term - _constant_term
-            self._conjugate = atom
-            self._conjugate._conjugate = self
+        else:
+            atom = atoms.smooth_conjugate(self)
+        self._conjugate = atom
+        self._conjugate._conjugate = self
         return self._conjugate
 
     def constraint(self, x):
@@ -341,15 +356,15 @@ class l1_l1(l1_l2):
                  lagrange=None,
                  bound=None,
                  offset=None,
-                 linear_term=None,
-                 constant_term=0.):
+                 quadratic=None,
+                 initial=None):
         block_sum.__init__(self, atoms.l2norm,
                            primal_shape,
                            lagrange=lagrange,
                            bound=bound,
                            offset=offset,
-                           linear_term=linear_term,
-                           constant_term=constant_term)
+                           quadratic=quadratic,
+                           initial=initial)
 
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         lagrange = atoms.atom.lagrange_prox(self, x, lipschitz, lagrange)

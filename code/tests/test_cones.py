@@ -50,15 +50,16 @@ def test_linear_term_proximal():
 
     Z = np.random.standard_normal(shape)
     W = 0.02 * np.random.standard_normal(shape)
+    linq = rr.identity_quadratic(0,0,W,0)
     for primal, dual in C.conjugate_cone_pairs.items():
-        p = primal(shape, linear_term=W)
+        p = primal(shape, quadratic=linq)
         d = p.conjugate
         print p, d
         yield nt.assert_equal, d, dual(shape)
         yield ac, p.proximal(1, Z, 0), Z-d.proximal(1, Z, 0)
         ##yield ac, d.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2, p.proximal_optimum(Z)[1]
 
-        d = dual(shape, linear_term=W)
+        d = dual(shape, quadratic=linq)
         p = d.conjugate
         yield nt.assert_equal, p, primal(shape)
         yield ac, p.proximal(1, Z, 0), Z-d.proximal(1, Z, 0)
@@ -102,15 +103,16 @@ def test_offset_and_linear_term_proximal():
     Z = np.random.standard_normal(shape)
     W = 0.02 * np.random.standard_normal(shape)
     U = 0.02 * np.random.standard_normal(shape)
+    linq = rr.identity_quadratic(0,0,U,0)
     for primal, dual in C.conjugate_cone_pairs.items():
-        p = primal(shape, offset=W, linear_term=U)
+        p = primal(shape, offset=W, quadratic=linq)
         d = p.conjugate
         print p, d
         yield nt.assert_equal, d, dual(shape)
         yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)
         #yield ac, d.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2, p.proximal_optimum(Z)[1]
 
-        d = dual(shape, offset=W, linear_term=U)
+        d = dual(shape, offset=W, quadratic=linq)
         p = d.conjugate
         yield nt.assert_equal, p, primal(shape)
         yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)

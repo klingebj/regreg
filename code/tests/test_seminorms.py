@@ -65,9 +65,11 @@ def test_linear_term_proximal():
 
     Z = np.random.standard_normal(shape)
     W = 0.02 * np.random.standard_normal(shape)
+    linq = rr.identity_quadratic(0,0,W,0)
+
     for primal, dual in A.conjugate_seminorm_pairs.items():
         for L in [0.5,1]:
-            p = primal(shape, lagrange=lagrange, linear_term=W)
+            p = primal(shape, lagrange=lagrange, quadratic=linq)
             d = p.conjugate
             print p, d
             yield nt.assert_equal, d, dual(shape, bound=lagrange)
@@ -75,7 +77,7 @@ def test_linear_term_proximal():
             yield ac, p.lagrange_prox(Z,lipschitz=L), Z-d.bound_prox(Z,bound=p.lagrange/L, lipschitz=1)
             ##yield ac, d.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2, p.proximal_optimum(Z)[1]
 
-            d = dual(shape, bound=bound, linear_term=W)
+            d = dual(shape, bound=bound, quadratic=linq)
             p = d.conjugate
             yield nt.assert_equal, p, primal(shape, lagrange=bound)
             yield ac, p.proximal(L, Z, 0), Z-d.proximal(L, Z, 0)
@@ -124,15 +126,16 @@ def test_offset_and_linear_term_proximal():
     Z = np.random.standard_normal(shape)
     W = 0.02 * np.random.standard_normal(shape)
     U = 0.02 * np.random.standard_normal(shape)
+    linq = rr.identity_quadratic(0,0,U,0)
     for primal, dual in A.conjugate_seminorm_pairs.items():
-        p = primal(shape, lagrange=lagrange, offset=W, linear_term=U)
+        p = primal(shape, lagrange=lagrange, offset=W, quadratic=linq)
         d = p.conjugate
         print p, d
         yield nt.assert_equal, d, dual(shape, bound=lagrange)
         yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)
         #yield ac, d.proximal_optimum(Z)[1] + np.linalg.norm(Z)**2/2, p.proximal_optimum(Z)[1]
 
-        d = dual(shape, bound=bound, offset=W, linear_term=U)
+        d = dual(shape, bound=bound, offset=W, quadratic=linq)
         p = d.conjugate
         yield nt.assert_equal, p, primal(shape, lagrange=bound)
         yield ac, Z-p.proximal(1, Z, 0), d.proximal(1, Z, 0)

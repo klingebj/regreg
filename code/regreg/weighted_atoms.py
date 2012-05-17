@@ -5,7 +5,7 @@ from affine import (linear_transform, identity as identity_transform,
                     affine_transform, selector)
 from copy import copy
 import warnings
-from atoms import atom as unweighted_atom
+from atoms import atom as unweighted_atom, smooth_conjugate
 
 try:
     from projl1_cython import projl1
@@ -21,14 +21,15 @@ class atom(unweighted_atom):
     tol = 1.0e-05
 
     def __init__(self, primal_shape, weights, lagrange=None, bound=None, 
-                 linear_term=None,
-                 constant_term=0., offset=None):
+                 offset=None, 
+                 quadratic=None,
+                 initial=None):
 
         unweighted_atom.__init__(self, primal_shape,
                                  lagrange=lagrange,
                                  bound=bound,
-                                 linear_term=linear_term,
-                                 constant_term=constant_term,
+                                 quadratic=quadratic,
+                                 initial=initial,
                                  offset=offset)
 
         self.weights = np.asarray(weights)
@@ -46,68 +47,83 @@ class atom(unweighted_atom):
     def __copy__(self):
         return self.__class__(copy(self.primal_shape),
                               self.weights.copy(),
-                              linear_term=copy(self.linear_term),
-                              constant_term=copy(self.constant_term),
+                              quadratic=self.quadratic,
+                              initial=self.coefs,
                               bound=copy(self.bound),
                               lagrange=copy(self.lagrange),
                               offset=copy(self.offset))
     
     def __repr__(self):
         if self.lagrange is not None:
-            return "%s(%s, %s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
-                (self.__class__.__name__,
-                 `self.primal_shape`, 
-                 str(self.weights),
-                 self.lagrange,
-                 str(self.linear_term),
-                 str(self.offset),
-                 self.constant_term)
-
-        else:
-            return "%s(%s, %s, bound=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
-                (self.__class__.__name__,
-                 `self.primal_shape`,
-                 str(self.weights),
-                 self.bound,
-                 str(self.linear_term),
-                 str(self.offset),
-                 self.constant_term)
-    
-    def get_conjugate(self):
-        if not hasattr(self, "_conjugate"):
-            inv_weights = 1./self.weights
-            if self.offset is not None:
-                linear_term = -self.offset
+            if self.quadratic is None or not self.quadratic.anything_to_return:
+                return "%s(%s, %s, lagrange=%f, offset=%s)" % \
+                    (self.__class__.__name__,
+                     `self.primal_shape`, 
+                     str(self.weights),
+                     self.lagrange,
+                     str(self.offset))
             else:
-                linear_term = None
-            if self.linear_term is not None:
-                offset = -self.linear_term
+                return "%s(%s, %s, lagrange=%f, offset=%s, quadratic=%s)" % \
+                    (self.__class__.__name__,
+                     `self.primal_shape`, 
+                     str(self.weights),
+                     self.lagrange,
+                     str(self.offset),
+                     self.quadratic)
+        else:
+            if self.quadratic is None or not self.quadratic.anything_to_return:
+                return "%s(%s, %s, bound=%f, offset=%s)" % \
+                    (self.__class__.__name__,
+                     `self.primal_shape`,
+                     str(self.weights),
+                     self.bound,
+                     str(self.offset))
+            else:
+                return "%s(%s, %s, bound=%f, offset=%s, quadratic=%s)" % \
+                    (self.__class__.__name__,
+                     `self.primal_shape`,
+                     str(self.weights),
+                     self.bound,
+                     str(self.offset),
+                     self.quadratic)
+
+    def get_conjugate(self):
+        if self.quadratic.coef == 0:
+            inv_weights = 1./self.weights
+
+            if self.offset is not None:
+                if self.quadratic.linear_term is not None:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
+                else:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
+            else:
+                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
+            if self.quadratic.linear_term is not None:
+                offset = -self.quadratic.linear_term
             else:
                 offset = None
+
             if self.bound is None:
                 cls = conjugate_seminorm_pairs[self.__class__]
                 atom = cls(self.primal_shape, 
                            inv_weights, 
                            bound=self.lagrange, 
                            lagrange=None,
-                           linear_term=linear_term,
-                           offset=offset)
+                           offset=offset,
+                           quadratic=outq)
             else:
                 cls = conjugate_seminorm_pairs[self.__class__]
                 atom = cls(self.primal_shape,
                            inv_weights,
                            lagrange=self.bound, 
                            bound=None,
-                           linear_term=linear_term,
-                           offset=offset)
+                           offset=offset,
+                           quadratic=outq)
+        else:
+            atom = smooth_conjugate(self)
 
-            if offset is not None and linear_term is not None:
-                _constant_term = (linear_term * offset).sum()
-            else:
-                _constant_term = 0.
-            atom.constant_term = self.constant_term - _constant_term
-            self._conjugate = atom
-            self._conjugate._conjugate = self
+        self._conjugate = atom
+        self._conjugate._conjugate = self
         return self._conjugate
     conjugate = property(get_conjugate)
     

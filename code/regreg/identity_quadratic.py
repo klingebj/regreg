@@ -62,6 +62,11 @@ class identity_quadratic(object):
         return 'identity_quadratic(%f, %s, %s, %f)' % (self.coef, str(self.offset), str(self.linear_term), self.constant_term)
 
     def __add__(self, other):
+        """
+        Return an identity quadratic given by the sum in the obvious way. it has offset of 0,
+        would be nice to have None, but there are some 
+        places we are still multiplying by -1
+        """
         if not (other is None or isinstance(other, identity_quadratic)):
             raise ValueError('can only add None or other identity_quadratic')
 
@@ -71,15 +76,16 @@ class identity_quadratic(object):
         else:
             sc = self.collapsed()
             oc = other.collapsed()
-            newq = identity_quadratic(sc.coef + oc.coef, None, 
+            newq = identity_quadratic(sc.coef + oc.coef, 0, 
                                       sc.linear_term + oc.linear_term,
                                       sc.constant_term + oc.constant_term)
             return newq 
 
     def collapsed(self):
         """
-        Return an identity quadratic with a coefficient of 0
-        and no offset.
+        Return an identity quadratic with offset of 0,
+        would be nice to have None, but there are some 
+        places we are still multiplying by -1
         """
 
         if self.coef is None:
@@ -97,4 +103,4 @@ class identity_quadratic(object):
         if self.linear_term is not None:
             linear_term += self.linear_term
 
-        return identity_quadratic(coef, None, linear_term, constant_term)
+        return identity_quadratic(coef, 0, linear_term, constant_term)

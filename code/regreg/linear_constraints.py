@@ -1,10 +1,11 @@
 import numpy as np
 from scipy import sparse
-from composite import composite, nonsmooth
-from cones import cone, affine_cone
 from copy import copy
 import warnings
 
+from .composite import composite, nonsmooth
+from .cones import cone, affine_cone
+from .identity_quadratic import identity_quadratic
 
 try:
     from projl1_cython import projl1
@@ -28,18 +29,13 @@ class linear_constraint(cone):
 
     #XXX should basis by a linear operator instead?
     def __init__(self, primal_shape, basis,
-                 linear_term=None,
-                 constant_term=0., offset=None,
-                 initial=None):
+                 offset=None,
+                 initial=None, 
+                 quadratic=None):
 
         self.offset = None
-        self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)
-
-        self.linear_term = None
-        if linear_term is not None:
-            self.linear_term = np.array(linear_term)
 
         if type(primal_shape) == type(1):
             self.primal_shape = (primal_shape,)
@@ -53,6 +49,13 @@ class linear_constraint(cone):
         else:
             self.coefs = initial.copy()
 
+        if quadratic is not None:
+            self.set_quadratic(quadratic.coef, quadratic.offset,
+                               quadratic.linear_term, 
+                               quadratic.constant_term)
+        else:
+            self.set_quadratic(0,0,0,0)
+
     def __eq__(self, other):
         if self.__class__ == other.__class__:
             return (self.primal_shape == other.primal_shape
@@ -62,46 +65,48 @@ class linear_constraint(cone):
     def __copy__(self):
         return self.__class__(copy(self.primal_shape),
                               self.basis.copy(),
-                              linear_term=copy(self.linear_term),
-                              constant_term=copy(self.constant_term),
-                              offset=copy(self.offset))
+                              offset=copy(self.offset),
+                              quadratic=self.quadratic)
     
     def __repr__(self):
-        return "%s(%s, %s, linear_term=%s, offset=%s, constant_term=%f)" % \
-            (self.__class__.__name__,
-             `self.basis`,
-             `self.primal_shape`, 
-             str(self.linear_term),
-             str(self.offset),
-             self.constant_term)
+        if self.quadratic is None or not self.quadratic.anything_to_return:
+            return "%s(%s, %s, offset=%s)" % \
+                (self.__class__.__name__,
+                 `self.basis`,
+                 `self.primal_shape`, 
+                 str(self.offset))
+        else:
+            return "%s(%s, %s, offset=%s, quadratic=%s)" % \
+                (self.__class__.__name__,
+                 `self.basis`,
+                 `self.primal_shape`, 
+                 str(self.offset),
+                 self.quadratic)
 
     @property
     def conjugate(self):
-        if not hasattr(self, "_conjugate"):
+        if self.quadratic.coef == 0:
             if self.offset is not None:
-                linear_term = -self.offset
+                if self.quadratic.linear_term is not None:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
+                else:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
             else:
-                linear_term = None
-            if self.linear_term is not None:
-                offset = -self.linear_term
+                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
+            if self.quadratic.linear_term is not None:
+                offset = -self.quadratic.linear_term
             else:
                 offset = None
 
             cls = conjugate_cone_pairs[self.__class__]
-            atom = cls(self.primal_shape,
-                       self.basis, 
-                       linear_term=linear_term,
-                       offset=offset)
-
-            if offset is not None and linear_term is not None:
-                _constant_term = (linear_term * offset).sum()
-            else:
-                _constant_term = 0.
-            atom.constant_term = self.constant_term - _constant_term
-            self._conjugate = atom
-            self._conjugate._conjugate = self
+            atom = cls(self.primal_shape, 
+                       offset=offset,
+                       quadratic=outq)
+        else:
+            atom = smooth_conjugate(self)
+        self._conjugate = atom
+        self._conjugate._conjugate = self
         return self._conjugate
-
 
     @classmethod
     def linear(cls, linear_operator, basis, diag=False,

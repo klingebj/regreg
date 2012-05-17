@@ -14,12 +14,13 @@ def test_conjugate():
     for atom_c in [R.l1norm, R.l2norm, 
                    R.positive_part, R.supnorm,
                    R.constrained_positive_part]:
-        atom = atom_c(10, linear_term=w, offset=y, lagrange=2.345)
+        linq = R.identity_quadratic(0,0,w,0)
+        atom = atom_c(10, quadratic=linq, offset=y, lagrange=2.345)
         np.testing.assert_almost_equal(atom.conjugate.conjugate.nonsmooth_objective(z), atom.nonsmooth_objective(z), decimal=3)
 
     for atom_c in [R.nonnegative,
                    R.nonpositive]:
-        atom = atom_c(10, linear_term=w, offset=y)
+        atom = atom_c(10, quadratic=linq, offset=y)
         np.testing.assert_almost_equal(atom.conjugate.conjugate.nonsmooth_objective(z), atom.nonsmooth_objective(z), decimal=3)
 
 def fused_example():

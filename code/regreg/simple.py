@@ -3,11 +3,12 @@ This module has a class for specifying a problem from just
 a smooth function and a single penalty.
 
 """
-from affine import identity
-from atoms import atom
 import numpy as np
 
 from .composite import composite
+from .affine import identity
+from .atoms import atom
+from .identity_quadratic import identity_quadratic
 
 class simple_problem(composite):
     

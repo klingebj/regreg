@@ -3,12 +3,10 @@ import numpy as np
 from copy import copy
 
 from algorithms import FISTA
-from smooth import linear
 from quadratic import quadratic
 from composite import composite
 from container import container
 
-from .atoms import collapse_linear_terms
 from .identity_quadratic import identity_quadratic
 
 class conjugate(composite):

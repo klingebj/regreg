@@ -83,10 +83,9 @@ class composite(object):
         self._quadratic = identity_quadratic(coef, offset, linear_term, constant_term)
 
     def get_quadratic(self):
-        if hasattr(self, "_quadratic") and self._quadratic.anything_to_return:
-            return self._quadratic
-        else:
-            return None
+        if not hasattr(self, "_quadratic"):
+            self._quadratic = identity_quadratic(None,None,None,None)
+        return self._quadratic
     quadratic = property(get_quadratic)
 
     def get_lipschitz(self):

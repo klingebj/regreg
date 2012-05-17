@@ -21,19 +21,12 @@ class atom(nonsmooth):
     """
     tol = 1.0e-05
 
-    def __init__(self, primal_shape, lagrange=None, bound=None, 
-                 linear_term=None,
-                 constant_term=0., offset=None,
-                 quadratic=None, initial=None):
+    def __init__(self, primal_shape, lagrange=None, bound=None,
+                 offset=None, quadratic=None, initial=None):
 
         self.offset = offset
-        self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)
-
-        self.linear_term = None
-        if linear_term is not None:
-            self.linear_term = np.array(linear_term)
 
         if type(primal_shape) == type(1):
             self.primal_shape = (primal_shape,)
@@ -61,6 +54,8 @@ class atom(nonsmooth):
             self.set_quadratic(quadratic.coef, quadratic.offset,
                                quadratic.linear_term, 
                                quadratic.constant_term)
+        else:
+            self.set_quadratic(0,0,0,0)
 
         if initial is None:
             self.coefs = np.zeros(self.primal_shape)
@@ -75,88 +70,73 @@ class atom(nonsmooth):
         return False
 
     def __copy__(self):
-        new_atom = self.__class__(copy(self.primal_shape),
-                                  linear_term=copy(self.linear_term),
-                                  constant_term=copy(self.constant_term),
-                                  bound=copy(self.bound),
-                                  lagrange=copy(self.lagrange),
-                                  offset=copy(self.offset))
-        q = self.quadratic
-        if q is not None:
-            new_atom.set_quadratic(q.coef, q.offset, q.linear_term, q.constant_term)
-        return new_atom
+        return self.__class__(copy(self.primal_shape),
+                              bound=copy(self.bound),
+                              lagrange=copy(self.lagrange),
+                              offset=copy(self.offset),
+                              quadratic=copy(self.quadratic))
 
     def __repr__(self):
         if self.lagrange is not None:
             if self.quadratic is None or not self.quadratic.anything_to_return:
-                return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
+                return "%s(%s, lagrange=%f, offset=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
                      self.lagrange,
-                     str(self.linear_term),
-                     str(self.offset),
-                     self.constant_term)
+                     str(self.offset))
             else:
-                return "%s(%s, lagrange=%f, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
+                return "%s(%s, lagrange=%f, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
                      self.lagrange,
-                     str(self.linear_term),
                      str(self.offset),
-                     self.constant_term,
                      str(self.quadratic))
 
         else:
             if self.quadratic is None or not self.quadratic.anything_to_return:
-                return "%s(%s, bound=%f, linear_term=%s, offset=%s, constant_term=%f)" % \
+                return "%s(%s, bound=%f, offset=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
                      self.bound,
-                     str(self.linear_term),
-                     str(self.offset),
-                     self.constant_term)
+                     str(self.offset))
 
             else:
-                return "%s(%s, bound=%f, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
+                return "%s(%s, bound=%f, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
                      self.bound,
-                     str(self.linear_term),
                      str(self.offset),
-                     self.constant_term,
                      str(self.quadratic))
     
     def get_conjugate(self):
-
-        if self.quadratic is None:
+        if self.quadratic.coef == 0:
             if self.offset is not None:
-                linear_term = -self.offset
+                if self.quadratic.linear_term is not None:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
+                else:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
             else:
-                linear_term = None
-            if self.linear_term is not None:
-                offset = -self.linear_term
+                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
+            if self.quadratic.linear_term is not None:
+                offset = -self.quadratic.linear_term
             else:
                 offset = None
+
             if self.bound is None:
                 cls = conjugate_seminorm_pairs[self.__class__]
                 atom = cls(self.primal_shape, 
                            bound=self.lagrange, 
                            lagrange=None,
-                           linear_term=linear_term,
+                           quadratic=outq,
                            offset=offset)
             else:
                 cls = conjugate_seminorm_pairs[self.__class__]
                 atom = cls(self.primal_shape, 
                            lagrange=self.bound, 
                            bound=None,
-                           linear_term=linear_term,
+                           quadratic=outq,
                            offset=offset)
 
-            if offset is not None and linear_term is not None:
-                _constant_term = (linear_term * offset).sum()
-            else:
-                _constant_term = 0.
-            atom.constant_term = self.constant_term - _constant_term
         else:
             atom = smooth_conjugate(self)
         self._conjugate = atom
@@ -243,12 +223,8 @@ class atom(nonsmooth):
                 v = 0
         else:
             v = self.seminorm(x_offset, check_feasibility=check_feasibility)
-        if self.linear_term is None:
-            v += self.constant_term
-        else:
-            v += (self.linear_term * x).sum() + self.constant_term
-        if self.quadratic is not None:
-            v += self.quadratic.objective(x, 'func')
+
+        v += self.quadratic.objective(x, 'func')
         return v
 
     def proximal(self, lipschitz, x, grad):
@@ -274,14 +250,7 @@ class atom(nonsmooth):
         """
 
         proxq = identity_quadratic(lipschitz, -x, grad)
-        if self.linear_term is not None:
-            linearq = identity_quadratic(0, 0, self.linear_term, 0)
-            proxq = proxq + linearq
-
-        if self.quadratic is not None:
-            totalq = self.quadratic + proxq
-        else:
-            totalq = proxq.collapsed()
+        totalq = self.quadratic + proxq
 
         if self.offset is None or np.all(np.equal(self.offset, 0)):
             offset = None
@@ -386,7 +355,7 @@ class atom(nonsmooth):
 
     @classmethod
     def affine(cls, linear_operator, offset, lagrange=None, diag=False,
-               bound=None, linear_term=None):
+               bound=None, quadratic=None):
         """
         This is the same as the linear class method but with offset as a positional argument
         """
@@ -395,27 +364,27 @@ class atom(nonsmooth):
         else:
             l = linear_operator
         atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
-                   linear_term=linear_term, offset=offset)
+                   offset=offset,
+                   quadratic=quadratic)
         return affine_atom(atom, l)
-
 
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
-               bound=None, linear_term=None, offset=None):
+               bound=None, quadratic=None, offset=None):
         if not isinstance(linear_operator, affine_transform):
             l = linear_transform(linear_operator, diag=diag)
         else:
             l = linear_operator
         atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
-                   linear_term=linear_term, offset=offset)
+                   quadratic=quadratic, offset=offset)
         return affine_atom(atom, l)
 
 
     @classmethod
     def shift(cls, offset, lagrange=None, diag=False,
-               bound=None, linear_term=None):
+               bound=None, quadratic=None):
         atom = cls(offset.shape, lagrange=lagrange, bound=bound,
-                   linear_term=linear_term, offset=offset)
+                   quadratic=quadratic, offset=offset)
         return atom
 
     def smoothed(self, smoothing_quadratic):
@@ -851,33 +820,20 @@ class smooth_conjugate(smooth):
         an identity_quadratic which will be 
         a smooth version of the conjugate of the atom.
 
+        should we have an argument "collapse" that makes a copy?
+
         """
         # this holds a pointer to the original atom,
         # but will be replaced later
         self._conjugate = atom
 
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef,
-                               quadratic.offset,
-                               quadratic.linear_term,
-                               quadratic.constant_term)
+        self.atom = atom
+        self.smoothing_quadratic = quadratic
+        self.total_quadratic = self.atom.quadratic + self.smoothing_quadratic
 
-        # this ensures that the atom has
-        # quadratic_spec (coef, None, None, 0)
-        # and makes a copy of the atom
-        self.atom = collapse_linear_terms(atom)
-
-        totalq = self.atom.quadratic + self.quadratic  
-
-        if totalq.coef in [0,None]:
+        if self.total_quadratic.coef in [0,None]:
             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
-        if self.atom.linear_term is not None:
-            if totalq.linear_term is not None:
-                self.atom.linear_term += totalq.linear_term
-        elif not np.all(totalq.linear_term == 0):
-            self.atom.linear_term = totalq.linear_term
-        self.set_quadratic(totalq.coef, None, None, 0)
-        self.atom.set_quadratic(None, None, None, 0)
+
         self.primal_shape = atom.primal_shape
 
     def __repr__(self):
@@ -892,23 +848,23 @@ class smooth_conjugate(smooth):
         if mode == 'func', return only the function value
         """
 
-        q = self.quadratic
+        q = self.total_quadratic + identity_quadratic(0,0,-x,0) 
         prox_arg = x / q.coef
 
         if mode == 'both':
-            argmin, optimal_value = self.atom.proximal_optimum(q.coef, prox_arg, 0)
-            objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
+            argmin, optimal_value = self.atom.proximal_optimum(q.coef, q.offset, q.linear_term)
+            objective = -optimal_value
             # retain a reference
             self.argmin = argmin
             return objective, argmin
         elif mode == 'grad':
-            argmin = self.atom.proximal(q.coef, prox_arg, 0)
+            argmin = self.atom.proximal(q.coef, q.offset, q.linear_term)
             # retain a reference
             self.argmin = argmin
             return argmin
         elif mode == 'func':
-            argmin, optimal_value = self.atom.proximal_optimum(q.coef, prox_arg, 0)
-            objective = q.coef / 2. * np.linalg.norm(prox_arg)**2 - optimal_value
+            argmin, optimal_value = self.atom.proximal_optimum(q.coef, q.offset, q.linear_term)
+            objective = -optimal_value
             # retain a reference
             self.argmin = argmin
             return objective
@@ -929,18 +885,3 @@ for n1, n2 in [(l1norm,supnorm),
     conjugate_seminorm_pairs[n1] = n2
     conjugate_seminorm_pairs[n2] = n1
 
-def collapse_linear_terms(atom):
-    # check the constant term is handled correctly
-    atom_copy = copy(atom)
-    q = atom.quadratic
-    aq = identity_quadratic(None, None, atom.linear_term, atom.constant_term)
-    tq = aq + q
-    if not np.all(np.equal(atom_copy.linear_term,0)):
-        atom_copy.linear_term = tq.linear_term
-    tq.linear_term = None
-    atom_copy.constant_term = tq.constant_term
-    if q is not None:
-        atom_copy.set_quadratic(q.coef, None, None, 0)
-    else:
-        atom_copy.set_quadratic(0, None, None, 0)
-    return atom_copy

@@ -9,12 +9,9 @@ class quadratic(smooth_atom):
     """
 
     def __init__(self, primal_shape, coef=1., Q=None, Qdiag=False,
-                 constant_term=0,
                  offset=None,
-                 linear_term=None):
+                 quadratic=None):
         self.offset = offset
-        self.linear_term = linear_term
-        self.constant_term = constant_term
         self.Q = Q
         if self.Q is not None:
             self.Q_transform = affine_transform(Q, None, Qdiag)
@@ -23,6 +20,13 @@ class quadratic(smooth_atom):
         else:
             self.primal_shape = primal_shape
         self.coef = coef
+
+        if quadratic is not None:
+            self.set_quadratic(quadratic.coef, quadratic.offset,
+                               quadratic.linear_term, 
+                               quadratic.constant_term)
+        else:
+            self.set_quadratic(0,0,0,0)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -36,42 +40,52 @@ class quadratic(smooth_atom):
         x = self.apply_offset(x)
         if self.Q is None:
             if mode == 'both':
-                f, g  = self.scale(np.linalg.norm(x)**2) + self.constant_term, self.scale(2 * x)
+                f, g  = self.scale(np.linalg.norm(x)**2), self.scale(2 * x)
+                return f, g
             elif mode == 'grad':
                 f, g = None, self.scale(2 * x)
+                return g
             elif mode == 'func':
-                f, g = self.scale(np.linalg.norm(x)**2) + self.constant_term, None
+                f, g = self.scale(np.linalg.norm(x)**2), None
+                return f
             else:
                 raise ValueError("mode incorrectly specified")
         else:
             if mode == 'both':
-                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant_term, self.scale(2 * self.Q_transform.linear_map(x))
+                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))), self.scale(2 * self.Q_transform.linear_map(x))
+                return f, g
             elif mode == 'grad':
                 f, g = None, self.scale(2 * self.Q_transform.linear_map(x))
+                return g
             elif mode == 'func':
-                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))) + self.constant_term, None
+                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))), None
+                return f
             else:
                 raise ValueError("mode incorrectly specified")
-        return self.apply_linear_term(f, g, x, mode)
+
 
     def get_conjugate(self, epsilon=0, factor=False):
+
         if self.offset is not None:
-            linear_term = -self.offset
+            if self.quadratic.linear_term is not None:
+                outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
+            else:
+                outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
         else:
-            linear_term = None
-        if self.linear_term is not None:
-            offset = -self.linear_term
+            outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
+        if self.quadratic.linear_term is not None:
+            offset = -self.quadratic.linear_term
         else:
             offset = None
 
         if self.Q is None:
             return quadratic(self.primal_shape, offset=offset,
-                             linear_term=linear_term, coef=0.25/(self.coef+epsilon))
+                             quadratic=outq, coef=0.25/(self.coef+epsilon))
         elif self.Q_transform.diagD:
             return quadratic(self.primal_shape,
                              Q=1./(self.Q_transform.linear_operator + epsilon),
                              offset=offset,
-                             linear_term=linear_term,
+                             quadratic=outq, 
                              coef=0.25/self.coef,
                              Qdiag=True)
         elif factor:
@@ -80,7 +94,7 @@ class quadratic(smooth_atom):
                                         epsilon*np.identity(self.primal_shape[0])),
                              Qdiag=False,
                              offset=offset,
-                             linear_term=linear_term,
+                             quadratic=outq,
                              coef=.25/self.coef)
         else:
             raise ValueError('factor is False, so no factorization was done')

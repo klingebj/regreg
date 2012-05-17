@@ -113,7 +113,8 @@ def test_nonnegative_positive_part(debug=False):
     # nonnegative
     weights = np.ones(P) * lagrange
     weights[-5:] = 0
-    penalty = rr.nonnegative(P, linear_term=weights)
+    linq = rr.identity_quadratic(0,0,weights,0)
+    penalty = rr.nonnegative(P, quadratic=linq)
 
     # Solution
 

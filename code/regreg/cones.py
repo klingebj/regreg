@@ -24,19 +24,14 @@ class cone(nonsmooth):
     """
     tol = 1.0e-05
 
-    def __init__(self, primal_shape, 
-                 linear_term=None,
-                 constant_term=0., offset=None,
-                 initial=None):
+    def __init__(self, primal_shape,
+                 offset=None,
+                 initial=None,
+                 quadratic=None):
 
         self.offset = None
-        self.constant_term = constant_term
         if offset is not None:
             self.offset = np.array(offset)
-
-        self.linear_term = None
-        if linear_term is not None:
-            self.linear_term = np.array(linear_term)
 
         if type(primal_shape) == type(1):
             self.primal_shape = (primal_shape,)
@@ -49,6 +44,13 @@ class cone(nonsmooth):
         else:
             self.coefs = initial.copy()
 
+        if quadratic is not None:
+            self.set_quadratic(quadratic.coef, quadratic.offset,
+                               quadratic.linear_term, 
+                               quadratic.constant_term)
+        else:
+            self.set_quadratic(0,0,0,0)
+
     def __eq__(self, other):
         if self.__class__ == other.__class__:
             return self.primal_shape == other.primal_shape
@@ -56,49 +58,42 @@ class cone(nonsmooth):
 
     def __copy__(self):
         return self.__class__(copy(self.primal_shape),
-                              linear_term=copy(self.linear_term),
-                              constant_term=copy(self.constant_term),
-                              offset=copy(self.offset))
+                              offset=copy(self.offset),
+                              initial=self.coefs,
+                              quadratic=self.quadratic)
     
     def __repr__(self):
-        if self.quadratic is None:
-            return "%s(%s, linear_term=%s, offset=%s, constant_term=%f)" % \
+        if self.quadratic is None or not self.quadratic.anything_to_return:
+            return "%s(%s, offset=%s)" % \
                 (self.__class__.__name__,
                  `self.primal_shape`, 
-                 str(self.linear_term),
-                 str(self.offset),
-                 self.constant_term)
+                 str(self.offset))
         else:
-            return "%s(%s, linear_term=%s, offset=%s, constant_term=%f, quadratic=%s)" % \
+            return "%s(%s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
                  `self.primal_shape`, 
-                 str(self.linear_term),
                  str(self.offset),
-                 self.constant_term,
                  str(self.quadratic))
 
     @property
     def conjugate(self):
-        if self.quadratic is None:
+        if self.quadratic.coef == 0:
             if self.offset is not None:
-                linear_term = -self.offset
+                if self.quadratic.linear_term is not None:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
+                else:
+                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
             else:
-                linear_term = None
-            if self.linear_term is not None:
-                offset = -self.linear_term
+                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
+            if self.quadratic.linear_term is not None:
+                offset = -self.quadratic.linear_term
             else:
                 offset = None
 
             cls = conjugate_cone_pairs[self.__class__]
             atom = cls(self.primal_shape, 
-                       linear_term=linear_term,
-                       offset=offset)
-
-            if offset is not None and linear_term is not None:
-                _constant_term = (linear_term * offset).sum()
-            else:
-                _constant_term = 0.
-            atom.constant_term = self.constant_term - _constant_term
+                       offset=offset,
+                       quadratic=outq)
         else:
             atom = smooth_conjugate(self)
         self._conjugate = atom
@@ -130,10 +125,8 @@ class cone(nonsmooth):
             v = self.constraint(x_offset)
         else:
             v = 0
-        if self.linear_term is None:
-            return v + self.constant_term
-        else:
-            return v + (self.linear_term * x).sum() + self.constant_term
+        v += self.quadratic.objective(x, 'func')
+        return v
         
     def proximal(self, lipschitz, x, grad):
         r"""
@@ -156,13 +149,7 @@ class cone(nonsmooth):
         """
 
         proxq = identity_quadratic(lipschitz, -x, grad)
-        if self.linear_term is not None:
-            linearq = identity_quadratic(0, 0, self.linear_term, 0)
-            proxq = proxq + linearq
-        if self.quadratic is not None:
-            totalq = self.quadratic + proxq
-        else:
-            totalq = proxq.collapsed()
+        totalq = self.quadratic + proxq
 
         if self.offset is None or np.all(np.equal(self.offset, 0)):
             offset = None
@@ -213,10 +200,12 @@ class cone(nonsmooth):
 
     @classmethod
     def linear(cls, linear_operator, diag=False,
-               linear_term=None, offset=None):
+               offset=None,
+               quadratic=None):
         l = linear_transform(linear_operator, diag=diag)
         cone = cls(l.primal_shape, 
-                   linear_term=linear_term, offset=offset)
+                   offset=offset,
+                   quadratic=quadratic)
         return affine_cone(cone, l)
 
 class affine_cone(object):
