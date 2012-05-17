@@ -135,7 +135,7 @@ class smooth(composite):
         if self.quadratic is None:
             return x
         else:
-            proxq = identity_quadratic(lipschitz, -x, grad, 0)
+            proxq = identity_quadratic(lipschitz, x, grad, 0)
             totalq = self.quadratic + proxq
             return -totalq.linear_term / totalq.coef
 

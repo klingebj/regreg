@@ -4,7 +4,7 @@ a quadratic of the form
 
 .. math::
 
-   \frac{\kappa}{2} \|x+\gamma\|^2_2 + \alpha^Tx + c
+   \frac{\kappa}{2} \|x-\gamma\|^2_2 + \alpha^Tx + c
 
 with :math:`\kappa, \gamma, \alpha, c` = (coef, offset, linear_term, constant_term).
 """
@@ -35,7 +35,7 @@ class identity_quadratic(object):
         if linear_term is None:
             linear_term = 0
         if offset is not None:
-            r = x + offset
+            r = x - offset
         else:
             r = x
         if mode == 'both':
@@ -98,7 +98,7 @@ class identity_quadratic(object):
         if constant_term is None: 
             constant_term = 0 
         if self.offset is not None:
-            linear_term += coef * self.offset
+            linear_term -= coef * self.offset
             constant_term += coef * norm(self.offset)**2/2.
         if self.linear_term is not None:
             linear_term += self.linear_term

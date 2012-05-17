@@ -8,6 +8,8 @@ import numpy as np
 from .composite import composite
 from .affine import identity
 from .atoms import atom
+from .cones import zero as zero_cone
+from .smooth import zero as zero_smooth
 from .identity_quadratic import identity_quadratic
 
 class simple_problem(composite):
@@ -31,16 +33,27 @@ class simple_problem(composite):
         if self.smooth_atom.quadratic is not None:
             proxq = identity_quadratic(lipschitz, x, grad)
             proxq = proxq + self.smooth_atom.quadratic
-            lipschitz, x, grad = proxq.coef, -proxq.offset, proxq.linear_term
+            lipschitz, x, grad = proxq.coef, proxq.offset, proxq.linear_term
         return self.nonsmooth_atom.proximal(lipschitz, x, grad)
 
     @staticmethod
-    def smooth(self, smooth_atom):
+    def smooth(smooth_atom):
         """
         A problem with no nonsmooth part except possibly
         the quadratic of smooth_atom.
 
         The proximal function is (almost) a nullop.
         """
-        nonsmooth = zero(smooth_atom.primal_shape)
-        return simple_problem(smooth_atom, nonsmooth)
+        nonsmooth_atom = zero_cone(smooth_atom.primal_shape)
+        return simple_problem(smooth_atom, nonsmooth_atom)
+
+    @staticmethod
+    def nonsmooth(nonsmooth_atom):
+        """
+        A problem with no nonsmooth part except possibly
+        the quadratic of smooth_atom.
+
+        The proximal function is (almost) a nullop.
+        """
+        smooth_atom = zero_smooth(nonsmooth_atom.primal_shape)
+        return simple_problem(smooth_atom, nonsmooth_atom)

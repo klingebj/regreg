@@ -30,9 +30,6 @@ class smooth_atom(smooth_composite):
         else:
             self.set_quadratic(0,0,0,0)
 
-
-        raise NotImplementedError
-
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         raise NotImplementedError
     
@@ -187,6 +184,17 @@ def squaredloss(linear_operator, offset, coef=1):
 
 def signal_approximator(offset, coef=1):
     return quadratic.shift(-offset, coef)
+
+class zero(smooth_atom):
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        if mode == 'both':
+            return 0., np.zeros(x.shape)
+        elif mode == 'func':
+            return 0.
+        elif mode == 'grad':
+            return np.zeros(x.shape)
+        raise ValueError("Mode not specified correctly")
 
 class logistic_deviance(smooth_atom):
 

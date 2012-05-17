@@ -21,7 +21,15 @@ def test_l1prox():
     ab = l1.proximal(0.5, ww, 0)
 
     l1c = copy(l1)
-    l1c.set_quadratic(0.5, -ww, None, 0.)
+    l1c.set_quadratic(0.5, ww, None, 0.)
+    a = rr.simple_problem.nonsmooth(l1c)
+    solver = rr.FISTA(a)
+    solver.fit()
+
+    ac = a.coefs
+
+    l1c = copy(l1)
+    l1c.set_quadratic(0.5, ww, None, 0.)
     a = rr.dual_problem.fromseq(l1c)
     solver = rr.FISTA(a)
     solver.fit()
@@ -46,7 +54,13 @@ def test_l1prox_bound():
     ab = l1.proximal(0.5, ww, 0)
 
     l1c = copy(l1)
-    l1c.set_quadratic(0.5, -ww, None, 0.)
+    l1c.set_quadratic(0.5, ww, None, 0.)
+    a = rr.simple_problem.nonsmooth(l1c)
+    solver = rr.FISTA(a)
+    solver.fit()
+
+    l1c = copy(l1)
+    l1c.set_quadratic(0.5, ww, None, 0.)
     a = rr.dual_problem.fromseq(l1c)
     solver = rr.FISTA(a)
     solver.fit()

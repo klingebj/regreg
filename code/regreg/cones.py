@@ -148,7 +148,7 @@ class cone(nonsmooth):
 
         """
 
-        proxq = identity_quadratic(lipschitz, -x, grad)
+        proxq = identity_quadratic(lipschitz, x, grad)
         totalq = self.quadratic + proxq
 
         if self.offset is None or np.all(np.equal(self.offset, 0)):
@@ -157,7 +157,7 @@ class cone(nonsmooth):
             offset = self.offset
 
         if offset is not None:
-            totalq.offset = -offset
+            totalq.offset += offset
             totalq = totalq.collapsed()
 
         if totalq.coef == 0:
