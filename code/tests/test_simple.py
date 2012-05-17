@@ -29,7 +29,14 @@ def test_simple():
     problem = rr.simple_problem.nonsmooth(p)
     simple_nonsmooth_gengrad = gengrad(problem, L, tol=1.0e-10)
 
+    p = rr.l1norm(9, lagrange=0.13)
+    problem = rr.separable_problem.singleton(p, loss)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-10)
+    separable_coef = solver.composite.coefs
+
     yield np.testing.assert_allclose, prox_coef, simple_nonsmooth_gengrad
+    yield np.testing.assert_allclose, prox_coef, separable_coef
     yield np.testing.assert_allclose, prox_coef, simple_nonsmooth_coef
     yield np.testing.assert_allclose, prox_coef, simple_coef
 
