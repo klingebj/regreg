@@ -21,10 +21,11 @@ def test_proximal_maps():
     U = 0.02 * np.random.standard_normal(shape)
     linq = rr.identity_quadratic(0,0,W,0)
 
-    for L, pd, q, offset in itertools.product([0.5,1,0.1], \
+    for L, pd, q, offset, FISTA in itertools.product([0.5,1,0.1], \
                      sorted(A.conjugate_seminorm_pairs.items()),
                                               [None, linq],
-                                              [None, U]):
+                                              [None, U],
+                                              [False, True]):
         primal, dual = pd
 
         p = primal(shape, lagrange=lagrange, quadratic=q,
@@ -46,16 +47,16 @@ def test_proximal_maps():
         p2.set_quadratic(L, Z, 0, 0)
         problem = rr.simple_problem.nonsmooth(p2)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12)
+        solver.fit(tol=1.0e-12, FISTA=FISTA)
 
-        # yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with monotonocity %s, %s' % (primal, dual)
+        yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with monotonicity %s, %s' % (primal, dual)
 
         loss = rr.quadratic.shift(-Z, coef=0.5*L)
         problem = rr.simple_problem(loss, p)
         solver = rr.FISTA(problem)
 
         # restarting is acting funny
-        solver.fit(tol=1.0e-12, min_its=100)
+        solver.fit(tol=1.0e-12, FISTA=FISTA)
 
         yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving prox with simple_problem with monotonicity %s, %s' % (primal, dual)
 
@@ -63,46 +64,46 @@ def test_proximal_maps():
         p2.set_quadratic(L, Z, 0, 0)
         problem = rr.simple_problem.nonsmooth(p2)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12, monotonicity_restart=False)
+        solver.fit(tol=1.0e-12, monotonicity_restart=False, FISTA=FISTA)
 
         yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with no monotonocity %s, %s' % (primal, dual)
 
         loss = rr.quadratic.shift(-Z, coef=0.5*L)
         problem = rr.simple_problem(loss, p)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12, monotonicity_restart=False, min_its=100)
+        solver.fit(tol=1.0e-12, monotonicity_restart=False, FISTA=FISTA)
 
         yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving prox with simple_problem %s, %s no monotonicity_restart' % (primal, dual)
 
         loss = rr.quadratic.shift(-Z, coef=0.5*L)
         problem = rr.separable_problem.singleton(p, loss)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12)
+        solver.fit(tol=1.0e-12, FISTA=FISTA)
 
         yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving primal prox with separable_atom.singleton %s, %s' % (primal, dual)
 
         loss = rr.quadratic.shift(-Z, coef=0.5*L)
         problem = rr.container(loss, p)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12)
+        solver.fit(tol=1.0e-12, FISTA=FISTA)
 
         yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving primal prox with container %s, %s' % (primal, dual)
 
         loss = rr.quadratic.shift(-Z, coef=0.5*L)
         problem = rr.simple_problem(loss, d)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12, monotonicity_restart=False)
+        solver.fit(tol=1.0e-12, monotonicity_restart=False, FISTA=FISTA)
         yield ac, d.proximal(L, Z, 0), solver.composite.coefs, 'solving dual prox with simple_problem no monotonocity %s, %s' % (primal, dual)
 
         problem = rr.container(d, loss)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12)
+        solver.fit(tol=1.0e-12, FISTA=FISTA)
         yield ac, d.proximal(L, Z, 0), solver.composite.coefs, 'solving dual prox with container %s, %s' % (primal, dual)
 
         loss = rr.quadratic.shift(-Z, coef=0.5*L)
         problem = rr.separable_problem.singleton(d, loss)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12)
+        solver.fit(tol=1.0e-12, FISTA=FISTA)
 
         yield ac, d.proximal(L, Z, 0), solver.composite.coefs, 'solving primal prox with separable_atom.singleton %s, %s' % (primal, dual)
 

@@ -57,3 +57,27 @@ class simple_problem(composite):
         """
         smooth_atom = zero_smooth(nonsmooth_atom.primal_shape)
         return simple_problem(smooth_atom, nonsmooth_atom)
+
+def gengrad(simple_problem, L, tol=1.0e-8, max_its=1000, debug=False):
+    """
+    A simple generalized gradient solver
+    """
+    itercount = 0
+    coef = simple_problem.coefs
+    print 'coef', coef
+    v = np.inf
+    while True:
+        vnew, g = simple_problem.smooth_objective(coef, 'both')
+        vnew += simple_problem.nonsmooth_objective(coef)
+        newcoef = simple_problem.proximal(L, coef, g)
+        if np.linalg.norm(coef-newcoef) <= tol * np.max([np.linalg.norm(coef),
+                                                         np.linalg.norm(newcoef)]):
+            break
+        if itercount == max_its:
+            break
+        if debug:
+            print itercount, vnew, v, (vnew - v) / vnew
+        v = vnew
+        itercount += 1
+        coef = newcoef
+    return coef
