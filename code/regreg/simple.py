@@ -31,7 +31,7 @@ class simple_problem(composite):
         if self.smooth_atom.quadratic is not None:
             proxq = identity_quadratic(lipschitz, x, grad)
             proxq = proxq + self.smooth_atom.quadratic
-            lipschitz, x, grad = proxq.coef, -proxq.offset, proxq.linear
+            lipschitz, x, grad = proxq.coef, -proxq.offset, proxq.linear_term
         return self.nonsmooth_atom.proximal(lipschitz, x, grad)
 
     @staticmethod

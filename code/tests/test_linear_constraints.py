@@ -110,6 +110,8 @@ def test_offset_and_linear_term_proximal():
     Z = np.random.standard_normal(shape)
     W = 0.02 * np.random.standard_normal(shape)
     U = 0.02 * np.random.standard_normal(shape)
+    linq = rr.identity_quadratic(0,0,U,0)
+
     for primal, dual in C.conjugate_cone_pairs.items():
         p = primal(shape, basis, offset=W, quadratic=linq)
         d = p.conjugate

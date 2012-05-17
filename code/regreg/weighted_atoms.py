@@ -1,11 +1,14 @@
 import numpy as np
 from scipy import sparse
-from composite import composite, nonsmooth
-from affine import (linear_transform, identity as identity_transform, 
-                    affine_transform, selector)
 from copy import copy
 import warnings
-from atoms import atom as unweighted_atom, smooth_conjugate
+
+from .composite import composite, nonsmooth
+from .affine import (linear_transform, identity as identity_transform, 
+                     affine_transform, selector)
+
+from .atoms import atom as unweighted_atom, smooth_conjugate
+from .identity_quadratic import identity_quadratic
 
 try:
     from projl1_cython import projl1

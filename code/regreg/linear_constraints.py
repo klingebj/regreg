@@ -100,6 +100,7 @@ class linear_constraint(cone):
 
             cls = conjugate_cone_pairs[self.__class__]
             atom = cls(self.primal_shape, 
+                       self.basis,
                        offset=offset,
                        quadratic=outq)
         else:
