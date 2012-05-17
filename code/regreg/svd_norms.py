@@ -28,7 +28,7 @@ class svd_atom(atom):
         """
         self._md5x = md5(X).hexdigest()
         self._X = X
-        self.SVD = np.linalg.svd(X)
+        self.SVD = np.linalg.svd(X, full_matrices=0)
         return self.SVD
 
     def setX(self, X):
@@ -55,6 +55,7 @@ class svd_atom(atom):
         raise AttributeError("SVD has not been set")
     def set_SVD(self, UDV):
         self._U, self._D, self._V = UDV
+    SVD = property(get_SVD, set_SVD)
 
     def lagrange_prox(self, X, lipschitz=1, lagrange=None):
         r"""
@@ -230,12 +231,16 @@ class operator_norm(svd_atom):
     def bound_prox(self, X, lipschitz=1, bound=None):
         bound = svd_atom.bound_prox(self, X, lipschitz, bound)
         self.X = X
-        self._D = U, np.maximum(D, self.bound), V
         U, D, V = self.SVD
+        self._D = U, np.maximum(D, self.bound), V
         # store the projected X -- or should we keep original?
         self._X = np.dot(U, D[:,np.newaxis] * V)
         return self.X
     bound_prox.__doc__ = svd_atom.bound_prox.__doc__ % _doc_dict
+
+conjugate_svd_pairs = {}
+conjugate_svd_pairs[nuclear_norm] = operator_norm
+conjugate_svd_pairs[operator_norm] = nuclear_norm
 
 conjugate_seminorm_pairs[nuclear_norm] = operator_norm
 conjugate_seminorm_pairs[operator_norm] = nuclear_norm

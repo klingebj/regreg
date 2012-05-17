@@ -530,6 +530,24 @@ class l2norm(atom):
     bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
 
 
+def positive_part_lagrange(primal_shape, lagrange,
+                           offset=None, quadratic=None, initial=None):
+    '''
+    The positive_part atom in lagrange form can be represented
+    by an l1norm atom with the addition of a linear term
+    and half the lagrange parameter. This reflects the fact that
+    :math:`[0,1]^p = [-1/2,1/2]^p + 1/2 \pmb{1}`.
+
+    '''
+    lin = np.ones(primal_shape) * .5 * lagrange
+    linq = identity_quadratic(0,0,lin,0)
+    if quadratic is not None:
+        linq = linq + quadratic
+    return l1norm(primal_shape, lagrange=0.5*lagrange,
+                  offset=offset, quadratic=linq,
+                  initial=initial)
+
+
 class positive_part(atom):
 
     """
@@ -630,7 +648,7 @@ class constrained_max(atom):
 class constrained_positive_part(atom):
 
     """
-    Support function of (-\infty,0]^p
+    Support function of (-\infty,1]^p
     """
 
     objective_template = r"""\|%(var)s\|_{1} + \sum_{i=1}^{%(shape)s} \delta_{[0,+\infty)}(%(var)s_i)) """
@@ -651,11 +669,15 @@ class constrained_positive_part(atom):
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
-        anyneg = np.any(x < 0 + self.tol)
-        v = np.maximum(x, 0).sum()
-        if anyneg or v >= bound * (1 + self.tol):
+        value = self.seminorm(x, lagrange=1, check_feasibility=True)
+        if value >= bound * (1 + self.tol):
             return np.inf
         return 0
+#         anyneg = np.any(x < 0 + self.tol)
+#         v = np.maximum(x, 0).sum()
+#         if anyneg or v >= bound * (1 + self.tol):
+#             return np.inf
+#         return 0
     constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
@@ -666,6 +688,7 @@ class constrained_positive_part(atom):
         pos = x > 0
         if np.any(pos):
             v[pos] = np.maximum(x[pos] - lagrange/lipschitz, 0)
+            
         return v
     lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
 
@@ -888,3 +911,4 @@ for n1, n2 in [(l1norm,supnorm),
     conjugate_seminorm_pairs[n1] = n2
     conjugate_seminorm_pairs[n2] = n1
 
+nonpaired_atoms = [positive_part_lagrange]

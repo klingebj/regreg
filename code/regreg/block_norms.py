@@ -4,10 +4,13 @@ l1/l*, linf/l* norms. These are used in multiresponse LASSOs.
 
 """
 
-from md5 import md5
+from copy import copy
+import warnings
+
 import numpy as np
 import atoms
-from copy import copy
+from .identity_quadratic import identity_quadratic
+
 
 class block_sum(atoms.atom):
 
@@ -36,8 +39,7 @@ class block_sum(atoms.atom):
         self.atom = atom_cls(primal_shape[1:], lagrange=lagrange,
                              bound=bound,
                              offset=None,
-                             linear_term=None,
-                             constant_term=0.)
+                             quadratic=quadratic)
         if quadratic is not None:
             self.set_quadratic(quadratic.coef, quadratic.offset,
                                quadratic.linear_term, 
@@ -81,12 +83,13 @@ class block_sum(atoms.atom):
         return v
 
     def bound_prox(self, x, lipschitz=1, bound=None):
-        raise NotImplementedError('requires a little thought -- should be like l1prox')
+        warnings.warn('bound_prox of block_sum requires a little thought -- should be like l1prox')
+        return 0 * x
 
     def get_lagrange(self):
         return self.atom.lagrange
     def set_lagrange(self, lagrange):
-        self.atom.largrange = lagrange
+        self.atom.lagrange = lagrange
     lagrange = property(get_lagrange, set_lagrange)
     
     def get_bound(self):
@@ -111,13 +114,12 @@ class block_sum(atoms.atom):
             else:
                 offset = None
 
-            cls = conjugate_seminorm_pairs[self.__class__]
+            cls = conjugate_block_pairs[self.__class__]
             conj_atom = self.atom.conjugate
             atom_cls = conj_atom.__class__
-            cls = conjugate_block_pairs[self.__class__]
 
-            atom = cls(atom_cls, self.primal_shape, 
-                       linear_term=linear_term,
+            atom = cls(atom_cls, 
+                       self.primal_shape, 
                        offset=offset,
                        lagrange=conj_atom.lagrange,
                        bound=conj_atom.bound)
@@ -151,7 +153,8 @@ class block_max(block_sum):
         return np.inf
                     
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
-        raise NotImplementedError('requires a little thought -- should be like l1prox')
+        warnings.warn('lagrange_prox of block_max requires a little thought -- should be like l1prox')
+        return 0 * x
 
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atoms.atom.bound_prox(self, x, lipschitz=lipschitz, 
@@ -218,11 +221,10 @@ class linf_l2(block_max):
             else:
                 offset = None
 
-            cls = conjugate_seminorm_pairs[self.__class__]
+            cls = conjugate_block_pairs[self.__class__]
             conj_atom = self.atom.conjugate
 
             atom = cls(self.primal_shape, 
-                       linear_term=linear_term,
                        offset=offset,
                        lagrange=conj_atom.lagrange,
                        bound=conj_atom.bound,
@@ -318,11 +320,10 @@ class l1_l2(block_sum):
             else:
                 offset = None
 
-            cls = conjugate_seminorm_pairs[self.__class__]
+            cls = conjugate_block_pairs[self.__class__]
             conj_atom = self.atom.conjugate
 
             atom = cls(self.primal_shape, 
-                       linear_term=linear_term,
                        offset=offset,
                        lagrange=conj_atom.lagrange,
                        bound=conj_atom.bound,
