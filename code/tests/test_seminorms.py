@@ -8,7 +8,7 @@ import nose.tools as nt
 def ac(x,y, msg=None):
     v = np.linalg.norm(x-y) <= 1.0e-04 * max([1, np.linalg.norm(x), np.linalg.norm(y)])
     if not v:
-        print 'msg: ', msg
+        print 'msg: ', msg, np.linalg.norm(x-y) / max([1, np.linalg.norm(x), np.linalg.norm(y)])
     nt.assert_true(v)
 
 def test_proximal_maps():
@@ -16,7 +16,7 @@ def test_proximal_maps():
     lagrange = 0.13
     shape = 20
 
-    Z = np.random.standard_normal(shape)
+    Z = np.random.standard_normal(shape) * 2
     W = 0.02 * np.random.standard_normal(shape)
     U = 0.02 * np.random.standard_normal(shape)
     linq = rr.identity_quadratic(0,0,W,0)
@@ -47,7 +47,7 @@ def test_proximal_maps():
         p2.set_quadratic(L, Z, 0, 0)
         problem = rr.simple_problem.nonsmooth(p2)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12, FISTA=FISTA)
+        solver.fit(tol=1.0e-14, FISTA=FISTA)
 
         yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with monotonicity %s, %s' % (primal, dual)
 
@@ -64,7 +64,7 @@ def test_proximal_maps():
         p2.set_quadratic(L, Z, 0, 0)
         problem = rr.simple_problem.nonsmooth(p2)
         solver = rr.FISTA(problem)
-        solver.fit(tol=1.0e-12, monotonicity_restart=False, FISTA=FISTA)
+        solver.fit(tol=1.0e-14, monotonicity_restart=False, FISTA=FISTA)
 
         yield ac, p.proximal(L, Z, 0), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with no monotonocity %s, %s' % (primal, dual)
 
