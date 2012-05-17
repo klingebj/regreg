@@ -36,12 +36,11 @@ def test_l1_constraint():
     """
   
     p = 1000
-    Y = 10 * np.random.normal(0,1,p)
 
-    loss = R.linear(Y, coef=0.5)
     sparsity = R.l1norm(p, bound=5.)
 
-    prob = R.container(loss, sparsity)
+    prob = R.simple_problem.nonsmooth(sparsity)
+    prob.coefs[:] = np.random.standard_normal(1000)
     problem = prob
 
     solver = R.FISTA(problem)

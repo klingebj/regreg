@@ -194,19 +194,56 @@ def test_lasso_dual():
     """
 
     l1 = .1
-    sparsity = R.l1norm(500, lagrange=l1)
-    x = np.random.normal(0,1,500)
+    sparsity = R.l1norm(10, lagrange=l1)
+    x = np.arange(10) - 5
     loss = R.quadratic.shift(-x, coef=0.5)
+
+    pen = R.simple_problem(loss, sparsity)
+    solver = R.FISTA(pen)
+    pen.lipschitz = 1
+    solver.fit(backtrack=False)
+    soln = solver.composite.coefs
+    st = np.maximum(np.fabs(x)-l1,0) * np.sign(x) 
+
+    np.testing.assert_almost_equal(soln,st, decimal=3)
+
+    pen = R.simple_problem(loss, sparsity)
+    solver = R.FISTA(pen)
+    solver.fit(monotonicity_restart=False)
+    soln = solver.composite.coefs
+    st = np.maximum(np.fabs(x)-l1,0) * np.sign(x) 
+
+    np.testing.assert_almost_equal(soln,st, decimal=3)
+
+
     pen = R.container(loss, sparsity)
+    solver = R.FISTA(pen)
+    solver.fit()
+    soln = solver.composite.coefs
+
+    np.testing.assert_almost_equal(soln,st, decimal=3)
+
+
+@np.testing.dec.knownfailureif(True)
+def test_lasso_dual_with_monotonicity():
+
+    """
+    restarting is funny for this simple problem
+    """
+
+    l1 = .1
+    sparsity = R.l1norm(10, lagrange=l1)
+    x = np.arange(10) - 5
+    loss = R.quadratic.shift(-x, coef=0.5)
+
+
+    pen = R.simple_problem(loss, sparsity)
     solver = R.FISTA(pen)
     solver.fit()
     soln = solver.composite.coefs
     st = np.maximum(np.fabs(x)-l1,0) * np.sign(x) 
 
-    print soln[range(10)]
-    print st[range(10)]
     np.testing.assert_almost_equal(soln,st, decimal=3)
-
 
 def test_multiple_lasso_dual(n=500):
 
@@ -219,12 +256,24 @@ def test_multiple_lasso_dual(n=500):
     sparsity2 = R.l1norm(n, lagrange=l1*0.25)
     x = np.random.normal(0,1,n)
     loss = R.quadratic.shift(-x, coef=0.5)
+
+    p = R.dual_problem.fromseq(loss, sparsity1, sparsity2)
+    t1 = time.time()
+    solver = R.FISTA(p)
+    solver.debug = True
+    vals = solver.fit(tol=1.0e-16)
+    soln = p.primal
+    t2 = time.time()
+    print t2-t1
+    st = np.maximum(np.fabs(x)-l1,0) * np.sign(x)
+    np.testing.assert_almost_equal(soln,st, decimal=3)
+
     p = R.container(loss, sparsity1, sparsity2)
     t1 = time.time()
     solver = R.FISTA(p)
     solver.debug = True
     vals = solver.fit(tol=1.0e-16)
-    soln = solver.composite.coefs
+    soln = p.primal
     t2 = time.time()
     print t2-t1
     st = np.maximum(np.fabs(x)-l1,0) * np.sign(x)

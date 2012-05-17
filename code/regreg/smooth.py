@@ -73,7 +73,8 @@ class smooth_atom(smooth_composite):
         if not acceptable_init_args(cls, kws):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
         
-        atom = cls(offset.shape, coef=coef, quadratic=quadratic, **kws)
+        atom = cls(offset.shape, coef=coef, quadratic=quadratic, 
+                   offset=offset, **kws)
         return atom
 
     def scale(self, obj, copy=False):

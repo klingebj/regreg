@@ -91,7 +91,6 @@ class FISTA(algorithm):
         set_prox_control = prox_control is not None
 
         objective_hist = np.zeros(max_its)
-
         
         if backtrack and self.inv_step is None:
             #If inv_step is not available from last fit use start_inv_step
@@ -197,7 +196,7 @@ class FISTA(algorithm):
             if itercount > 1 and current_obj < trial_obj and obj_rel_change > 1e-10 and monotonicity_restart:
                 #Adaptive restarting: restart if monotonicity violated
                 if self.debug:
-                    print "%i    Restarting weights" % itercount
+                    print "%i Restarting weights" % itercount
                 attempt_decrease = True
 
                 if t_old == 1.:

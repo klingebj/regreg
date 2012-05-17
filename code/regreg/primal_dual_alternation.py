@@ -74,7 +74,6 @@ class dual_problem(composite):
         transform, separable_atom = self.transform, self.separable_atom
         return separable_atom.proximal(lipschitz, x, grad)
 
-
 def stacked_dual(shape, *primary_atoms):
     '''
     Computes a dual of 

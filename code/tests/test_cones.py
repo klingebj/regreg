@@ -4,7 +4,8 @@ import regreg.api as rr
 import nose.tools as nt
 
 def ac(x,y):
-    print x, y
+    print np.linalg.norm(x-y) <= 1.0e-04 * max([1, np.linalg.norm(x), np.linalg.norm(y)])
+    print x - y
     return nt.assert_true(np.linalg.norm(x-y) <= 1.0e-04 * max([1, np.linalg.norm(x), np.linalg.norm(y)]))
 
 def test_proximal_maps():

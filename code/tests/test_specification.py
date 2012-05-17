@@ -17,26 +17,27 @@ def test_l1prox():
     '''
 
     l1 = rr.l1norm(4, lagrange=0.3)
-    ww = np.random.standard_normal(4)*2
+    ww = np.random.standard_normal(4)*3
     ab = l1.proximal(0.5, ww, 0)
 
     l1c = copy(l1)
     l1c.set_quadratic(0.5, ww, None, 0.)
     a = rr.simple_problem.nonsmooth(l1c)
     solver = rr.FISTA(a)
-    solver.fit()
+    solver.fit(tol=1.e-10)
 
-    ac = a.coefs
+    ad = a.coefs
 
     l1c = copy(l1)
     l1c.set_quadratic(0.5, ww, None, 0.)
     a = rr.dual_problem.fromseq(l1c)
     solver = rr.FISTA(a)
-    solver.fit()
+    solver.fit(tol=1.0e-14)
 
     ac = a.primal
 
-    np.testing.assert_allclose(ac, ab)
+    np.testing.assert_allclose(ac, ab, rtol=1.0e-4)
+    np.testing.assert_allclose(ac, ad, rtol=1.0e-4)
 
 
 def test_l1prox_bound():

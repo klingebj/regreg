@@ -1,7 +1,9 @@
 import numpy as np
 from scipy.linalg import cho_factor, cho_solve, cholesky_banded, cho_solve_banded
-from affine import affine_transform
-from smooth import smooth_atom
+
+from .affine import affine_transform
+from .smooth import smooth_atom
+from .identity_quadratic import identity_quadratic
 
 class quadratic(smooth_atom):
     """
