@@ -21,7 +21,7 @@ def test_simple():
     p.set_quadratic(L, Z, 0, 0)
     problem = rr.simple_problem.nonsmooth(p)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-10)
+    solver.fit(tol=1.0e-14, debug=True)
     simple_nonsmooth_coef = solver.composite.coefs
 
     p = rr.l1norm(9, lagrange=0.13)
