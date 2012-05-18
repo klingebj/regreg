@@ -51,7 +51,7 @@ class atom(nonsmooth):
             self._lagrange = None
         
         if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.offset,
+            self.set_quadratic(quadratic.coef, quadratic.center,
                                quadratic.linear_term, 
                                quadratic.constant_term)
         else:
@@ -255,7 +255,7 @@ class atom(nonsmooth):
             offset = self.offset
 
         if offset is not None:
-            totalq.offset += offset
+            totalq.center += offset
             totalq = totalq.collapsed()
         else:
             totalq = totalq.collapsed()
@@ -398,7 +398,7 @@ class atom(nonsmooth):
 
         if conjugate_atom.quadratic is not None:
             total_q = sq + conjugate_atom.quadratic
-        conjugate_atom.set_quadratic(total_q.coef, total_q.offset,
+        conjugate_atom.set_quadratic(total_q.coef, total_q.center,
                                      total_q.linear_term, 
                                      total_q.constant_term)
         smoothed_atom = conjugate_atom.conjugate
@@ -828,7 +828,7 @@ class affine_atom(object):
             total_q = smoothing_quadratic
         if total_q.coef in [None, 0]:
             raise ValueError('quadratic term of smoothing_quadratic must be non 0')
-        conjugate_atom.set_quadratic(total_q.coef, total_q.offset,
+        conjugate_atom.set_quadratic(total_q.coef, total_q.center,
                                      total_q.linear_term, 
                                      total_q.constant_term)
         smoothed_atom = conjugate_atom.conjugate

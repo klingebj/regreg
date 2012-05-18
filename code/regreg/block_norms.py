@@ -41,7 +41,7 @@ class block_sum(atoms.atom):
                              offset=None,
                              quadratic=quadratic)
         if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.offset,
+            self.set_quadratic(quadratic.coef, quadratic.center,
                                quadratic.linear_term, 
                                quadratic.constant_term)
         else:

@@ -45,7 +45,7 @@ class cone(nonsmooth):
             self.coefs = initial.copy()
 
         if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.offset,
+            self.set_quadratic(quadratic.coef, quadratic.center,
                                quadratic.linear_term, 
                                quadratic.constant_term)
         else:
@@ -156,7 +156,7 @@ class cone(nonsmooth):
             offset = self.offset
 
         if offset is not None:
-            totalq.offset += offset
+            totalq.center += offset
             totalq = totalq.collapsed()
 
         if totalq.coef == 0:

@@ -24,6 +24,8 @@ from algorithms import FISTA
 from admm import admm_problem
 from blocks import blockwise
 
+from block_norms import l1_l2, linf_l2, l1_l1, linf_linf
+
 from conjugate import conjugate
 from composite import (composite, nonsmooth as nonsmooth_composite,
                        smooth as smooth_composite, smoothed as smoothed_atom)

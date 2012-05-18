@@ -6,19 +6,19 @@ a quadratic of the form
 
    \frac{\kappa}{2} \|x-\gamma\|^2_2 + \alpha^Tx + c
 
-with :math:`\kappa, \gamma, \alpha, c` = (coef, offset, linear_term, constant_term).
+with :math:`\kappa, \gamma, \alpha, c` = (coef, center, linear_term, constant_term).
 """
 
 from numpy.linalg import norm
 
 class identity_quadratic(object):
 
-    def __init__(self, coef, offset, linear_term, constant_term=0):
+    def __init__(self, coef, center, linear_term, constant_term=0):
         if coef is None:
             self.coef = 0
         else:
             self.coef = coef
-        self.offset = offset
+        self.center = center
         self.linear_term = linear_term
         if constant_term is None:
             self.constant_term = 0
@@ -30,12 +30,12 @@ class identity_quadratic(object):
             self.anything_to_return = False
 
     def objective(self, x, mode='both'):
-        coef, offset, linear_term = self.coef, self.offset, self.linear_term
+        coef, center, linear_term = self.coef, self.center, self.linear_term
         cons = self.constant_term
         if linear_term is None:
             linear_term = 0
-        if offset is not None:
-            r = x - offset
+        if center is not None:
+            r = x - center
         else:
             r = x
         if mode == 'both':
@@ -59,11 +59,11 @@ class identity_quadratic(object):
             raise ValueError("Mode incorrectly specified")
                         
     def __repr__(self):
-        return 'identity_quadratic(%f, %s, %s, %f)' % (self.coef, str(self.offset), str(self.linear_term), self.constant_term)
+        return 'identity_quadratic(%f, %s, %s, %f)' % (self.coef, str(self.center), str(self.linear_term), self.constant_term)
 
     def __add__(self, other):
         """
-        Return an identity quadratic given by the sum in the obvious way. it has offset of 0,
+        Return an identity quadratic given by the sum in the obvious way. it has center of 0,
         would be nice to have None, but there are some 
         places we are still multiplying by -1
         """
@@ -87,13 +87,13 @@ class identity_quadratic(object):
         with constant_term=0.
         '''
         return identity_quadratic(self.coef,
-                                  self.offset[slice],
+                                  self.center[slice],
                                   self.linear_term[slice],
                                   0)
 
     def collapsed(self):
         """
-        Return an identity quadratic with offset of 0,
+        Return an identity quadratic with center of 0,
         would be nice to have None, but there are some 
         places we are still multiplying by -1
         """
@@ -107,9 +107,9 @@ class identity_quadratic(object):
         constant_term = self.constant_term
         if constant_term is None: 
             constant_term = 0 
-        if self.offset is not None:
-            linear_term -= coef * self.offset
-            constant_term += coef * norm(self.offset)**2/2.
+        if self.center is not None:
+            linear_term -= coef * self.center
+            constant_term += coef * norm(self.center)**2/2.
         if self.linear_term is not None:
             linear_term += self.linear_term
 
