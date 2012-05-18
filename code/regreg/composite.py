@@ -10,6 +10,8 @@ class composite(object):
     A generic way to specify a problem in composite form.
     """
 
+    objective_template = r'''f(%(var)s)'''
+
     def __init__(self, primal_shape, offset=None,
                  quadratic=None, initial=None):
 
@@ -32,6 +34,23 @@ class composite(object):
             self.coefs = zeros(self.primal_shape)
         else:
             self.coefs = initial.copy()
+
+    def latexify(self, var='x', idx=''):
+        d = {}
+        if self.offset is None:
+            d['var'] = var
+        else:
+            d['var'] = var + r'+\alpha_{%s}' % str(idx)
+
+        obj = self.objective_template % d
+        if self.lagrange is not None:
+            obj = '\lambda_{%s} %s' % (idx, obj)
+        else:
+            obj = 'I^{\infty}(%s \leq \epsilon_{%s})' % (obj, idx)
+        if not self.quadratic.iszero:
+            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
+        return obj
+
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         if self.quadratic is not None:

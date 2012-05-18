@@ -362,7 +362,6 @@ class atom(nonsmooth):
                                      total_q.constant_term)
         smoothed_atom = conjugate_atom.conjugate
         return smoothed_atom
-
     
 class l1norm(atom):
 
@@ -738,6 +737,9 @@ class affine_atom(object):
         self.primal_shape = self.linear_transform.primal_shape
         self.dual_shape = self.linear_transform.dual_shape
 
+    def latexify(self, var='x', idx=''):
+        return self.atom.latexify(var='D_{%s}%s' % (idx, x), idx=idx)
+
     def __repr__(self):
         return "affine_atom(%s, %s)" % (`self.atom`,
                                         `self.linear_transform.linear_operator`)
@@ -884,3 +886,4 @@ def _work_out_conjugate(offset, quadratic):
     else:
         outoffset = None
     return outoffset, outq
+

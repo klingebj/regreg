@@ -19,6 +19,12 @@ except:
 
 class cone(nonsmooth):
 
+    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
+                 'constant':r' + \tau',
+                 'objective': '',
+                 'shape':'p',
+                 'var':r'x'}
+
     """
     A class that defines the API for cone constraints.
     """
@@ -78,6 +84,19 @@ class cone(nonsmooth):
         Abstract method. Evaluate the constraint on the dual norm of x.
         """
         raise NotImplementedError
+
+    def latexify(self, var='x', idx=''):
+        d = {}
+        if self.offset is None:
+            d['var'] = var
+        else:
+            d['var'] = var + r'+\alpha_{%s}' % str(idx)
+
+        obj = self.objective_template % d
+
+        if not self.quadratic.iszero:
+            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
+        return obj
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         if self.offset is not None:
@@ -197,6 +216,9 @@ class affine_cone(object):
         return "affine_cone(%s, %s)" % (`self.cone`,
                                         `self.linear_transform.linear_operator`)
 
+    def latexify(self, var='x', idx=''):
+        return self.cone.latexify(var='D_{%s}%s' % (idx, x), idx=idx)
+
     @property
     def dual(self):
         return self.linear_transform, self.cone.conjugate
@@ -216,6 +238,10 @@ class nonnegative(cone):
     function of the non-positive cone constraint).
     """
     
+    objective_template = r"""I^{\infty}(%(var)s \succeq 0)"""
+    _doc_dict = copy(cone._doc_dict)
+    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
+
     def constraint(self, x):
         """
         The non-negative constraint of x.
@@ -255,6 +281,10 @@ class nonpositive(nonnegative):
     function of the non-negative cone constraint).
     """
     
+    objective_template = r"""I^{\infty}(%(var)s \preceq 0)"""
+    _doc_dict = copy(cone._doc_dict)
+    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
+
     def constraint(self, x):
         """
         The non-positive constraint of x.
@@ -291,6 +321,11 @@ class zero(cone):
     The zero seminorm, support function of :math:\{0\}
     """
 
+    objective_template = r"""{\cal Z}(%(var)s)"""
+    _doc_dict = copy(cone._doc_dict)
+    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
+
+
     def constraint(self, x):
         return 0.
 
@@ -301,6 +336,10 @@ class zero_constraint(cone):
     """
     The zero constraint, support function of :math:`\mathbb{R}`^p
     """
+
+    objective_template = r"""I^{\infty}(%(var)s = 0)"""
+    _doc_dict = copy(cone._doc_dict)
+    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
     def constraint(self, x):
         if not np.linalg.norm(x) <= self.tol:

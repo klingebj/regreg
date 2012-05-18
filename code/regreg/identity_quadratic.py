@@ -4,9 +4,9 @@ a quadratic of the form
 
 .. math::
 
-   \frac{\kappa}{2} \|x-\gamma\|^2_2 + \alpha^Tx + c
+   \frac{\kappa}{2} \|x-\mu\|^2_2 + \beta^Tx + \gamma
 
-with :math:`\kappa, \gamma, \alpha, c` = (coef, center, linear_term, constant_term).
+with :math:`\kappa, \mu, \beta, \gamma` = (coef, center, linear_term, constant_term).
 """
 
 from copy import copy
@@ -159,3 +159,17 @@ class identity_quadratic(object):
             linear_term += self.linear_term
 
         return identity_quadratic(coef, 0, linear_term, constant_term)
+
+    def latexify(self, var='x', idx=''):
+        self.zeroify()
+        v = ' '
+        if self.coef != 0:
+            v += r'\frac{\kappa_{%s}}{2} ' % idx
+            if not all(self.center == 0):
+                v += r'\|%s-\mu_{%s}\|^2_2 + ' % (var, idx)
+        if not all(self.linear_term == 0):
+            v += r' \beta_{%s}^T%s ' % (idx, var)
+        if self.constant_term != 0:
+            v += r' + \gamma_{%s} ' % idx
+        return v
+
