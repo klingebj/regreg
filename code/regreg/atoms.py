@@ -43,6 +43,23 @@ class atom(nonsmooth):
             self._bound = bound
             self._lagrange = None
         
+    def latexify(self, var='x', idx=''):
+        d = {}
+        if self.offset is None:
+            d['var'] = var
+        else:
+            d['var'] = var + r'+\alpha_{%s}' % str(idx)
+
+        obj = self.objective_template % d
+        if self.lagrange is not None:
+            obj = '\lambda_{%s} %s' % (idx, obj)
+        else:
+            obj = 'I^{\infty}(%s \leq \epsilon_{%s})' % (obj, idx)
+
+        if not self.quadratic.iszero:
+            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
+        return obj
+
     def __eq__(self, other):
         if self.__class__ == other.__class__:
             if self.bound is not None:
@@ -243,12 +260,6 @@ class atom(nonsmooth):
             return eta
         else:
             return eta - offset
-
-    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
 
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         r"""

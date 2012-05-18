@@ -1,15 +1,22 @@
 import numpy as np
 from scipy import sparse
-from affine import affine_transform, linear_transform
 import warnings
 import inspect
-from composite import smooth as smooth_composite
+
+from .composite import smooth as smooth_composite
+from .affine import affine_transform, linear_transform
+from .identity_quadratic import identity_quadratic
 
 class smooth_atom(smooth_composite):
 
     """
     A class for representing a smooth function and its gradient
     """
+
+    objective_template = r'''f(%(var)s)'''
+    _doc_dict = {'objective': '',
+                 'shape':'p',
+                 'var':r'x'}
 
     def __init__(self, primal_shape, coef=1, offset=None,
                  quadratic=None, initial=None):
@@ -118,6 +125,9 @@ class affine_smooth(smooth_atom):
         self.primal_shape = atransform.primal_shape
         self.coefs = np.zeros(self.primal_shape)
 
+    def latexify(self, var='x', idx=''):
+        return self.sm_atom.latexify(var='D_{%s}%s' % (idx, x), idx=idx)
+
     def _get_coef(self):
         return self.sm_atom.coef
 
@@ -189,18 +199,25 @@ class logistic_deviance(smooth_atom):
     A class for combining the logistic log-likelihood with a general seminorm
     """
 
+    objective_template = r"""\ell^{L}\left(%(var)s\right)"""
     #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
 
-    def __init__(self, primal_shape, successes, trials=None, coef=1., offset=None,
-                 quadratic=None):
+    def __init__(self, primal_shape, successes, 
+                 trials=None, coef=1., offset=None,
+                 quadratic=None,
+                 initial=None):
 
-        self.offset = offset
+        smooth_atom.__init__(self,
+                             primal_shape,
+                             offset=offset,
+                             quadratic=quadratic,
+                             initial=initial)
 
         if sparse.issparse(successes):
             #Convert sparse success vector to an array
             self.successes = successes.toarray().flatten()
         else:
-            self.successes = successes
+            self.successes = np.asarray(successes)
 
         if trials is None:
             if not set([0,1]).issuperset(np.unique(self.successes)):
@@ -217,15 +234,8 @@ class logistic_deviance(smooth_atom):
         deviance_terms = np.log(saturated) * self.successes + np.log(1-saturated) * (self.trials - self.successes)
         deviance_constant = -2 * coef * deviance_terms[~np.isnan(deviance_terms)].sum()
 
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.offset,
-                               quadratic.linear_term, 
-                               quadratic.constant_term - deviance_constant)
-        else:
-            self.set_quadratic(0,0,0,-deviance_constant)
-
-        self.primal_shape = primal_shape
-        self.coef = coef
+        devq = identity_quadratic(0,0,0,-deviance_constant)
+        self.quadratic += devq
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -284,10 +294,18 @@ class poisson_deviance(smooth_atom):
     A class for combining the Poisson log-likelihood with a general seminorm
     """
 
+    objective_template = r"""\ell^{P}\left(%(var)s\right)"""
+
     def __init__(self, primal_shape, counts, coef=1., offset=None,
-                 quadratic=None):
-        self.offset = offset
-        
+                 quadratic=None,
+                 initial=None):
+
+        smooth_atom.__init__(self,
+                             primal_shape,
+                             offset=offset,
+                             quadratic=quadratic,
+                             initial=initial)
+
         if sparse.issparse(counts):
             #Convert sparse success vector to an array
             self.counts = counts.toarray().flatten()
@@ -303,15 +321,10 @@ class poisson_deviance(smooth_atom):
         deviance_terms = -2 * coef * ((counts - 1) * np.log(counts))
         deviance_terms[counts == 0] = 0
 
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.offset,
-                               quadratic.linear_term, 
-                               quadratic.constant_term -deviance_terms.sum())
-        else:
-            self.set_quadratic(0,0,0,-deviance_terms.sum())
+        deviance_constant = -2 * coef * deviance_terms.sum()
 
-        self.primal_shape = primal_shape
-        self.coef = coef
+        devq = identity_quadratic(0,0,0,-deviance_constant)
+        self.quadratic += devq
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -343,10 +356,16 @@ class multinomial_deviance(smooth_atom):
     A class for baseline-category logistic regression for nominal responses (e.g. Agresti, pg 267)
     """
 
+    objective_template = r"""\ell^{M}\left(%(var)s\right)"""
+
     def __init__(self, primal_shape, counts, coef=1., offset=None,
                  quadratic=None):
 
-        self.offset = offset
+        smooth_atom.__init__(self,
+                             primal_shape,
+                             offset=offset,
+                             quadratic=quadratic,
+                             initial=initial)
 
         if sparse.issparse(counts):
             #Convert sparse success vector to an array
@@ -373,16 +392,8 @@ class multinomial_deviance(smooth_atom):
         deviance_terms[np.isnan(deviance_terms)] = 0
         deviance_constant = -2 * coef * deviance_terms.sum()
 
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.offset,
-                               quadratic.linear_term, 
-                               quadratic.constant_term -deviance_constant)
-        else:
-            self.set_quadratic(0,0,0,-deviance_constant)
-
-
-        self.primal_shape = primal_shape
-        self.coef = coef
+        devq = identity_quadratic(0,0,0,-deviance_constant)
+        self.quadratic += devq
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """

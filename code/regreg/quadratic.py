@@ -10,6 +10,8 @@ class quadratic(smooth_atom):
     The square of the l2 norm
     """
 
+    objective_template = r"""\ell^{Q}\left(%(var)s\right)"""
+
     def __init__(self, primal_shape, coef=1., Q=None, Qdiag=False,
                  offset=None,
                  quadratic=None,

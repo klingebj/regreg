@@ -11,6 +11,11 @@ class composite(object):
     """
 
     objective_template = r'''f(%(var)s)'''
+    _doc_dict = {'objective': '',
+                 'shape':'p',
+                 'var':r'x',
+                 'linear':'',
+                 'constant':''}
 
     def __init__(self, primal_shape, offset=None,
                  quadratic=None, initial=None):
@@ -43,10 +48,7 @@ class composite(object):
             d['var'] = var + r'+\alpha_{%s}' % str(idx)
 
         obj = self.objective_template % d
-        if self.lagrange is not None:
-            obj = '\lambda_{%s} %s' % (idx, obj)
-        else:
-            obj = 'I^{\infty}(%s \leq \epsilon_{%s})' % (obj, idx)
+
         if not self.quadratic.iszero:
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
