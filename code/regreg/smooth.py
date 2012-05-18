@@ -126,7 +126,10 @@ class affine_smooth(smooth_atom):
         self.coefs = np.zeros(self.primal_shape)
 
     def latexify(self, var='x', idx=''):
-        return self.sm_atom.latexify(var='D_{%s}%s' % (idx, x), idx=idx)
+        obj = self.sm_atom.latexify(var='D_{%s}%s' % (idx, var), idx=idx)
+        if not self.quadratic.iszero:
+            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
+        return obj
 
     def _get_coef(self):
         return self.sm_atom.coef
