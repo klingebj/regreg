@@ -6,6 +6,7 @@ import itertools
 
 from test_seminorms import solveit, ac
 
+@np.testing.dec.slow
 def test_proximal_maps():
     shape = (5,4)
 

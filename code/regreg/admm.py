@@ -179,8 +179,8 @@ class node_problem(composite):
         self.coefs = self.simple_problem.coefs
         self.solver = FISTA(self.simple_problem)
         
-    def proximal(self, lipschitz, x, grad):
-        return self.atom.proximal(lipschitz, x, grad)
+    def proximal(self, proxq):
+        return self.atom.proximal(proxq)
 
     def _get_beta(self):
         return self._beta

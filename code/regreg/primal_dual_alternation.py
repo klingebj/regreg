@@ -67,12 +67,12 @@ class dual_problem(composite):
         else:
             return out + self.quadratic.objective(x, 'func')
 
-    def proximal(self, lipschitz, x, grad, prox_control=None):
+    def proximal(self, proxq, prox_control=None):
         """
         The proximal function for the dual problem
         """
         transform, separable_atom = self.transform, self.separable_atom
-        return separable_atom.proximal(lipschitz, x, grad)
+        return separable_atom.proximal(proxq, prox_control)
 
 def stacked_dual(shape, *primary_atoms):
     '''

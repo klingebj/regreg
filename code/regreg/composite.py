@@ -3,7 +3,7 @@ from numpy import zeros
 
 # local import
 
-from identity_quadratic import identity_quadratic
+from identity_quadratic import identity_quadratic as sq
 
 class composite(object):
     """
@@ -46,7 +46,7 @@ class composite(object):
     def objective(self, x, check_feasibility=False):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
-    def proximal_optimum(self, lipschitz, x, grad):
+    def proximal_optimum(self, quadratic):
         """
         Returns
 
@@ -61,30 +61,31 @@ class composite(object):
         part of the composite object.
 
         """
-        argmin = self.proximal(lipschitz, x, grad)
+        argmin = self.proximal(quadratic)
         if self.quadratic is None:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin)  
         else:
             return argmin, lipschitz * norm(x-argmin)**2 / 2. + self.nonsmooth_objective(argmin) + self.quadratic.objective(argmin, 'func') 
 
-    def proximal_step(self, lipschitz, x, grad, prox_control=None):
+    def proximal_step(self, quadratic, prox_control=None):
         """
         Compute the proximal optimization
 
         prox_control: If not None, then a dictionary of parameters for the prox procedure
         """
+        # This seems like a null op -- if all proximals accept optional prox_control
         if prox_control is None:
-            return self.proximal(lipschitz, x, grad)
+            return self.proximal(quadratic)
         else:
-            return self.proximal(lipschitz, x, grad, prox_control=prox_control)
+            return self.proximal(quadratic, prox_control=prox_control)
 
         
     def set_quadratic(self, coef, offset, linear_term, constant_term):
-        self._quadratic = identity_quadratic(coef, offset, linear_term, constant_term)
+        self._quadratic = sq(coef, offset, linear_term, constant_term)
 
     def get_quadratic(self):
         if not hasattr(self, "_quadratic"):
-            self._quadratic = identity_quadratic(None,None,None,None)
+            self._quadratic = sq(None,None,None,None)
         return self._quadratic
     quadratic = property(get_quadratic)
 
@@ -131,13 +132,12 @@ class smooth(composite):
                            smooth_multiplier=smooth_multiplier,
                            lipschitz=lipschitz)
 
-    def proximal(self, lipschitz, x, grad):
+    def proximal(self, quadratic):
         if self.quadratic is None:
-            return x
+            totalq = quadratic
         else:
-            proxq = identity_quadratic(lipschitz, x, grad, 0)
-            totalq = self.quadratic + proxq
-            return -totalq.linear_term / totalq.coef
+            totalq = self.quadratic + quadratic
+        return -totalq.linear_term / totalq.coef
 
 # This can now be done with a method of the atom 
 class smoothed(smooth):
@@ -199,21 +199,22 @@ class smoothed(smooth):
 
         u = linear_transform.linear_map(beta)
         ueps = u / self.epsilon
+        q = sq(self.epsilon, ueps, 0, 0)
         if mode == 'both':
-            argmin, optimal_value = dual_atom.proximal_optimum(self.epsilon, ueps, 0)                    
+            argmin, optimal_value = dual_atom.proximal_optimum(q)
             objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
                 self.argmin = argmin
             return objective, grad
         elif mode == 'grad':
-            argmin = dual_atom.proximal(self.epsilon, ueps, 0)
+            argmin = dual_atom.proximal(q)
             grad = linear_transform.adjoint_map(argmin)
             if self.store_argmin:
                 self.argmin = argmin
             return grad 
         elif mode == 'func':
-            _, optimal_value = dual_atom.proximal_optimum(self.epsilon, ueps, 0)                    
+            _, optimal_value = dual_atom.proximal_optimum(q)
             objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
             return objective
         else:

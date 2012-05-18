@@ -232,7 +232,7 @@ class operator_norm(svd_atom):
         bound = svd_atom.bound_prox(self, X, lipschitz, bound)
         self.X = X
         U, D, V = self.SVD
-        self._D = U, np.maximum(D, self.bound), V
+        self._D = U, np.maximum(D, bound), V
         # store the projected X -- or should we keep original?
         self._X = np.dot(U, D[:,np.newaxis] * V)
         return self.X

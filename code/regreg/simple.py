@@ -29,12 +29,10 @@ class simple_problem(composite):
             return vn + vs
         return vn
 
-    def proximal(self, lipschitz, x, grad):
+    def proximal(self, proxq):
         if self.smooth_atom.quadratic is not None:
-            proxq = identity_quadratic(lipschitz, x, grad)
             proxq = proxq + self.smooth_atom.quadratic
-            lipschitz, x, grad = proxq.coef, proxq.offset, proxq.linear_term
-        return self.nonsmooth_atom.proximal(lipschitz, x, grad)
+        return self.nonsmooth_atom.proximal(proxq)
 
     @staticmethod
     def smooth(smooth_atom):
@@ -69,7 +67,7 @@ def gengrad(simple_problem, L, tol=1.0e-8, max_its=1000, debug=False):
     while True:
         vnew, g = simple_problem.smooth_objective(coef, 'both')
         vnew += simple_problem.nonsmooth_objective(coef)
-        newcoef = simple_problem.proximal(L, coef, g)
+        newcoef = simple_problem.proximal(identity_quadratic(L, coef, g, 0))
         if np.linalg.norm(coef-newcoef) <= tol * np.max([np.linalg.norm(coef),
                                                          np.linalg.norm(newcoef)]):
             break

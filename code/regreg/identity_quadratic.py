@@ -81,6 +81,16 @@ class identity_quadratic(object):
                                       sc.constant_term + oc.constant_term)
             return newq 
 
+    def __getitem__(self, slice):
+        '''
+        Return a new quadratic restricted to the variables in slice
+        with constant_term=0.
+        '''
+        return identity_quadratic(self.coef,
+                                  self.offset[slice],
+                                  self.linear_term[slice],
+                                  0)
+
     def collapsed(self):
         """
         Return an identity quadratic with offset of 0,

@@ -128,7 +128,7 @@ class cone(nonsmooth):
         v += self.quadratic.objective(x, 'func')
         return v
         
-    def proximal(self, lipschitz, x, grad):
+    def proximal(self, proxq, prox_control=None):
         r"""
         The proximal operator. If the atom is in
         Lagrange mode, this has the form
@@ -148,7 +148,6 @@ class cone(nonsmooth):
 
         """
 
-        proxq = identity_quadratic(lipschitz, x, grad)
         totalq = self.quadratic + proxq
 
         if self.offset is None or np.all(np.equal(self.offset, 0)):
@@ -175,7 +174,7 @@ class cone(nonsmooth):
             print 'proxarg: ', prox_arg
             print 'totalq: ', totalq
 
-        eta = self.cone_prox(prox_arg, lipschitz=lipschitz)
+        eta = self.cone_prox(prox_arg, lipschitz=totalq.coef)
         if offset is None:
             return eta
         else:

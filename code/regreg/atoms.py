@@ -225,7 +225,7 @@ class atom(nonsmooth):
         v += self.quadratic.objective(x, 'func')
         return v
 
-    def proximal(self, lipschitz, x, grad):
+    def proximal(self, proxq, prox_control=None):
         r"""
         The proximal operator. If the atom is in
         Lagrange mode, this has the form
@@ -247,7 +247,6 @@ class atom(nonsmooth):
 
         """
 
-        proxq = identity_quadratic(lipschitz, x, grad)
         totalq = self.quadratic + proxq
 
         if self.offset is None or np.all(np.equal(self.offset, 0)):
@@ -878,18 +877,18 @@ class smooth_conjugate(smooth):
             q = identity_quadratic(0,0,-x,0)
 
         if mode == 'both':
-            argmin, optimal_value = self.atom.proximal_optimum(q.coef, q.offset, q.linear_term)
+            argmin, optimal_value = self.atom.proximal_optimum(q)
             objective = -optimal_value
             # retain a reference
             self.argmin = argmin
             return objective, argmin
         elif mode == 'grad':
-            argmin = self.atom.proximal(q.coef, q.offset, q.linear_term)
+            argmin = self.atom.proximal(q)
             # retain a reference
             self.argmin = argmin
             return argmin
         elif mode == 'func':
-            argmin, optimal_value = self.atom.proximal_optimum(q.coef, q.offset, q.linear_term)
+            argmin, optimal_value = self.atom.proximal_optimum(q)
             objective = -optimal_value
             # retain a reference
             self.argmin = argmin
@@ -900,7 +899,7 @@ class smooth_conjugate(smooth):
     def nonsmooth_objective(self, x, check_feasibilty=False):
         return self.atom.quadratic.objective(x, 'func')
 
-    def proximal(self, lipschitz, x, grad):
+    def proximal(self, proxq):
         raise ValueError('no proximal defined')
 
 conjugate_seminorm_pairs = {}

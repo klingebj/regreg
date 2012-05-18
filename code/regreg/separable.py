@@ -77,10 +77,10 @@ class separable(atom):
             value += atom.nonsmooth_objective(x[group], check_feasibility=check_feasibility)
         return value
 
-    def proximal(self, lipschitz, x, grad):
-        v = x.copy()
+    def proximal(self, proxq, prox_control=None):
+        v = proxq.linear_term.copy()
         for atom, group in zip(self.atoms, self.groups):
-            v[group] = atom.proximal(lipschitz, x[group], grad[group])
+            v[group] = atom.proximal(proxq[group], prox_control)
         return v
 
     @property

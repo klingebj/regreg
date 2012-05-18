@@ -9,7 +9,7 @@ from .separable import separable
 from .primal_dual_alternation import dual_problem, stacked_dual
 from .atoms import affine_atom as nonsmooth_affine_atom
 from .cones import zero_constraint, zero as zero_nonsmooth, affine_cone
-from .quadratic import quadratic
+
 
 class container(composite):
     """
@@ -76,7 +76,7 @@ class container(composite):
             return out + self.quadratic.objective(x, 'func')
 
     default_solver = FISTA
-    def proximal(self, lipschitz, x, grad, prox_control=None):
+    def proximal(self, proxq, prox_control=None):
         """
         The proximal function for the primal problem
         """
@@ -98,7 +98,7 @@ class container(composite):
             prox_control = prox_defaults
 
             _problem_objective = zero_nonsmooth(transform.primal_shape)
-            _problem_objective.set_quadratic(lipschitz, -x, grad, 0)
+            _problem_objective.set_quadratic(proxq.coef, proxq.offset, proxq.linear_term, 0)
             self.dualp = dual_problem(_problem_objective,
                                       self.transform,
                                       self.separable_atom)
@@ -115,18 +115,19 @@ class container(composite):
                 prox_control.pop('dual_reference_lipschitz')
             if prox_control['backtrack']:
                 #If backtracking set start_inv_step
-                prox_control['start_inv_step'] = self.dual_reference_lipschitz / lipschitz
+                prox_control['start_inv_step'] = self.dual_reference_lipschitz / proxq.coef
 
             # the lipschitz estimate comes from the
             # fact that the conjugate of a quadratic
             # with coef lipschitz is quadratic with coef 1/lipschitz
 
-            self.dualp.lipschitz = self.dual_reference_lipschitz / lipschitz
+            self.dualp.lipschitz = self.dual_reference_lipschitz / proxq.coef
 
             if hasattr(self, 'dual_minimizer'):
                 self.dualopt.composite.coefs[:] = self.dual_minimizer
             history = self.dualopt.fit(**prox_control)
             self.dual_minimizer = self.dualopt.composite.coefs
+            lipschitz, x, grad = proxq.coef, proxq.offset, proxq.linear_term
             if prox_control['return_objective_hist']:
                 return x - grad / lipschitz - transform.adjoint_map(self.dualopt.composite.coefs/lipschitz), history
             else:
@@ -136,10 +137,8 @@ class container(composite):
             primal = separable_atom.conjugate
             if isinstance(transform, afselector):
                 z = x.copy()
-                z[transform.index_obj] = primal.proximal(lipschitz,
-                                                         x[transform.index_obj],
-                                                         grad[transform.index_obj])
+                z[transform.index_obj] = primal.proximal(proxq[transform.index_obj])
                 return z
             else:
-                return primal.proximal(lipschitz, x, grad)
+                return primal.proximal(proxq)
 
