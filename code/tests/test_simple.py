@@ -12,7 +12,7 @@ from copy import copy
 def test_simple():
     Z = np.random.standard_normal(100) * 4
     p = rr.l1norm(100, lagrange=0.13)
-    L = 0.13
+    L = 0.14
 
     loss = rr.quadratic.shift(-Z, coef=0.5*L)
     problem = rr.simple_problem(loss, p)

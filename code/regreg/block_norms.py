@@ -301,7 +301,7 @@ class l1_l2(block_sum):
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         lagrange = atoms.atom.lagrange_prox(self, x, lipschitz, lagrange)
         norm = np.sqrt((x**2).sum(1))
-        mult = np.maximum(norm - lagrange, 0) / norm
+        mult = np.maximum(norm - lagrange / lipschitz, 0) / norm
         return x * mult[:, np.newaxis]
 
     @property

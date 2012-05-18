@@ -12,7 +12,8 @@ from copy import copy
 def test_simple():
     Z = np.random.standard_normal((10,10)) * 4
     p = rr.l1_l2((10,10), lagrange=0.13)
-    L = 0.13
+    dual = p.conjugate
+    L = 0.23
 
     loss = rr.quadratic.shift(-Z, coef=0.5*L)
     problem = rr.simple_problem(loss, p)
@@ -20,7 +21,8 @@ def test_simple():
     solver.fit(tol=1.0e-10, debug=True)
 
     simple_coef = solver.composite.coefs
-    prox_coef = p.proximal(rr.identity_quadratic(L, Z, 0, 0))
+    q = rr.identity_quadratic(L, Z, 0, 0)
+    prox_coef = p.proximal(q)
 
     p2 = copy(p)
     p2.set_quadratic(L, Z, 0, 0)
@@ -40,9 +42,15 @@ def test_simple():
     solver.fit(tol=1.0e-10)
     separable_coef = solver.composite.coefs
 
-    yield ac, prox_coef, simple_nonsmooth_gengrad, 'prox to nonsmooth gengrad'
-    yield ac, prox_coef, separable_coef, 'prox to separable'
-    yield ac, prox_coef, simple_nonsmooth_coef, 'prox to simple_nonsmooth'
-    yield ac, prox_coef, simple_coef, 'prox to simple'
+    ac(prox_coef, Z-simple_coef, 'prox to simple')
+    ac(prox_coef, simple_nonsmooth_gengrad, 'prox to nonsmooth gengrad')
+    ac(prox_coef, separable_coef, 'prox to separable')
+    ac(prox_coef, simple_nonsmooth_coef, 'prox to simple_nonsmooth')
+
+    # yield ac, prox_coef, Z - simple_dual_coef, 'prox to simple dual'
+#     yield ac, prox_coef, simple_nonsmooth_gengrad, 'prox to nonsmooth gengrad'
+#     yield ac, prox_coef, separable_coef, 'prox to separable'
+#     yield ac, prox_coef, simple_nonsmooth_coef, 'prox to simple_nonsmooth'
+
 
 
