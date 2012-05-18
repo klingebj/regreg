@@ -10,6 +10,7 @@ from .primal_dual_alternation import dual_problem, stacked_dual
 from .atoms import affine_atom as nonsmooth_affine_atom
 from .cones import zero_constraint, zero as zero_nonsmooth, affine_cone
 
+from .identity_quadratic import identity_quadratic
 
 class container(composite):
     """
@@ -37,6 +38,13 @@ class container(composite):
             self.nonsmooth_atoms = [zero_nonsmooth(self.smooth_atoms[0].primal_shape)]
         self.transform, self.separable_atom = stacked_dual(self.smooth_atoms[0].primal_shape, *self.nonsmooth_atoms)
         self.coefs = np.zeros(self.transform.primal_shape)
+
+        # add up all the smooth_atom quadratics
+        # to be added to nonsmoooth_objective
+
+        self.smoothq = identity_quadratic(0,0,0,0)
+        for atom in self.smooth_atoms:
+            self.smoothq = self.smoothq + atom.quadratic
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -70,10 +78,10 @@ class container(composite):
         for atom in self.nonsmooth_atoms:
             out += atom.nonsmooth_objective(x,
                                             check_feasibility=check_feasibility)
-        if self.quadratic is None:
-            return out
-        else:
-            return out + self.quadratic.objective(x, 'func')
+        # now add the smooth_atoms' quadratic
+        out += self.smoothq.objective(x, 'func')
+        out += self.quadratic.objective(x, 'func')
+        return out
 
     default_solver = FISTA
     def proximal(self, proxq, prox_control=None):

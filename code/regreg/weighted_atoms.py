@@ -58,7 +58,7 @@ class atom(unweighted_atom):
     
     def __repr__(self):
         if self.lagrange is not None:
-            if self.quadratic is None or not self.quadratic.anything_to_return:
+            if not self.quadratic.iszero:
                 return "%s(%s, %s, lagrange=%f, offset=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
@@ -74,7 +74,7 @@ class atom(unweighted_atom):
                      str(self.offset),
                      self.quadratic)
         else:
-            if self.quadratic is None or not self.quadratic.anything_to_return:
+            if not self.quadratic.iszero:
                 return "%s(%s, %s, bound=%f, offset=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`,

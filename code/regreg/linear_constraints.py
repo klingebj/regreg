@@ -6,6 +6,7 @@ import warnings
 from .composite import composite, nonsmooth
 from .cones import cone, affine_cone
 from .identity_quadratic import identity_quadratic
+from .atoms import _work_out_conjugate
 
 try:
     from projl1_cython import projl1
@@ -33,28 +34,13 @@ class linear_constraint(cone):
                  initial=None, 
                  quadratic=None):
 
-        self.offset = None
-        if offset is not None:
-            self.offset = np.array(offset)
-
-        if type(primal_shape) == type(1):
-            self.primal_shape = (primal_shape,)
-        else:
-            self.primal_shape = primal_shape
-        self.dual_shape = self.primal_shape
+        cone.__init__(self,
+                      primal_shape,
+                      offset=offset,
+                      initial=initial,
+                      quadratic=quadratic)
         self.basis = np.asarray(basis)
         
-        if initial is None:
-            self.coefs = np.zeros(self.primal_shape)
-        else:
-            self.coefs = initial.copy()
-
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.center,
-                               quadratic.linear_term, 
-                               quadratic.constant_term)
-        else:
-            self.set_quadratic(0,0,0,0)
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -69,7 +55,7 @@ class linear_constraint(cone):
                               quadratic=self.quadratic)
     
     def __repr__(self):
-        if self.quadratic is None or not self.quadratic.anything_to_return:
+        if not self.quadratic.iszero:
             return "%s(%s, %s, offset=%s)" % \
                 (self.__class__.__name__,
                  `self.basis`,
@@ -86,17 +72,8 @@ class linear_constraint(cone):
     @property
     def conjugate(self):
         if self.quadratic.coef == 0:
-            if self.offset is not None:
-                if self.quadratic.linear_term is not None:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
-                else:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
-            else:
-                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
-            if self.quadratic.linear_term is not None:
-                offset = -self.quadratic.linear_term
-            else:
-                offset = None
+
+            offset, outq = _work_out_conjugate(self.offset, self.quadratic)
 
             cls = conjugate_cone_pairs[self.__class__]
             atom = cls(self.primal_shape, 

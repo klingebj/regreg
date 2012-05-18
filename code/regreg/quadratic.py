@@ -12,23 +12,18 @@ class quadratic(smooth_atom):
 
     def __init__(self, primal_shape, coef=1., Q=None, Qdiag=False,
                  offset=None,
-                 quadratic=None):
-        self.offset = offset
+                 quadratic=None,
+                 initial=None):
+        smooth_atom.__init__(self,
+                             primal_shape,
+                             coef=coef,
+                             offset=offset,
+                             quadratic=quadratic,
+                             initial=initial)
+
         self.Q = Q
         if self.Q is not None:
             self.Q_transform = affine_transform(Q, None, Qdiag)
-        if type(primal_shape) == type(1):
-            self.primal_shape = (primal_shape,)
-        else:
-            self.primal_shape = primal_shape
-        self.coef = coef
-
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.offset,
-                               quadratic.linear_term, 
-                               quadratic.constant_term)
-        else:
-            self.set_quadratic(0,0,0,0)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """

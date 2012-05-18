@@ -24,15 +24,8 @@ class atom(nonsmooth):
     def __init__(self, primal_shape, lagrange=None, bound=None,
                  offset=None, quadratic=None, initial=None):
 
-        self.offset = offset
-        if offset is not None:
-            self.offset = np.array(offset)
-
-        if type(primal_shape) == type(1):
-            self.primal_shape = (primal_shape,)
-        else:
-            self.primal_shape = primal_shape
-        self.dual_shape = self.primal_shape
+        nonsmooth.__init__(self, primal_shape, offset,
+                           quadratic, initial)
 
         if not (bound is None or lagrange is None):
             raise ValueError('An atom must be either in Lagrange form or bound form. Only one of the parameters in the constructor can not be None.')
@@ -50,18 +43,6 @@ class atom(nonsmooth):
             self._bound = bound
             self._lagrange = None
         
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.center,
-                               quadratic.linear_term, 
-                               quadratic.constant_term)
-        else:
-            self.set_quadratic(0,0,0,0)
-
-        if initial is None:
-            self.coefs = np.zeros(self.primal_shape)
-        else:
-            self.coefs = initial.copy()
-
     def __eq__(self, other):
         if self.__class__ == other.__class__:
             if self.bound is not None:
@@ -78,7 +59,7 @@ class atom(nonsmooth):
 
     def __repr__(self):
         if self.lagrange is not None:
-            if self.quadratic is None or not self.quadratic.anything_to_return:
+            if not self.quadratic.iszero:
                 return "%s(%s, lagrange=%f, offset=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
@@ -93,7 +74,7 @@ class atom(nonsmooth):
                      str(self.quadratic))
 
         else:
-            if self.quadratic is None or not self.quadratic.anything_to_return:
+            if not self.quadratic.iszero:
                 return "%s(%s, bound=%f, offset=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
@@ -109,18 +90,10 @@ class atom(nonsmooth):
                      str(self.quadratic))
     
     def get_conjugate(self):
+        self.quadratic.zeroify()
         if self.quadratic.coef == 0:
-            if self.offset is not None:
-                if self.quadratic.linear_term is not None:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
-                else:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
-            else:
-                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
-            if self.quadratic.linear_term is not None:
-                offset = -self.quadratic.linear_term
-            else:
-                offset = None
+
+            offset, outq = _work_out_conjugate(self.offset, self.quadratic)
 
             if self.bound is None:
                 cls = conjugate_seminorm_pairs[self.__class__]
@@ -211,10 +184,8 @@ class atom(nonsmooth):
         return bound
 
     def nonsmooth_objective(self, x, check_feasibility=False):
-        if self.offset is not None:
-            x_offset = x + self.offset
-        else:
-            x_offset = x
+        x_offset = self.apply_offset(x)
+
         if self.bound is not None:
             if check_feasibility:
                 v = self.constraint(x_offset)
@@ -247,19 +218,7 @@ class atom(nonsmooth):
 
         """
 
-        totalq = self.quadratic + proxq
-
-        if self.offset is None or np.all(np.equal(self.offset, 0)):
-            offset = None
-        else:
-            offset = self.offset
-
-        if offset is not None:
-            totalq.center += offset
-            totalq = totalq.collapsed()
-        else:
-            totalq = totalq.collapsed()
-
+        offset, totalq = (self.quadratic + proxq).recenter(self.offset)
         if totalq.coef == 0:
             raise ValueError('lipschitz + quadratic coef must be positive')
 
@@ -911,3 +870,17 @@ for n1, n2 in [(l1norm,supnorm),
     conjugate_seminorm_pairs[n2] = n1
 
 nonpaired_atoms = [positive_part_lagrange]
+
+def _work_out_conjugate(offset, quadratic):
+    if offset is None:
+        offset = 0
+    else:
+        offset = offset
+    outq = identity_quadratic(0,0,-offset,
+                              -quadratic.constant_term+np.sum(offset * quadratic.linear_term))
+
+    if quadratic.linear_term is not None:
+        outoffset = -quadratic.linear_term
+    else:
+        outoffset = None
+    return outoffset, outq

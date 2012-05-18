@@ -78,7 +78,7 @@ def test_proximal_maps():
 def solveit(atom, Z, W, U, linq, L, FISTA):
 
         p2 = copy(atom)
-        p2.set_quadratic(L, Z, 0, 0)
+        p2.quadratic = rr.identity_quadratic(L, Z, 0, 0)
 
         d = atom.conjugate
 
@@ -87,7 +87,7 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
         q = rr.identity_quadratic(L, Z, 0, 0)
 
         p2 = copy(atom)
-        p2.set_quadratic(L, Z, 0, 0)
+        p2.quadratic = rr.identity_quadratic(L, Z, 0, 0)
         problem = rr.simple_problem.nonsmooth(p2)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-14, FISTA=FISTA)

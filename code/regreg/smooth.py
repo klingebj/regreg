@@ -12,23 +12,15 @@ class smooth_atom(smooth_composite):
     """
 
     def __init__(self, primal_shape, coef=1, offset=None,
-                 quadratic=None):
-
-        if offset is not None:
-            self.offset = np.array(offset)
-
-        self.primal_shape = primal_shape
+                 quadratic=None, initial=None):
+        smooth_composite.__init__(self, primal_shape,
+                                  offset=offset,
+                                  quadratic=quadratic,
+                                  initial=initial)
         self.coef = coef
         if coef < 0:
             raise ValueError('coefs must be nonnegative to ensure convexity (assuming all atoms are indeed convex)')
         self.coefs = np.zeros(self.primal_shape)
-
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.offset,
-                               quadratic.linear_term, 
-                               quadratic.constant_term)
-        else:
-            self.set_quadratic(0,0,0,0)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         raise NotImplementedError
@@ -84,11 +76,6 @@ class smooth_atom(smooth_composite):
             return obj.copy()
         return obj
 
-    def apply_offset(self, x):
-        if self.offset is not None:
-            return x + self.offset
-        return x
-
     def get_conjugate(self, epsilon=0):
         # multiple of identity quadratic / 2 added 
         # before computing conjugate
@@ -100,7 +87,6 @@ class smooth_atom(smooth_composite):
             self._conjugate = self.get_conjugate(epsilon=0)
             self._conjugate._conjugate = self
         return self._conjugate
-    
 
 def acceptable_init_args(cls, proposed_keywords):
     """
@@ -109,7 +95,7 @@ def acceptable_init_args(cls, proposed_keywords):
     Returns True/False
     """
     args = inspect.getargspec(cls.__init__).args
-    forbidden = ['self', 'primal_shape', 'coef', 'constant_term']
+    forbidden = ['self', 'primal_shape', 'coef', 'quadratic', 'initial', 'offset']
     for kw in proposed_keywords.keys():
         if not kw in args:
             return False

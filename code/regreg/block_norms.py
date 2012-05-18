@@ -30,27 +30,18 @@ class block_sum(atoms.atom):
                  quadratic=None,
                  initial=None):
 
-        if offset is not None:
-            self.offset = np.array(offset)
-        else:
-            self.offset = None
+        atoms.atom.__init__(self,
+                            primal_shape,
+                            quadratic=quadratic,
+                            offset=offset,
+                            initial=initial,
+                            lagrange=lagrange,
+                            bound=bound)
             
-        self.primal_shape = primal_shape
         self.atom = atom_cls(primal_shape[1:], lagrange=lagrange,
                              bound=bound,
                              offset=None,
                              quadratic=quadratic)
-        if quadratic is not None:
-            self.set_quadratic(quadratic.coef, quadratic.center,
-                               quadratic.linear_term, 
-                               quadratic.constant_term)
-        else:
-            self.set_quadratic(0,0,0,0)
-
-        if initial is None:
-            self.coefs = np.zeros(self.primal_shape)
-        else:
-            self.coefs = initial.copy()
 
     def seminorms(self, x, lagrange=None, check_feasibility=False):
         value = np.empty(self.primal_shape[0])
@@ -301,7 +292,7 @@ class l1_l2(block_sum):
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         lagrange = atoms.atom.lagrange_prox(self, x, lipschitz, lagrange)
         norm = np.sqrt((x**2).sum(1))
-        mult = np.maximum(norm - lagrange / lipschitz, 0) / norm
+        mult = lipschitz * np.maximum(norm - lagrange / lipschitz, 0) / norm
         return x * mult[:, np.newaxis]
 
     @property

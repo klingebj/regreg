@@ -9,7 +9,11 @@ a quadratic of the form
 with :math:`\kappa, \gamma, \alpha, c` = (coef, center, linear_term, constant_term).
 """
 
+from copy import copy
+
 from numpy.linalg import norm
+from numpy import all
+
 
 class identity_quadratic(object):
 
@@ -24,10 +28,51 @@ class identity_quadratic(object):
             self.constant_term = 0
         else:
             self.constant_term = constant_term
-        if self.coef is not None or self.linear_term is not None:
-            self.anything_to_return = True
+
+    @property
+    def iszero(self):
+        return all([self.coef in [0, None],
+                    self.center is None or all(self.center == 0),
+                    self.linear_term is None or all(self.linear_term == 0),
+                    self.constant_term in [0, None]])
+
+    def __copy__(self):
+        return identity_quadratic(self.coef,
+                                  copy(self.center),
+                                  copy(self.linear_term),
+                                  copy(self.constant_term))
+
+    def noneify(self):
+        '''
+        replace zeros with nones
+        '''
+        if self.coef is None:
+            self.coef = 0
+        if self.constant_term is None:
+            self.constant_term = 0
+        if self.linear_term is not None and all(self.linear_term == 0):
+            self.linear_term = None
+        if self.center is not None and all(self.center_term == 0):
+            self.center_term = None
+
+    def zeroify(self):
+        for a in ['coef', 'center', 'linear_term', 'constant_term']:
+            if getattr(self, a) is None:
+                setattr(self, a, 0)
+
+    def recenter(self, offset):
+
+        if offset is not None and all(offset == 0):
+            offset = None
+
+        if offset is not None:
+            cpq = copy(self)
+            cpq.center += offset
+            cpq = cpq.collapsed()
+            return offset, cpq
         else:
-            self.anything_to_return = False
+            return None, self.collapsed()
+
 
     def objective(self, x, mode='both'):
         coef, center, linear_term = self.coef, self.center, self.linear_term
