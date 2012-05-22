@@ -15,14 +15,15 @@ def test_proximal_maps():
     U = 0.02 * np.random.standard_normal(shape)
     linq = rr.identity_quadratic(0,0,W,0)
 
-    for L, atom, q, offset, FISTA in itertools.product([0.5,1,0.1], 
+    for L, atom, q, offset, FISTA, coef_stop in itertools.product([0.5,1,0.1], 
                                                        sorted(C.conjugate_cone_pairs.keys()),
                                               [None, linq],
                                               [None, U],
+                                              [False, True],
                                               [False, True]):
 
         p = atom(shape, quadratic=q,
                    offset=offset)
 
-        for t in solveit(p, Z, W, U, linq, L, FISTA):
+        for t in solveit(p, Z, W, U, linq, L, FISTA, coef_stop):
             yield t

@@ -51,9 +51,9 @@ class dual_problem(composite):
         return identity_quadratic(None,None,None,None)
 
     @staticmethod
-    def fromseq(f_conjugate, *g):
-        transform, separable_atom = stacked_dual(f_conjugate.primal_shape, *g)
-        return dual_problem(f_conjugate, transform, separable_atom)
+    def fromprimal(f, *g):
+        transform, separable_dual_atom = stacked_dual(f.primal_shape, *g)
+        return dual_problem(f.conjugate, transform, separable_dual_atom)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """

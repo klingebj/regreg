@@ -21,10 +21,11 @@ def test_proximal_maps():
 
     basis = np.linalg.svd(np.random.standard_normal((4,20)), full_matrices=0)[2]
 
-    for L, atom, q, offset, FISTA in itertools.product([0.5,1,0.1], 
+    for L, atom, q, offset, FISTA, coef_stop in itertools.product([0.5,1,0.1], 
                                                        sorted(S.conjugate_svd_pairs.keys()),
                                               [None, linq],
                                               [None, U],
+                                              [False, True],
                                               [False, True]):
 
         p = atom(shape, quadratic=q, lagrange=lagrange,
@@ -40,12 +41,12 @@ def test_proximal_maps():
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
         nt.assert_raises(AttributeError, setattr, d, 'lagrange', 4.)
 
-        for t in solveit(p, Z, W, U, linq, L, FISTA):
+        for t in solveit(p, Z, W, U, linq, L, FISTA, coef_stop):
             yield t
 
         b = atom(shape, bound=bound, quadratic=q,
                  offset=offset)
 
-        for t in solveit(b, Z, W, U, linq, L, FISTA):
+        for t in solveit(b, Z, W, U, linq, L, FISTA, coef_stop):
             yield t
 

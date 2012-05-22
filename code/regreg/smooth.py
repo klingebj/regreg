@@ -88,10 +88,8 @@ class smooth_atom(smooth_composite):
 
     @property
     def conjugate(self):
-        if not hasattr(self, "_conjugate"):
-            self._conjugate = self.get_conjugate()
-            self._conjugate._conjugate = self
-        return self._conjugate
+        return self.get_conjugate()
+ 
 
 def acceptable_init_args(cls, proposed_keywords):
     """

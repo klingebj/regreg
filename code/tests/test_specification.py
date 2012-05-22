@@ -30,7 +30,7 @@ def test_l1prox():
 
     l1c = copy(l1)
     l1c.quadratic = rr.identity_quadratic(0.5, ww, None, 0.)
-    a = rr.dual_problem.fromseq(l1c.conjugate)
+    a = rr.dual_problem.fromprimal(l1c)
     solver = rr.FISTA(a)
     solver.fit(tol=1.0e-14)
 
@@ -62,7 +62,7 @@ def test_l1prox_bound():
 
     l1c = copy(l1)
     l1c.quadratic = rr.identity_quadratic(0.5, ww, None, 0.)
-    a = rr.dual_problem.fromseq(l1c.conjugate)
+    a = rr.dual_problem.fromprimal(l1c)
     solver = rr.FISTA(a)
     solver.fit()
 
@@ -91,7 +91,7 @@ def test_l1prox_bound():
 #     print minb
 #     l2constraint = rr.l2norm.affine(X, -Y, bound=1.5 * minb / np.linalg.norm(Y))
 
-#     a = rr.dual_problem.fromseq(l1.conjugate, l2constraint)
+#     a = rr.dual_problem.fromprimal(l1, l2constraint)
 #     solver = rr.FISTA(a)
 #     solver.fit(min_its=100, debug=True)
 

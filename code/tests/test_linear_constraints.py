@@ -16,14 +16,15 @@ def test_proximal_maps():
 
     basis = np.linalg.svd(np.random.standard_normal((4,20)), full_matrices=0)[2]
 
-    for L, atom, q, offset, FISTA in itertools.product([0.5,1,0.1], 
+    for L, atom, q, offset, FISTA, coef_stop in itertools.product([0.5,1,0.1], 
                                                        sorted(LC.conjugate_cone_pairs.keys()),
                                               [None, linq],
                                               [None, U],
+                                              [False, True],
                                               [False, True]):
 
         p = atom(shape, basis, quadratic=q,
                    offset=offset)
 
-        for t in solveit(p, Z, W, U, linq, L, FISTA):
+        for t in solveit(p, Z, W, U, linq, L, FISTA, coef_stop):
             yield t

@@ -30,12 +30,13 @@ def test_proximal_maps():
     U = 0.02 * np.random.standard_normal(shape)
     linq = rr.identity_quadratic(0,0,W,0)
 
-    for L, atom, q, offset, FISTA in itertools.product([0.5,1,0.1], \
+    for L, atom, q, offset, FISTA, coef_stop in itertools.product([0.5,1,0.1], \
                      [A.l1norm, A.supnorm, A.l2norm,
                       A.positive_part, A.constrained_max],
                                               [None, linq],
                                               [None, U],
-                                              [False, True]):
+                                              [False, True],
+                                              [True, False]):
 
         p = atom(shape, lagrange=lagrange, quadratic=q,
                    offset=offset)
@@ -49,21 +50,22 @@ def test_proximal_maps():
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
         nt.assert_raises(AttributeError, setattr, d, 'lagrange', 4.)
 
-        for t in solveit(p, Z, W, U, linq, L, FISTA):
+        for t in solveit(p, Z, W, U, linq, L, FISTA, coef_stop):
             yield t
 
         b = atom(shape, bound=bound, quadratic=q,
                  offset=offset)
 
-        for t in solveit(b, Z, W, U, linq, L, FISTA):
+        for t in solveit(b, Z, W, U, linq, L, FISTA, coef_stop):
             yield t
 
 
     lagrange = 0.1
-    for L, atom, q, offset, FISTA in itertools.product([0.5,1,0.1], \
+    for L, atom, q, offset, FISTA, coef_stop in itertools.product([0.5,1,0.1], \
                      sorted(A.nonpaired_atoms),
                                               [None, linq],
                                               [None, U],
+                                              [False, True],
                                               [False, True]):
 
         p = atom(shape, lagrange=lagrange, quadratic=q,
@@ -78,11 +80,11 @@ def test_proximal_maps():
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
         nt.assert_raises(AttributeError, setattr, d, 'lagrange', 4.)
 
-        for t in solveit(p, Z, W, U, linq, L, FISTA):
+        for t in solveit(p, Z, W, U, linq, L, FISTA, coef_stop):
             yield t
 
 
-def solveit(atom, Z, W, U, linq, L, FISTA):
+def solveit(atom, Z, W, U, linq, L, FISTA, coef_stop):
 
     p2 = copy(atom)
     p2.quadratic = rr.identity_quadratic(L, Z, 0, 0)
@@ -99,7 +101,7 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     p2.quadratic = atom.quadratic + q
     problem = rr.simple_problem.nonsmooth(p2)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-14, FISTA=FISTA, coef_stop=True)
+    solver.fit(tol=1.0e-14, FISTA=FISTA, coef_stop=coef_stop)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with monotonicity %s ' % atom
 
@@ -114,20 +116,19 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.simple_problem(loss, atom)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA, coef_stop=True)
+    solver.fit(tol=1.0e-12, FISTA=FISTA, coef_stop=coef_stop)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity %s ' % atom
-
-    dproblem = rr.dual_problem.fromseq(loss.conjugate, atom)
-    dcoef = dproblem.solve(coef_stop=True, tol=1.0e-10)
-    yield ac, atom.proximal(q), dcoef, 'solving prox with dual_problem.fromseq with monotonicity %s ' % atom
 
     dproblem2 = rr.dual_problem(loss.conjugate, 
                                 rr.identity(loss.primal_shape),
                                 atom.conjugate)
-    dcoef2 = dproblem.solve(coef_stop=True, tol=1.e-10, 
-                            max_its=100)
+    dcoef2 = dproblem2.solve(coef_stop=coef_stop, tol=1.e-14)
     yield ac, atom.proximal(q), dcoef2, 'solving prox with dual_problem with monotonicity %s ' % atom
+
+    dproblem = rr.dual_problem.fromprimal(loss, atom)
+    dcoef = dproblem.solve(coef_stop=coef_stop, tol=1.0e-14)
+    yield ac, atom.proximal(q), dcoef, 'solving prox with dual_problem.fromprimal with monotonicity %s ' % atom
 
     # write the loss in terms of a quadratic for the smooth loss and a smooth function...
 
@@ -135,13 +136,13 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     lossq.quadratic = rr.identity_quadratic(0.4 * L, Z, 0, 0)
     problem = rr.simple_problem(lossq, atom)
 
-    yield ac, atom.proximal(q), problem.solve(coef_stop=True, FISTA=FISTA, 
+    yield ac, atom.proximal(q), problem.solve(coef_stop=coef_stop, FISTA=FISTA, 
                                               tol=1.0e-12), 'solving prox with simple_problem with monotonicity  but loss has identity_quadratic %s ' % atom
 
     problem = rr.simple_problem.nonsmooth(p2)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-14, monotonicity_restart=False, coef_stop=True,
-              FISTA=FISTA)
+    solver.fit(tol=1.0e-14, monotonicity_restart=False, coef_stop=coef_stop,
+               FISTA=FISTA)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with no monotonocity %s ' % atom
 
@@ -149,7 +150,7 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     problem = rr.simple_problem(loss, atom)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-12, monotonicity_restart=False,
-               coef_stop=True, FISTA=FISTA)
+               coef_stop=coef_stop, FISTA=FISTA)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem %s no monotonicity_restart' % atom
 
@@ -157,7 +158,7 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     problem = rr.separable_problem.singleton(atom, loss)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-12, 
-               coef_stop=True, FISTA=FISTA)
+               coef_stop=coef_stop, FISTA=FISTA)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton %s ' % atom
 
@@ -165,7 +166,7 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     problem = rr.container(loss, atom)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-12, 
-               coef_stop=True, FISTA=FISTA)
+               coef_stop=coef_stop, FISTA=FISTA)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving atom prox with container %s ' % atom
 
@@ -175,35 +176,35 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     lossq.quadratic = rr.identity_quadratic(0.4 * L, Z, 0, 0)
     problem = rr.container(lossq, atom)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA, coef_stop=True)
+    solver.fit(tol=1.0e-12, FISTA=FISTA, coef_stop=coef_stop)
 
     yield (ac, atom.proximal(q), 
-           problem.solve(tol=1.e-12,FISTA=FISTA,coef_stop=True), 
+           problem.solve(tol=1.e-12,FISTA=FISTA,coef_stop=coef_stop), 
            'solving prox with container with monotonicity  but loss has identity_quadratic %s ' % atom)
 
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.simple_problem(loss, d)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-12, monotonicity_restart=False, 
-               coef_stop=True, FISTA=FISTA)
+               coef_stop=coef_stop, FISTA=FISTA)
     # ac(d.proximal(q), solver.composite.coefs, 'solving dual prox with simple_problem no monotonocity %s ' % atom)
     yield (ac, d.proximal(q), problem.solve(tol=1.e-12,
                                             FISTA=FISTA,
-                                            coef_stop=True,
+                                            coef_stop=coef_stop,
                                             monotonicity_restart=False), 
            'solving dual prox with simple_problem no monotonocity %s ' % atom)
 
     problem = rr.container(d, loss)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-12, 
-               coef_stop=True, FISTA=FISTA)
+               coef_stop=coef_stop, FISTA=FISTA)
     yield ac, d.proximal(q), solver.composite.coefs, 'solving dual prox with container %s ' % atom
 
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.separable_problem.singleton(d, loss)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-12, 
-               coef_stop=True, FISTA=FISTA)
+               coef_stop=coef_stop, FISTA=FISTA)
 
     yield ac, d.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton %s ' % atom
 
