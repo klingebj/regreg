@@ -80,7 +80,6 @@ class separable(atom):
     def proximal(self, proxq, prox_control=None):
         v = proxq.linear_term.copy()
         for atom, group in zip(self.atoms, self.groups):
-            print 'group: ', group
             v[group] = atom.proximal(proxq[group], prox_control)
         return v
 

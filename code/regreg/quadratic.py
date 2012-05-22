@@ -70,18 +70,20 @@ class quadratic(smooth_atom):
                 raise ValueError("mode incorrectly specified")
 
 
-    def get_conjugate(self, factor=False):
+    def get_conjugate(self, factor=False, as_quadratic=False):
 
         if self.Q is None:
             q = identity_quadratic(self.coef, -self.offset, 0, 0).collapsed()
             totalq = q + self.quadratic
-            print 'totalq: ', totalq
             totalq_conj = totalq.conjugate.collapsed()
-            return quadratic(self.primal_shape, 
-                             offset=totalq_conj.linear_term/totalq_conj.coef,
-                             coef=totalq_conj.coef,
-                             quadratic=identity_quadratic(0,0,0,totalq_conj.constant_term-q.constant_term))
-#                             quadratic=identity_quadratic(0,0,0,totalq_conj.constant_term))
+            if as_quadratic:
+                return quadratic(self.primal_shape, 
+                                 offset=totalq_conj.linear_term/totalq_conj.coef,
+                                 coef=totalq_conj.coef,
+                                 quadratic=identity_quadratic(0,0,0,-totalq.constant_term))
+            else:
+                return smooth_conjugate(zero(self.primal_shape,
+                                             quadratic=totalq))
         else:
             sq = self.quadratic.collapsed()
             if self.offset is not None:

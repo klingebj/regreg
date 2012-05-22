@@ -27,7 +27,6 @@ def test_lasso():
     Y = np.random.standard_normal(10) + 3
     
     loss = rr.quadratic.affine(X, -Y)
-
     p1 = rr.container(l11, loss, l12)
 
     solver1 = rr.FISTA(p1)
@@ -70,10 +69,11 @@ def test_quadratic_for_smooth():
 
     # specifying in this way should be the same as if we put 0.5*L below
     loss2 = rr.quadratic.shift(-Z, coef=L)
-    np.testing.assert_allclose(loss2.objective(ww), loss.objective(ww))
-    np.testing.assert_allclose(lq.objective(ww, 'func'), loss.nonsmooth_objective(ww))
-    np.testing.assert_allclose(loss2.smooth_objective(ww, 'func'), 0.5 / 0.3 * loss.smooth_objective(ww, 'func'))
-    np.testing.assert_allclose(loss2.smooth_objective(ww, 'grad'), 0.5 / 0.3 * loss.smooth_objective(ww, 'grad'))
+    yield ac, loss2.objective(ww), loss.objective(ww), 'checking objective'
+
+    yield ac, lq.objective(ww, 'func'), loss.nonsmooth_objective(ww), 'checking nonsmooth objective'
+    yield ac, loss2.smooth_objective(ww, 'func'), 0.5 / 0.3 * loss.smooth_objective(ww, 'func'), 'checking smooth objective func'
+    yield ac, loss2.smooth_objective(ww, 'grad'), 0.5 / 0.3 * loss.smooth_objective(ww, 'grad'), 'checking smooth objective grad'
 
     problem = rr.container(loss, atom)
     solver = rr.FISTA(problem)
@@ -91,18 +91,13 @@ def test_quadratic_for_smooth():
 
     gg_soln = rr.gengrad(problem4, L)
 
-#     loss5 = rr.quadratic.shift(-Z, coef=0.6*L)
-#     problem5 = rr.dual_problem(loss5.conjugate, rr.identity(loss5.primal_shape), atom.conjugate)
-#     problem5.quadratic = lq
-#     dsoln = problem5.solve()
-
     loss6 = rr.quadratic.shift(-Z, coef=0.6*L)
     loss6.quadratic = lq + atom.quadratic
     atomcp = copy(atom)
     atomcp.quadratic = rr.identity_quadratic(0,0,0,0)
     problem6 = rr.dual_problem(loss6.conjugate, rr.identity(loss6.primal_shape), atomcp.conjugate)
     problem6.lipschitz = L + atom.quadratic.coef
-    dsoln2 = problem6.solve(coef_stop=True, tol=1.e-10, debug=True,
+    dsoln2 = problem6.solve(coef_stop=True, tol=1.e-10, 
                             max_its=100)
 
     problem2 = rr.container(loss2, atom)
@@ -113,13 +108,20 @@ def test_quadratic_for_smooth():
 
     ac(problem.objective(ww), atom.nonsmooth_objective(ww) + q.objective(ww,'func'))
 
-    np.testing.assert_allclose(atom.solve(q), solver3.composite.coefs)
-    np.testing.assert_allclose(atom.solve(q), gg_soln)
-    np.testing.assert_allclose(atom.solve(q), solver2.composite.coefs)
-    np.testing.assert_allclose(atom.solve(q), solver4.composite.coefs)
-    # np.testing.assert_allclose(dsoln2, dsoln)
-    np.testing.assert_allclose(atom.solve(q), dsoln2)
-    np.testing.assert_allclose(atom.solve(q), solver.composite.coefs)
+    aq = atom.solve(q)
+    for p, msg in zip([solver3.composite.coefs,
+                       gg_soln,
+                       solver2.composite.coefs,
+                       solver4.composite.coefs,
+                       dsoln2,
+                       solver.composite.coefs],
+                      ['simple_problem with loss having no quadratic',
+                       'gen grad',
+                       'container with loss having no quadratic',
+                       'simple_problem container with quadratic',
+                       'dual problem with loss having a quadratic',
+                       'container with loss having a quadratic']):
+        yield ac, aq, p, msg
 
 def test_quadratic_for_smooth2():
     '''
@@ -167,19 +169,14 @@ def test_quadratic_for_smooth2():
 
     gg_soln = rr.gengrad(problem4, L)
 
-#     loss5 = rr.quadratic.shift(-Z, coef=0.6*L)
-#     problem5 = rr.dual_problem(loss5.conjugate, rr.identity(loss5.primal_shape), atom.conjugate)
-#     problem5.quadratic = lq
-#     dsoln = problem5.solve()
-
     loss6 = rr.quadratic.shift(-Z, coef=0.6*L)
     loss6.quadratic = lq + atom.quadratic
     atomcp = copy(atom)
     atomcp.quadratic = rr.identity_quadratic(0,0,0,0)
     problem6 = rr.dual_problem(loss6.conjugate, rr.identity(loss6.primal_shape), atomcp.conjugate)
     problem6.lipschitz = L + atom.quadratic.coef
-    dsoln2 = problem6.solve(coef_stop=True, tol=1.e-10, debug=True,
-                            max_its=100, FISTA=False)
+    dsoln2 = problem6.solve(coef_stop=True, tol=1.e-10, 
+                            max_its=100)
 
     problem2 = rr.container(loss2, atom)
     solver2 = rr.FISTA(problem2)
@@ -189,12 +186,17 @@ def test_quadratic_for_smooth2():
 
     ac(problem.objective(ww), atom.nonsmooth_objective(ww) + q.objective(ww,'func'))
 
-    np.testing.assert_allclose(atom.solve(q), solver3.composite.coefs)
-    np.testing.assert_allclose(atom.solve(q), gg_soln)
-    np.testing.assert_allclose(atom.solve(q), solver2.composite.coefs)
-    np.testing.assert_allclose(atom.solve(q), solver4.composite.coefs)
-    # np.testing.assert_allclose(dsoln2, dsoln)
-    np.testing.assert_allclose(atom.solve(q), dsoln2)
-    np.testing.assert_allclose(atom.solve(q), solver.composite.coefs)
-
-
+    aq = atom.solve(q)
+    for p, msg in zip([solver3.composite.coefs,
+                       gg_soln,
+                       solver2.composite.coefs,
+                       solver4.composite.coefs,
+                       dsoln2,
+                       solver.composite.coefs],
+                      ['simple_problem with loss having no quadratic',
+                       'gen grad',
+                       'container with loss having no quadratic',
+                       'simple_problem container with quadratic',
+                       'dual problem with loss having a quadratic',
+                       'container with loss having a quadratic']):
+        yield ac, aq, p, msg

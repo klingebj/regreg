@@ -143,7 +143,7 @@ class composite(object):
         self._lipschitz = value
     lipschitz = property(get_lipschitz, set_lipschitz)
 
-    def solve(self, quadratic=None, return_optimum=False):
+    def solve(self, quadratic=None, return_optimum=False, **fit_args):
         raise NotImplementedError('subclasses must implement their own solve methods')
 
 class nonsmooth(composite):
@@ -161,7 +161,7 @@ class nonsmooth(composite):
             return zeros(x.shape)
         raise ValueError("Mode not specified correctly")
 
-    def solve(self, quadratic=None, return_optimum=False):
+    def solve(self, quadratic=None, return_optimum=False, **fit_args):
         if quadratic is None:
             quadratic = sq(0,0,0,0)
         self.coefs = self.proximal(quadratic)

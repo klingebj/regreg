@@ -99,7 +99,7 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     p2.quadratic = atom.quadratic + q
     problem = rr.simple_problem.nonsmooth(p2)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-14, FISTA=FISTA)
+    solver.fit(tol=1.0e-14, FISTA=FISTA, coef_stop=True)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with monotonicity %s ' % atom
 
@@ -114,48 +114,58 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.simple_problem(loss, atom)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA)
+    solver.fit(tol=1.0e-12, FISTA=FISTA, coef_stop=True)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity %s ' % atom
 
     dproblem = rr.dual_problem.fromseq(loss.conjugate, atom)
-    dcoef = dproblem.solve()
-    yield ac, atom.proximal(q), dcoef, 'solving prox with dual_problem with monotonicity %s ' % atom
+    dcoef = dproblem.solve(coef_stop=True, tol=1.0e-10)
+    yield ac, atom.proximal(q), dcoef, 'solving prox with dual_problem.fromseq with monotonicity %s ' % atom
+
+    dproblem2 = rr.dual_problem(loss.conjugate, 
+                                rr.identity(loss.primal_shape),
+                                atom.conjugate)
+    dcoef2 = dproblem.solve(coef_stop=True, tol=1.e-10, 
+                            max_its=100)
+    yield ac, atom.proximal(q), dcoef2, 'solving prox with dual_problem with monotonicity %s ' % atom
 
     # write the loss in terms of a quadratic for the smooth loss and a smooth function...
 
     lossq = rr.quadratic.shift(-Z, coef=0.6*L)
     lossq.quadratic = rr.identity_quadratic(0.4 * L, Z, 0, 0)
     problem = rr.simple_problem(lossq, atom)
-    solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA)
 
-    yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity  but loss has identity_quadratic %s ' % atom
+    yield ac, atom.proximal(q), problem.solve(coef_stop=True, FISTA=FISTA, 
+                                              tol=1.0e-12), 'solving prox with simple_problem with monotonicity  but loss has identity_quadratic %s ' % atom
 
     problem = rr.simple_problem.nonsmooth(p2)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-14, monotonicity_restart=False, FISTA=FISTA)
+    solver.fit(tol=1.0e-14, monotonicity_restart=False, coef_stop=True,
+              FISTA=FISTA)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with no monotonocity %s ' % atom
 
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.simple_problem(loss, atom)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, monotonicity_restart=False, FISTA=FISTA)
+    solver.fit(tol=1.0e-12, monotonicity_restart=False,
+               coef_stop=True, FISTA=FISTA)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem %s no monotonicity_restart' % atom
 
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.separable_problem.singleton(atom, loss)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA)
+    solver.fit(tol=1.0e-12, 
+               coef_stop=True, FISTA=FISTA)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton %s ' % atom
 
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.container(loss, atom)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA)
+    solver.fit(tol=1.0e-12, 
+               coef_stop=True, FISTA=FISTA)
 
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving atom prox with container %s ' % atom
 
@@ -165,27 +175,35 @@ def solveit(atom, Z, W, U, linq, L, FISTA):
     lossq.quadratic = rr.identity_quadratic(0.4 * L, Z, 0, 0)
     problem = rr.container(lossq, atom)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA)
+    solver.fit(tol=1.0e-12, FISTA=FISTA, coef_stop=True)
 
-    # ac(atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity but loss has identity_quadratic %s  ' % atom)
-    yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity  but loss has identity_quadratic %s ' % atom
+    yield (ac, atom.proximal(q), 
+           problem.solve(tol=1.e-12,FISTA=FISTA,coef_stop=True), 
+           'solving prox with container with monotonicity  but loss has identity_quadratic %s ' % atom)
 
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.simple_problem(loss, d)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, monotonicity_restart=False, FISTA=FISTA)
+    solver.fit(tol=1.0e-12, monotonicity_restart=False, 
+               coef_stop=True, FISTA=FISTA)
     # ac(d.proximal(q), solver.composite.coefs, 'solving dual prox with simple_problem no monotonocity %s ' % atom)
-    yield ac, d.proximal(q), solver.composite.coefs, 'solving dual prox with simple_problem no monotonocity %s ' % atom
+    yield (ac, d.proximal(q), problem.solve(tol=1.e-12,
+                                            FISTA=FISTA,
+                                            coef_stop=True,
+                                            monotonicity_restart=False), 
+           'solving dual prox with simple_problem no monotonocity %s ' % atom)
 
     problem = rr.container(d, loss)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA)
+    solver.fit(tol=1.0e-12, 
+               coef_stop=True, FISTA=FISTA)
     yield ac, d.proximal(q), solver.composite.coefs, 'solving dual prox with container %s ' % atom
 
     loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.separable_problem.singleton(d, loss)
     solver = rr.FISTA(problem)
-    solver.fit(tol=1.0e-12, FISTA=FISTA)
+    solver.fit(tol=1.0e-12, 
+               coef_stop=True, FISTA=FISTA)
 
     yield ac, d.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton %s ' % atom
 

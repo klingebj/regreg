@@ -11,6 +11,7 @@ from .atoms import atom
 from .cones import zero as zero_cone
 from .smooth import zero as zero_smooth
 from .identity_quadratic import identity_quadratic
+from .algorithms import FISTA
 
 class simple_problem(composite):
     
@@ -33,6 +34,9 @@ class simple_problem(composite):
         return vn + vs + self.quadratic.objective(x, 'func')
 
     def proximal(self, proxq):
+        print 'self: ', self.quadratic
+        print 'prox: ', proxq
+        print 'smooth: ', self.smooth_atom.quadratic
         proxq = proxq + self.smooth_atom.quadratic + self.quadratic
         return self.nonsmooth_atom.solve(proxq)
 
@@ -58,6 +62,23 @@ class simple_problem(composite):
         smooth_atom = zero_smooth(nonsmooth_atom.primal_shape)
         return simple_problem(smooth_atom, nonsmooth_atom)
 
+    def solve(self, quadratic=None, return_optimum=False, **fit_args):
+        if quadratic is not None:
+            oldq, newq = self.quadratic, self.quadratic + quadratic
+        else:
+            oldq = newq = self.quadratic
+
+        solver = FISTA(self)
+        solver.fit(**fit_args)
+
+        if return_optimum:
+            value = (self.objective(self.coefs), self.coefs)
+        else:
+            value = self.coefs
+        self.quadratic = oldq
+        return value
+
+    
 def gengrad(simple_problem, L, tol=1.0e-8, max_its=1000, debug=False):
     """
     A simple generalized gradient solver

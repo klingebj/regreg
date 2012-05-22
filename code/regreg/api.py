@@ -29,7 +29,7 @@ from conjugate import conjugate
 from composite import (composite, nonsmooth as nonsmooth_composite,
                        smooth as smooth_composite, smooth_conjugate)
 
-from primal_dual_alternation import dual_problem
+from dual_problem import dual_problem
 
 from identity_quadratic import identity_quadratic
 

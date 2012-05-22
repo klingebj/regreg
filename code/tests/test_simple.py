@@ -40,9 +40,19 @@ def test_simple():
     solver.fit(tol=1.0e-10)
     separable_coef = solver.composite.coefs
 
+    loss2 = rr.quadratic.shift(-Z, coef=0.6*L)
+    loss2.quadratic = rr.identity_quadratic(0.4*L, Z, 0, 0)
+    p.coefs *= 0
+    problem2 = rr.simple_problem(loss2, p)
+    loss2_coefs = problem2.solve(coef_stop=True)
+    solver2 = rr.FISTA(problem2)
+    solver2.fit(tol=1.0e-10, debug=True, coef_stop=True)
+
     yield ac, prox_coef, simple_nonsmooth_gengrad, 'prox to nonsmooth gengrad'
     yield ac, prox_coef, separable_coef, 'prox to separable'
     yield ac, prox_coef, simple_nonsmooth_coef, 'prox to simple_nonsmooth'
     yield ac, prox_coef, simple_coef, 'prox to simple'
+    yield ac, prox_coef, loss2_coefs, 'simple where loss has quadratic 1'
+    yield ac, prox_coef, solver2.composite.coefs, 'simple where loss has quadratic 2'
 
 
