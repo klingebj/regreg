@@ -45,7 +45,7 @@ class atom(nonsmooth):
         
     def latexify(self, var='x', idx=''):
         d = {}
-        if self.offset is None:
+        if self.offset is None or np.all(self.offset == 0):
             d['var'] = var
         else:
             d['var'] = var + r'+\alpha_{%s}' % str(idx)
@@ -749,7 +749,7 @@ class affine_atom(object):
         self.dual_shape = self.linear_transform.dual_shape
 
     def latexify(self, var='x', idx=''):
-        return self.atom.latexify(var='D_{%s}%s' % (idx, x), idx=idx)
+        return self.atom.latexify(var='D_{%s}%s' % (idx, var), idx=idx)
 
     def __repr__(self):
         return "affine_atom(%s, %s)" % (`self.atom`,
