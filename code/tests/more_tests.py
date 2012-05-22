@@ -257,7 +257,7 @@ def test_multiple_lasso_dual(n=500):
     x = np.random.normal(0,1,n)
     loss = R.quadratic.shift(-x, coef=0.5)
 
-    p = R.dual_problem.fromseq(loss, sparsity1, sparsity2)
+    p = R.dual_problem.fromseq(loss.conjugate, sparsity1, sparsity2)
     t1 = time.time()
     solver = R.FISTA(p)
     solver.debug = True

@@ -83,15 +83,13 @@ class smooth_atom(smooth_composite):
             return obj.copy()
         return obj
 
-    def get_conjugate(self, epsilon=0):
-        # multiple of identity quadratic / 2 added 
-        # before computing conjugate
+    def get_conjugate(self):
         raise NotImplementedError('each smooth loss should implement its own get_conjugate')
 
     @property
     def conjugate(self):
         if not hasattr(self, "_conjugate"):
-            self._conjugate = self.get_conjugate(epsilon=0)
+            self._conjugate = self.get_conjugate()
             self._conjugate._conjugate = self
         return self._conjugate
 

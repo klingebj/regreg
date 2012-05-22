@@ -3,11 +3,11 @@ from scipy import sparse
 from copy import copy
 import warnings
 
-from .composite import composite, nonsmooth
+from .composite import composite, nonsmooth, smooth_conjugate
 from .affine import (linear_transform, identity as identity_transform, 
                      affine_transform, selector)
 
-from .atoms import atom as unweighted_atom, smooth_conjugate
+from .atoms import atom as unweighted_atom
 from .identity_quadratic import identity_quadratic
 
 try:

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse
 from identity_quadratic import identity_quadratic
-from composite import nonsmooth, smooth
+from composite import nonsmooth, smooth, smooth_conjugate
 from affine import (linear_transform, identity as identity_transform, 
                     affine_transform, selector)
 from smooth import affine_smooth
@@ -76,7 +76,7 @@ class atom(nonsmooth):
 
     def __repr__(self):
         if self.lagrange is not None:
-            if not self.quadratic.iszero:
+            if self.quadratic.iszero:
                 return "%s(%s, lagrange=%f, offset=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
@@ -91,7 +91,7 @@ class atom(nonsmooth):
                      str(self.quadratic))
 
         else:
-            if not self.quadratic.iszero:
+            if self.quadratic.iszero:
                 return "%s(%s, bound=%f, offset=%s)" % \
                     (self.__class__.__name__,
                      `self.primal_shape`, 
@@ -806,73 +806,173 @@ class affine_atom(object):
         smoothed_atom = conjugate_atom.conjugate
         return affine_smooth(smoothed_atom, ltransform)
 
-class smooth_conjugate(smooth):
+# class smooth_conjugate(smooth):
 
-    def __init__(self, atom, quadratic=None):
-        """
-        Given an atom,
-        compute the conjugate of this atom plus 
-        an identity_quadratic which will be 
-        a smooth version of the conjugate of the atom.
+#     def __init__(self, atom, quadratic=None):
+#         """
+#         Given an atom,
+#         compute the conjugate of this atom plus 
+#         an identity_quadratic which will be 
+#         a smooth version of the conjugate of the atom.
 
-        should we have an argument "collapse" that makes a copy?
+#         should we have an argument "collapse" that makes a copy?
 
-        """
-        # this holds a pointer to the original atom,
-        # but will be replaced later
-        self._conjugate = atom
+#         """
+#         # this holds a pointer to the original atom,
+#         # but will be replaced later
 
-        self.atom = atom
-        self.smoothing_quadratic = quadratic
-        total_quadratic = self.atom.quadratic + self.smoothing_quadratic
+#         self.atom = atom
+#         if quadratic is None:
+#             quadratic = identity_quadratic(0,0,0,0)
+#         self.smoothing_quadratic = quadratic
+#         total_quadratic = self.atom.quadratic + self.smoothing_quadratic
 
-        if total_quadratic.coef in [0,None]:
-            raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
+#         if total_quadratic.coef in [0,None]:
+#             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
 
-        self.primal_shape = atom.primal_shape
+#         self.primal_shape = atom.primal_shape
 
-    def __repr__(self):
-        return 'smooth_conjugate(%s,%s)' % (str(self.atom), str(self.quadratic))
+#     # A smooth conjugate is the conjugate of some $f$ with an identity quadratic added to it, or
+#     # $$
+#     # h(u) = \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x) \right).
+#     # $$
+#     # Suppose we add a quadratic to $h$ to get
+#     # $$
+#     # \tilde{h}(u) = \frac{r}{2} \|u\|^2_2 + u^T\gamma + a + h(u)$$
+#     # and take the conjugate again:
+#     # $$
+#     # \begin{aligned}
+#     # g(v) &= \sup_{u} u^Tv - \tilde{h}(u) \\
+#     # &= \sup_u u^Tv -  \frac{r}{2} \|u\|^2_2 - u^T\gamma-a - h(u) \\
+#     # &=  \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a  - \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x)  \right)\\
+#     # &= \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a + \inf_x \left(  \frac{\kappa}{2} \|x\|^2_2  +\beta^Tx + c +f(x) - u^Tx  \right)\\
+#     # &= \sup_u \inf_x u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+#     # &=  \inf_x \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2  + \beta^Tx + c +f(x) - u^Tx \\
+#     # &=  \inf_x \sup_u \left(u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma- u^Tx\right)-a +  \frac{\kappa}{2} \|x\|^2_2 +   \beta^Tx + c +f(x)  \\
+#     # &=  \inf_x \frac{1}{2r} \|x+\gamma-v\|^2_2 -a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x)  \\
+#     # &= c-a + \frac{1}{2r} \|\gamma-v\|^2_2 - \sup_x \left((v/r)^Tx - \left(\frac{1}{r} + \kappa\right) \|x\|^2_2 - x^T(\beta+\gamma/r) - f(x) \right) \\
+#     # \end{aligned}
+#     # $$
 
-    def smooth_objective(self, x, mode='both', check_feasibility=False):
-        """
-        Evaluate a smooth function and/or its gradient
+#     # This says that for $r > 0$ the conjugate of a smooth conjugate with a quadratic added to it is a quadratic plus a modified smooth conjugate evaluated at $v/r$.
 
-        if mode == 'both', return both function value and gradient
-        if mode == 'grad', return only the gradient
-        if mode == 'func', return only the function value
-        """
+#     # What if $r=0$? Well,
+#     # then 
+#     # $$
+#     # \begin{aligned}
+#     # g(v) &= \sup_{u} u^Tv - \tilde{h}(u) \\
+#     # &= \sup_u u^Tv  - u^T\gamma-a - h(u) \\
+#     # &=  \sup_u u^Tv  - u^T\gamma-a  - \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x)  \right)\\
+#     # &= \sup_u u^Tv - u^T\gamma-a + \inf_x \left(  \frac{\kappa}{2} \|x\|^2_2  +\beta^Tx + c +f(x) - u^Tx  \right)\\
+#     # &= \sup_u \inf_x u^Tv - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+#     # &= \inf_x \sup_u u^Tv - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+#     # &=   \frac{\kappa}{2} \|v-\gamma\|^2_2 + \beta^T(v-\gamma) + c-a +f(v-\gamma) \\
+#     # \end{aligned}
+#     # $$
+#     # where, in the last line we have used the fact that the $\sup$ over $u$ in the second to last line is infinite unless $x=v-\gamma$.
 
-        if self.smoothing_quadratic is not None:
-            q = self.smoothing_quadratic + identity_quadratic(0,0,-x,0) 
-        else:
-            q = identity_quadratic(0,0,-x,0)
+#     def get_conjugate(self):
+#         if self.quadratic.iszero:
+#             if self.smoothing_quadratic.iszero:
+#                 return self.atom
+#             else:
+#                 atom = copy(self.atom)
+#                 atom.quadratic = atom.quadratic + self.smoothing_quadratic
+#                 return atom
+#         else:
+#             q = self.quadratic.collapsed()
+#             if q.coef == 0:
+#                 newq = copy(atom.quadratic)
+#                 newq.constant_term -= q.constant_term
+#                 offset = -q.linear_term
+#                 if atom.offset is not None:
+#                     offset += atom.offset
+#                 atom = copy(atom)
+#                 atom.offset = offset
+#                 atom.quadratic=newq
+#                 return atom
+#             if q.coef != 0:
+#                 r = q.coef
+#                 sq = self.smoothing_quadratic
+#                 newq = sq + q.conjugate
+#                 new_smooth = smooth_conjugate(self.atom, quadratic=newq)
+#                 output = smooth(self.atom.primal_shape,
+#                                 offset=None,
+#                                 quadratic=identity_quadratic(1./r, q.linear_term, 0, 0),
+#                                 initial=None)
+#                 output.smoothed_atom = new_smooth
 
-        if mode == 'both':
-            argmin, optimal_value = self.atom.proximal_optimum(q)
-            objective = -optimal_value
-            # retain a reference
-            self.argmin = argmin
-            return objective, argmin
-        elif mode == 'grad':
-            argmin = self.atom.proximal(q)
-            # retain a reference
-            self.argmin = argmin
-            return argmin
-        elif mode == 'func':
-            argmin, optimal_value = self.atom.proximal_optimum(q)
-            objective = -optimal_value
-            # retain a reference
-            self.argmin = argmin
-            return objective
-        else:
-            raise ValueError("mode incorrectly specified")
+#                 def smooth_objective(self, x, mode='func', check_feasibility=False):
+#                     # what if self.quadratic is later changed? hmm..
+#                     r = 1. / self.quadratic.coef
+#                     if mode == 'func':
+#                         v = self.smoothed_atom.smooth_objective(x/r, mode=mode, 
+#                                                                 check_feasibility=check_feasibility)
+#                         return self.smoothing_quadratic.objective(x, 'func') - v
+#                     elif mode == 'both':
+#                         v1, g1 = self.smoothed_atom.smooth_objective(x/r, mode=mode, 
+#                                                                      check_feasibility=check_feasibility)
+#                         v2, g2 = self.smoothing_quadratic.objective(x, mode=mode, 
+#                                                                     check_feasibility=check_feasibility)
+#                         return v2-v1, g2-g1/r
+#                     elif mode == 'grad':
+#                         g1 = self.smoothed_atom.smooth_objective(x/r, mode='grad', 
+#                                                                      check_feasibility=check_feasibility)
+#                         g2 = self.smoothing_quadratic.objective(x, mode='grad', 
+#                                                                     check_feasibility=check_feasibility)
+#                         return g2-g1/r
+#                     else:
+#                         raise ValueError("mode incorrectly specified")
+                        
+#                 output.smooth_objective = type(output.smooth_objective)(smooth_objective,
+#                                                                         output, 
+#                                                                         smooth)
+#                 return output
+#     conjugate = property(get_conjugate)
 
-    def nonsmooth_objective(self, x, check_feasibilty=False):
-        return self.atom.quadratic.objective(x, 'func')
+#     def __repr__(self):
+#         return 'smooth_conjugate(%s,%s)' % (str(self.atom), str(self.quadratic))
 
-    def proximal(self, proxq):
-        raise ValueError('no proximal defined')
+#     def smooth_objective(self, x, mode='both', check_feasibility=False):
+#         """
+#         Evaluate a smooth function and/or its gradient
+
+#         if mode == 'both', return both function value and gradient
+#         if mode == 'grad', return only the gradient
+#         if mode == 'func', return only the function value
+#         """
+
+#         if self.smoothing_quadratic is not None:
+#             q = self.smoothing_quadratic + identity_quadratic(0,0,-x,0) 
+#         else:
+#             q = identity_quadratic(0,0,-x,0)
+
+#         if mode == 'both':
+#             optimal_value, argmin = self.atom.solve(quadratic=q, return_optimum=True)
+#             objective = -optimal_value
+#             # retain a reference
+#             self.argmin = argmin
+#             return objective, argmin
+#         elif mode == 'grad':
+#             argmin = self.atom.solve(quadratic=q)
+#             # retain a reference
+#             self.argmin = argmin
+#             return argmin
+#         elif mode == 'func':
+#             optimal_value, argmin = self.atom.solve(quadratic=q, return_optimum=True)
+#             objective = -optimal_value
+#             # retain a reference
+#             self.argmin = argmin
+#             return objective
+#         else:
+#             raise ValueError("mode incorrectly specified")
+
+#     def nonsmooth_objective(self, x, check_feasibilty=False):
+#         return self.atom.quadratic.objective(x, 'func')
+
+#     def proximal(self, proxq):
+#         raise ValueError('no proximal defined')
+
 
 conjugate_seminorm_pairs = {}
 for n1, n2 in [(l1norm,supnorm),

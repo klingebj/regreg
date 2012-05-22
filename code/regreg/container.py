@@ -15,10 +15,14 @@ from .identity_quadratic import identity_quadratic
 class container(composite):
     """
     A container class for storing/combining seminorm_atom classes
+
+    Notes
+    -----
+
+    This function copies the nonsmooth atoms
     """
 
     def __init__(self, *atoms, **keywords):
-        self.compute_difference = keywords.pop('compute_difference', True)
         self.nonsmooth_atoms = []
         self.smooth_atoms = []
         for atom in atoms:
@@ -36,7 +40,7 @@ class container(composite):
 
         if len(self.nonsmooth_atoms) == 0:
             self.nonsmooth_atoms = [zero_nonsmooth(self.smooth_atoms[0].primal_shape)]
-        self.transform, self.separable_atom = stacked_dual(self.smooth_atoms[0].primal_shape, *self.nonsmooth_atoms)
+        self.transform, self.atom = stacked_dual(self.smooth_atoms[0].primal_shape, *self.nonsmooth_atoms)
         self.coefs = np.zeros(self.transform.primal_shape)
 
         # add up all the smooth_atom quadratics
@@ -89,7 +93,7 @@ class container(composite):
         The proximal function for the primal problem
         """
 
-        transform, separable_atom = self.transform, self.separable_atom
+        transform, separable_atom = self.transform, self.atom
 
         if not (isinstance(transform, afidentity) or
                 isinstance(transform, afselector)):
@@ -106,10 +110,11 @@ class container(composite):
             prox_control = prox_defaults
 
             _problem_objective = zero_nonsmooth(transform.primal_shape)
-            _problem_objective.set_quadratic(proxq.coef, proxq.offset, proxq.linear_term, 0)
+
+            _problem_objective.quadratic = proxq + self.smoothq + self.quadratic
             self.dualp = dual_problem(_problem_objective,
                                       self.transform,
-                                      self.separable_atom)
+                                      self.atom)
             #Approximate Lipschitz constant
             if not 'dual_reference_lipschitz' in prox_control.keys():
                 # shouldn't do this over and over
@@ -135,7 +140,7 @@ class container(composite):
                 self.dualopt.composite.coefs[:] = self.dual_minimizer
             history = self.dualopt.fit(**prox_control)
             self.dual_minimizer = self.dualopt.composite.coefs
-            lipschitz, x, grad = proxq.coef, proxq.offset, proxq.linear_term
+            lipschitz, x, grad = proxq.coef, proxq.center, proxq.linear_term
             if prox_control['return_objective_hist']:
                 return x - grad / lipschitz - transform.adjoint_map(self.dualopt.composite.coefs/lipschitz), history
             else:

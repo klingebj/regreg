@@ -55,7 +55,7 @@ class linear_constraint(cone):
                               quadratic=self.quadratic)
     
     def __repr__(self):
-        if not self.quadratic.iszero:
+        if self.quadratic.iszero:
             return "%s(%s, %s, offset=%s)" % \
                 (self.__class__.__name__,
                  `self.basis`,

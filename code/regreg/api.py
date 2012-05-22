@@ -4,8 +4,7 @@ A collection of commonly used RegReg functions and objects
 
 from atoms import (l1norm, l2norm, supnorm, 
                    positive_part, constrained_max, affine_atom as linear_atom,
-                   constrained_positive_part, max_positive_part,
-                   smooth_conjugate)
+                   constrained_positive_part, max_positive_part)
 from cones import (nonnegative, nonpositive,
                    zero, zero_constraint, affine_cone as linear_cone)
 
@@ -18,7 +17,7 @@ from quadratic import quadratic, cholesky
 from factored_matrix import (factored_matrix, compute_iterative_svd, soft_threshold_svd)
 
 from separable import separable, separable_problem
-from simple import simple_problem
+from simple import simple_problem, gengrad
 from container import container
 from algorithms import FISTA
 from admm import admm_problem
@@ -28,7 +27,7 @@ from block_norms import l1_l2, linf_l2, l1_l1, linf_linf
 
 from conjugate import conjugate
 from composite import (composite, nonsmooth as nonsmooth_composite,
-                       smooth as smooth_composite, smoothed as smoothed_atom)
+                       smooth as smooth_composite, smooth_conjugate)
 
 from primal_dual_alternation import dual_problem
 

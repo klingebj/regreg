@@ -1,9 +1,11 @@
 from numpy.linalg import norm
 from numpy import zeros, array
+import new
 
-# local import
+# local imports
 
-from identity_quadratic import identity_quadratic as sq
+from .identity_quadratic import identity_quadratic as sq
+from .algorithms import FISTA
 
 class composite(object):
     """
@@ -53,11 +55,8 @@ class composite(object):
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
 
-
     def nonsmooth_objective(self, x, check_feasibility=False):
-        if self.quadratic is not None:
-            return self.quadratic.objective(x, 'func')
-        return 0
+        return self.quadratic.objective(x, 'func')
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         '''
@@ -106,7 +105,6 @@ class composite(object):
             return x + self.offset
         return x
 
-        
     def set_quadratic(self, quadratic):
         self._quadratic = quadratic
 
@@ -116,16 +114,37 @@ class composite(object):
         return self._quadratic
     quadratic = property(get_quadratic, set_quadratic)
 
+    def smoothed(self, smoothing_quadratic):
+        '''
+        Add quadratic smoothing term
+        '''
+        conjugate_atom = copy(self.conjugate)
+        sq = smoothing_quadratic
+        if sq.coef in [None, 0]:
+            raise ValueError('quadratic term of smoothing_quadratic must be non 0')
+        total_q = sq
+
+        if conjugate_atom.quadratic is not None:
+            total_q = sq + conjugate_atom.quadratic
+        conjugate_atom.set_quadratic(total_q.coef, total_q.center,
+                                     total_q.linear_term, 
+                                     total_q.constant_term)
+        smoothed_atom = conjugate_atom.conjugate
+        return smoothed_atom
+
     def get_lipschitz(self):
-        if self.quadratic is not None and self.quadratic.coef is not None:
+        if hasattr(self, '_lipschitz'):
             return self._lipschitz + self.quadratic.coef
-        return self._lipschitz
+        return self.quadratic.coef
 
     def set_lipschitz(self, value):
         if value < 0:
             raise ValueError('Lipschitz constant must be non-negative')
         self._lipschitz = value
     lipschitz = property(get_lipschitz, set_lipschitz)
+
+    def solve(self, quadratic=None, return_optimum=False):
+        raise NotImplementedError('subclasses must implement their own solve methods')
 
 class nonsmooth(composite):
     """
@@ -142,6 +161,14 @@ class nonsmooth(composite):
             return zeros(x.shape)
         raise ValueError("Mode not specified correctly")
 
+    def solve(self, quadratic=None, return_optimum=False):
+        if quadratic is None:
+            quadratic = sq(0,0,0,0)
+        self.coefs = self.proximal(quadratic)
+        if return_optimum:
+            return self.objective(self.coefs) + quadratic.objective(self.coefs, 'func'), self.coefs
+        else:
+            return self.coefs
 
 class smooth(composite):
 
@@ -151,60 +178,167 @@ class smooth(composite):
     is a null-op.
     """
 
+#     def __init__(self, smooth_objective, 
+#                  primal_shape, offset=None,
+#                  quadratic=None, initial=None):
+#         """
+#         Create a new smooth class from a smooth_objective function.
+#         """
+#         self._smooth_objective = smooth_objective
+#         composite.__init__(self, primal_shape,
+#                            offset=offset,
+#                            quadratic=quadratic,
+#                            initial=initial)
+
+    def smooth_objective(self, x, mode='func', check_feasibility=False):
+        return self._smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
+
     def proximal(self, quadratic):
-        if self.quadratic is None:
-            totalq = quadratic
-        else:
-            totalq = self.quadratic + quadratic
+        totalq = self.quadratic + quadratic
         return -totalq.linear_term / totalq.coef
 
-# This can now be done with a method of the atom 
-class smoothed(smooth):
+    def solve(self, quadratic=None, return_optimum=False, **fit_args):
+        if quadratic is None:
+            quadratic = sq(0,0,0,0)
+        oldq, self.quadratic = self.quadratic, self.quadratic + quadratic
+        self.solver = FISTA(self)
+        self.solver.fit(**fit_args)
+        self.quadratic = oldq
 
-    def __init__(self, atom, epsilon=0.1,
-                 store_argmin=False):
+        if return_optimum:
+            return self.objective(self.coefs), self.coefs
+        else:
+            return self.coefs
+
+
+class smooth_conjugate(smooth):
+
+    def __init__(self, atom, quadratic=None):
         """
-        Given a constraint :math:`\delta_K(\beta+\alpha)=h_K^*(\beta)`,
-        that is, a possibly atom whose linear_operator is None, and
-        whose offset is :math:`\alpha` this
-        class creates a smoothed version
+        Given an atom,
+        compute the conjugate of this atom plus 
+        an identity_quadratic which will be 
+        a smooth version of the conjugate of the atom.
 
-        .. math::
-
-            \delta_{K,\varepsilon}(\beta+\alpha) = \sup_{u}u'(\beta+\alpha) - \frac{\epsilon}{2} \|u-u_0\|^2_2 - h_K(u)
-
-        The objective value is given by
-
-        .. math::
-
-           \delta_{K,\varepsilon}(\beta) = \beta'u_0 + \frac{1}{2\epsilon} \|\beta\|^2_2- \frac{\epsilon}{2} \left(\|P_K(u_0+(\beta+\alpha)/\epsilon)\|^2_2 + h_K\left(u_0+(\beta+\alpha)/\epsilon - P_K(u_0+(\beta+\alpha)/\epsilon)\right)
-
-        and the gradient is given by the maximizer above
-
-        .. math::
-
-           \nabla_{\beta} \delta_{K,\varepsilon}(\beta+\alpha) = u_0+(\beta+\alpha)/\epsilon - P_K(u_0+(\beta+\alpha)/\epsilon)
-
-        If a seminorm has several atoms, then :math:`D` is a
-        `stacked' version and :math:`K` is a product
-        of corresponding convex sets.
+        should we have an argument "collapse" that makes a copy?
 
         """
-        import warnings
-        warnings.warn('to be deprecated, use the smoothed method of atom instead')
-        self.epsilon = epsilon
-        if self.epsilon <= 0:
-            raise ValueError('to smooth, epsilon must be positive')
+        # this holds a pointer to the original atom,
+        # but will be replaced later
+
+        self.atom = atom
+        if quadratic is None:
+            quadratic = sq(0,0,0,0)
+        self.smoothing_quadratic = quadratic
+        total_quadratic = self.atom.quadratic + self.smoothing_quadratic
+
+        if total_quadratic.coef in [0,None]:
+            raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
+
         self.primal_shape = atom.primal_shape
 
-        self.dual = atom.dual
+    # A smooth conjugate is the conjugate of some $f$ with an identity quadratic added to it, or
+    # $$
+    # h(u) = \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x) \right).
+    # $$
+    # Suppose we add a quadratic to $h$ to get
+    # $$
+    # \tilde{h}(u) = \frac{r}{2} \|u\|^2_2 + u^T\gamma + a + h(u)$$
+    # and take the conjugate again:
+    # $$
+    # \begin{aligned}
+    # g(v) &= \sup_{u} u^Tv - \tilde{h}(u) \\
+    # &= \sup_u u^Tv -  \frac{r}{2} \|u\|^2_2 - u^T\gamma-a - h(u) \\
+    # &=  \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a  - \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x)  \right)\\
+    # &= \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a + \inf_x \left(  \frac{\kappa}{2} \|x\|^2_2  +\beta^Tx + c +f(x) - u^Tx  \right)\\
+    # &= \sup_u \inf_x u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+    # &=  \inf_x \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2  + \beta^Tx + c +f(x) - u^Tx \\
+    # &=  \inf_x \sup_u \left(u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma- u^Tx\right)-a +  \frac{\kappa}{2} \|x\|^2_2 +   \beta^Tx + c +f(x)  \\
+    # &=  \inf_x \frac{1}{2r} \|x+\gamma-v\|^2_2 -a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x)  \\
+    # &= c-a + \frac{1}{2r} \|\gamma-v\|^2_2 - \sup_x \left((v/r)^Tx - \left(\frac{1}{r} + \kappa\right) \|x\|^2_2 - x^T(\beta+\gamma/r) - f(x) \right) \\
+    # \end{aligned}
+    # $$
 
-        # for TFOCS the argmin corresponds to the 
-        # primal solution 
+    # This says that for $r > 0$ the conjugate of a smooth conjugate with a quadratic added to it is a quadratic plus a modified smooth conjugate evaluated at $v/r$.
 
-        self.store_argmin = store_argmin
+    # What if $r=0$? Well,
+    # then 
+    # $$
+    # \begin{aligned}
+    # g(v) &= \sup_{u} u^Tv - \tilde{h}(u) \\
+    # &= \sup_u u^Tv  - u^T\gamma-a - h(u) \\
+    # &=  \sup_u u^Tv  - u^T\gamma-a  - \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x)  \right)\\
+    # &= \sup_u u^Tv - u^T\gamma-a + \inf_x \left(  \frac{\kappa}{2} \|x\|^2_2  +\beta^Tx + c +f(x) - u^Tx  \right)\\
+    # &= \sup_u \inf_x u^Tv - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+    # &= \inf_x \sup_u u^Tv - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+    # &=   \frac{\kappa}{2} \|v-\gamma\|^2_2 + \beta^T(v-\gamma) + c-a +f(v-\gamma) \\
+    # \end{aligned}
+    # $$
+    # where, in the last line we have used the fact that the $\sup$ over $u$ in the second to last line is infinite unless $x=v-\gamma$.
 
-    def smooth_objective(self, beta, mode='both', check_feasibility=False):
+    def get_conjugate(self):
+        if self.quadratic.iszero:
+            if self.smoothing_quadratic.iszero:
+                return self.atom
+            else:
+                atom = copy(self.atom)
+                atom.quadratic = atom.quadratic + self.smoothing_quadratic
+                return atom
+        else:
+            q = self.quadratic.collapsed()
+            if q.coef == 0:
+                newq = copy(atom.quadratic)
+                newq.constant_term -= q.constant_term
+                offset = -q.linear_term
+                if atom.offset is not None:
+                    offset += atom.offset
+                atom = copy(atom)
+                atom.offset = offset
+                atom.quadratic=newq
+                return atom
+            if q.coef != 0:
+                r = q.coef
+                sq = self.smoothing_quadratic
+                newq = sq + q.conjugate
+                new_smooth = smooth_conjugate(self.atom, quadratic=newq)
+                output = smooth(self.atom.primal_shape,
+                                offset=None,
+                                quadratic=sq(1./r, q.linear_term, 0, 0),
+                                initial=None)
+                output.smoothed_atom = new_smooth
+
+                def smooth_objective(self, x, mode='func', check_feasibility=False):
+                    # what if self.quadratic is later changed? hmm..
+                    r = 1. / self.quadratic.coef
+                    if mode == 'func':
+                        v = self.smoothed_atom.smooth_objective(x/r, mode=mode, 
+                                                                check_feasibility=check_feasibility)
+                        return self.smoothing_quadratic.objective(x, 'func') - v
+                    elif mode == 'both':
+                        v1, g1 = self.smoothed_atom.smooth_objective(x/r, mode=mode, 
+                                                                     check_feasibility=check_feasibility)
+                        v2, g2 = self.smoothing_quadratic.objective(x, mode=mode, 
+                                                                    check_feasibility=check_feasibility)
+                        return v2-v1, g2-g1/r
+                    elif mode == 'grad':
+                        g1 = self.smoothed_atom.smooth_objective(x/r, mode='grad', 
+                                                                     check_feasibility=check_feasibility)
+                        g2 = self.smoothing_quadratic.objective(x, mode='grad', 
+                                                                    check_feasibility=check_feasibility)
+                        return g2-g1/r
+                    else:
+                        raise ValueError("mode incorrectly specified")
+                        
+                output.smooth_objective = type(output.smooth_objective)(smooth_objective,
+                                                                        output, 
+                                                                        smooth)
+                return output
+    conjugate = property(get_conjugate)
+
+    def __repr__(self):
+        return 'smooth_conjugate(%s,%s)' % (str(self.atom), str(self.quadratic))
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
         Evaluate a smooth function and/or its gradient
 
@@ -213,30 +347,28 @@ class smoothed(smooth):
         if mode == 'func', return only the function value
         """
 
-        linear_transform, dual_atom = self.dual
-        constant_term = dual_atom.constant_term
+        q = self.smoothing_quadratic + sq(0,0,-x,0) 
 
-        u = linear_transform.linear_map(beta)
-        ueps = u / self.epsilon
-        q = sq(self.epsilon, ueps, 0, 0)
         if mode == 'both':
-            argmin, optimal_value = dual_atom.proximal_optimum(q)
-            objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
-            grad = linear_transform.adjoint_map(argmin)
-            if self.store_argmin:
-                self.argmin = argmin
-            return objective, grad
+            optimal_value, argmin = self.atom.solve(quadratic=q, return_optimum=True)
+            objective = -optimal_value
+            # retain a reference
+            print 'optimal', objective
+            self.argmin = argmin
+            return objective, argmin
         elif mode == 'grad':
-            argmin = dual_atom.proximal(q)
-            grad = linear_transform.adjoint_map(argmin)
-            if self.store_argmin:
-                self.argmin = argmin
-            return grad 
+            argmin = self.atom.solve(quadratic=q)
+            # retain a reference
+            self.argmin = argmin
+            return argmin
         elif mode == 'func':
-            _, optimal_value = dual_atom.proximal_optimum(q)
-            objective = self.epsilon / 2. * norm(ueps)**2 - optimal_value + constant_term
+            optimal_value, argmin = self.atom.solve(quadratic=q, return_optimum=True)
+            objective = -optimal_value
+            # retain a reference
+            self.argmin = argmin
             return objective
         else:
             raise ValueError("mode incorrectly specified")
 
-
+    def proximal(self, proxq, prox_control=None):
+        raise ValueError('no proximal defined')

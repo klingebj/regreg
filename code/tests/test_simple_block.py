@@ -15,7 +15,7 @@ def test_simple():
     dual = p.conjugate
     L = 0.23
 
-    loss = rr.quadratic.shift(-Z, coef=0.5*L)
+    loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.simple_problem(loss, p)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-10, debug=True)

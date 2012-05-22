@@ -4,18 +4,16 @@ import warnings
 from scipy import sparse
 import numpy as np
 
-from .composite import composite, nonsmooth
+from .composite import composite, nonsmooth, smooth_conjugate
 from .affine import linear_transform, identity as identity_transform
 from .identity_quadratic import identity_quadratic
-from .atoms import smooth_conjugate, _work_out_conjugate
+from .atoms import _work_out_conjugate
 
 try:
     from projl1_cython import projl1
 except:
     warnings.warn('Cython version of projl1 not available. Using slower python version')
     from projl1_python import projl1
-
-
 
 class cone(nonsmooth):
 
@@ -42,7 +40,7 @@ class cone(nonsmooth):
                               quadratic=self.quadratic)
     
     def __repr__(self):
-        if not self.quadratic.iszero:
+        if self.quadratic.iszero:
             return "%s(%s, offset=%s)" % \
                 (self.__class__.__name__,
                  `self.primal_shape`, 
