@@ -3,11 +3,18 @@ from scipy.linalg import cho_factor, cho_solve, cholesky_banded, cho_solve_bande
 
 from .affine import affine_transform
 from .smooth import smooth_atom
+from .composite import smooth_conjugate
+from .cones import zero
 from .identity_quadratic import identity_quadratic
 
 class quadratic(smooth_atom):
     """
     The square of the l2 norm
+
+    Q: array
+       positive definite matrix 
+
+
     """
 
     objective_template = r"""\ell^{Q}\left(%(var)s\right)"""
@@ -39,64 +46,62 @@ class quadratic(smooth_atom):
         x = self.apply_offset(x)
         if self.Q is None:
             if mode == 'both':
-                f, g  = self.scale(np.linalg.norm(x)**2), self.scale(2 * x)
+                f, g  = self.scale(np.linalg.norm(x)**2) / 2., self.scale(x)
                 return f, g
             elif mode == 'grad':
-                f, g = None, self.scale(2 * x)
+                f, g = None, self.scale(x)
                 return g
             elif mode == 'func':
-                f, g = self.scale(np.linalg.norm(x)**2), None
+                f, g = self.scale(np.linalg.norm(x)**2) / 2., None
                 return f
             else:
                 raise ValueError("mode incorrectly specified")
         else:
             if mode == 'both':
-                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))), self.scale(2 * self.Q_transform.linear_map(x))
+                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))) / 2., self.scale(self.Q_transform.linear_map(x))
                 return f, g
             elif mode == 'grad':
-                f, g = None, self.scale(2 * self.Q_transform.linear_map(x))
+                f, g = None, self.scale(self.Q_transform.linear_map(x))
                 return g
             elif mode == 'func':
-                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))), None
+                f, g = self.scale(np.sum(x * self.Q_transform.linear_map(x))) / 2., None
                 return f
             else:
                 raise ValueError("mode incorrectly specified")
 
 
-    def get_conjugate(self, epsilon=0, factor=False):
-
-        if self.offset is not None:
-            if self.quadratic.linear_term is not None:
-                outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
-            else:
-                outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
-        else:
-            outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
-        if self.quadratic.linear_term is not None:
-            offset = -self.quadratic.linear_term
-        else:
-            offset = None
+    def get_conjugate(self, factor=False):
 
         if self.Q is None:
-            return quadratic(self.primal_shape, offset=offset,
-                             quadratic=outq, coef=0.25/(self.coef+epsilon))
-        elif self.Q_transform.diagD:
-            return quadratic(self.primal_shape,
-                             Q=1./(self.Q_transform.linear_operator + epsilon),
-                             offset=offset,
-                             quadratic=outq, 
-                             coef=0.25/self.coef,
-                             Qdiag=True)
-        elif factor:
-            return quadratic(self.primal_shape,
-                             Q=cholesky(self.Q_transform.linear_operator +
-                                        epsilon*np.identity(self.primal_shape[0])),
+            q = identity_quadratic(self.coef, -self.offset, 0, 0).collapsed()
+            totalq = q + self.quadratic
+            print 'totalq: ', totalq
+            totalq_conj = totalq.conjugate.collapsed()
+            return quadratic(self.primal_shape, 
+                             offset=totalq_conj.linear_term/totalq_conj.coef,
+                             coef=totalq_conj.coef,
+                             quadratic=identity_quadratic(0,0,0,totalq_conj.constant_term-q.constant_term))
+#                             quadratic=identity_quadratic(0,0,0,totalq_conj.constant_term))
+        else:
+            sq = self.quadratic.collapsed()
+            if self.offset is not None:
+                sq.linear_term += self.scale(self.Q_transform.linear_map(self.offset))
+            if self.Q_transform.diagD:
+                return quadratic(self.primal_shape,
+                                 Q=1./(self.coef*self.Q_transform.linear_operator + sq.coef),
+                                 offset=offset,
+                                 quadratic=outq, 
+                                 coef=1.,
+                                 Qdiag=True)
+            elif factor:
+                return quadratic(self.primal_shape,
+                             Q=cholesky(self.coef * self.Q + sq.coef*np.identity(self.primal_shape)),
                              Qdiag=False,
                              offset=offset,
                              quadratic=outq,
-                             coef=.25/self.coef)
-        else:
-            raise ValueError('factor is False, so no factorization was done')
+                             coef=1.)
+            else:
+                raise ValueError('factor is False, so no factorization was done')
 
 class cholesky(object):
 

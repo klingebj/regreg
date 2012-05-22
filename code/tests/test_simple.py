@@ -6,7 +6,6 @@ import nose.tools as nt
 
 from test_seminorms import ac
 
-
 from copy import copy
 
 def test_simple():
@@ -14,7 +13,7 @@ def test_simple():
     p = rr.l1norm(100, lagrange=0.13)
     L = 0.14
 
-    loss = rr.quadratic.shift(-Z, coef=0.5*L)
+    loss = rr.quadratic.shift(-Z, coef=L)
     problem = rr.simple_problem(loss, p)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-10, debug=True)
@@ -23,15 +22,15 @@ def test_simple():
     prox_coef = p.proximal(rr.identity_quadratic(L, Z, 0, 0))
 
     p2 = rr.l1norm(100, lagrange=0.13)
-    #p2 = copy(p)
-    p2.set_quadratic(L, Z, 0, 0)
+    p2 = copy(p)
+    p2.quadratic = rr.identity_quadratic(L, Z, 0, 0)
     problem = rr.simple_problem.nonsmooth(p2)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-14, debug=True)
     simple_nonsmooth_coef = solver.composite.coefs
 
     p = rr.l1norm(100, lagrange=0.13)
-    p.set_quadratic(L, Z, 0, 0)
+    p.quadratic = rr.identity_quadratic(L, Z, 0, 0)
     problem = rr.simple_problem.nonsmooth(p)
     simple_nonsmooth_gengrad = gengrad(problem, L, tol=1.0e-10)
 

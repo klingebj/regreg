@@ -1,15 +1,18 @@
 import numpy as np
 from scipy import sparse
-from algorithms import FISTA
-from composite import (composite, nonsmooth as nonsmooth_composite,
-                       smooth as smooth_composite)
+from warnings import warn
+
+from .algorithms import FISTA
+from .composite import (composite, nonsmooth as nonsmooth_composite,
+                        smooth as smooth_composite)
 from .affine import (vstack as afvstack, identity as afidentity, power_L,
-                    selector as afselector,
-                    scalar_multiply, adjoint)
-from separable import separable
-from smooth import smooth_atom, affine_smooth
-from atoms import affine_atom as nonsmooth_affine_atom
-from cones import zero_constraint, zero as zero_nonsmooth, affine_cone
+                     selector as afselector,
+                     scalar_multiply, adjoint)
+from .separable import separable
+from .smooth import smooth_atom, affine_smooth
+from .atoms import affine_atom as nonsmooth_affine_atom
+from .cones import zero_constraint, zero as zero_nonsmooth, affine_cone
+from .identity_quadratic import identity_quadratic
 
 class dual_problem(composite):
     """
@@ -17,36 +20,40 @@ class dual_problem(composite):
 
     .. math::
 
-       \minimize_x f(x) + \sum_i g_i(D_ix)
+       \minimize_x f(x) + g(Dx)
 
     which will be solved by a dual problem
 
     .. math::
 
-       \maximize_{u_i} -f^*(-\sum_i D^Tu_i) + \sum_i g_i^*(u_i)
+       \minimize_{u_i} f^*(-D^Tu) + g^*(u)
 
     while the primal variable is stored in the computation
     of the gradient of :math:`f^*`.
 
     """
 
-    def __init__(self, f, transform, separable_atom):
-        self.f = f
-        self.f_conjugate = f.conjugate
+    def __init__(self, f_conjugate, transform, atom):
+        self.f_conjugate = f_conjugate
         if not isinstance(self.f_conjugate, smooth_composite):
-            raise ValueError('the conjugate of f should be a smooth_composite')
+            warnings.warn('the conjugate of f should be a smooth_composite to solve with generalized gradient')
 
         self.transform = transform
-        self.separable_atom = separable_atom
+        self.atom = atom
 
         # the dual problem has f^*(-D^Tu) as objective
         self.affine_fc = affine_smooth(self.f_conjugate, scalar_multiply(adjoint(self.transform), -1))
         self.coefs = np.zeros(self.affine_fc.primal_shape)
 
+    # the quadratic is delegated to 
+    @property
+    def quadratic(self):
+        return identity_quadratic(None,None,None,None)
+
     @staticmethod
-    def fromseq(f, *g):
-        transform, separable_atom = stacked_dual(f.primal_shape, *g)
-        return dual_problem(f, transform, separable_atom)
+    def fromseq(f_conjugate, *g):
+        transform, separable_atom = stacked_dual(f_conjugate.primal_shape, *g)
+        return dual_problem(f_conjugate, transform, separable_atom)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -60,19 +67,23 @@ class dual_problem(composite):
         return v
 
     def nonsmooth_objective(self, x, check_feasibility=False):
-        out = self.separable_atom.nonsmooth_objective(x, 
-                                                      check_feasibility=check_feasibility)
-        if self.quadratic is None:
-            return out
-        else:
-            return out + self.quadratic.objective(x, 'func')
+        out = self.atom.nonsmooth_objective(x, 
+                                            check_feasibility=check_feasibility)
+        return out + self.affine_fc.nonsmooth_objective(x, 
+                                                        check_feasibility=check_feasibility)
 
     def proximal(self, proxq, prox_control=None):
         """
         The proximal function for the dual problem
         """
-        transform, separable_atom = self.transform, self.separable_atom
-        return separable_atom.proximal(proxq, prox_control)
+        return self.atom.proximal(proxq, prox_control=prox_control)
+
+    def solve(self, quadratic=None, return_optimum=False, **fit_args):
+        solver = FISTA(self)
+        solver.fit(**fit_args)
+        if return_optimum:
+            return self.objective(self.primal), self.primal
+        return self.primal
 
 def stacked_dual(shape, *primary_atoms):
     '''

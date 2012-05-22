@@ -14,7 +14,6 @@ from copy import copy
 from numpy.linalg import norm
 from numpy import all
 
-
 class identity_quadratic(object):
 
     def __init__(self, coef, center, linear_term, constant_term=0):
@@ -67,7 +66,7 @@ class identity_quadratic(object):
 
         if offset is not None:
             cpq = copy(self)
-            cpq.center += offset
+            cpq.center += offset 
             cpq = cpq.collapsed()
             return offset, cpq
         else:
@@ -173,3 +172,16 @@ class identity_quadratic(object):
             v += r' + \gamma_{%s} ' % idx
         return v
 
+    @property
+    def conjugate(self):
+        a = self.collapsed()
+        if a.coef != 0:
+            return identity_quadratic(1./a.coef,
+                                      a.linear_term,
+                                      0,
+                                      -a.constant_term)
+        else:
+            # possible import problem here
+            from .cones import zero_constraint
+            q = identity_quadratic(0,0,0,-a.constant_term)
+            return zero_constraint(a.linear_term.shape, offset=-a.linear_term, quadratic=q)

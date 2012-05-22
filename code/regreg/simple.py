@@ -20,19 +20,21 @@ class simple_problem(composite):
         self.coefs = self.smooth_atom.coefs = self.nonsmooth_atom.coefs
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
-        return self.smooth_atom.smooth_objective(x, mode, check_feasibility)
+        """
+        This class explicitly assumes that
+        the nonsmooth_atom has 0 for smooth_objective.
+        """
+        vs = self.smooth_atom.smooth_objective(x, mode, check_feasibility)
+        return vs
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         vn = self.nonsmooth_atom.nonsmooth_objective(x, check_feasibility=check_feasibility)
-        if self.smooth_atom.quadratic is not None:
-            vs = self.smooth_atom.nonsmooth_objective(x, check_feasibility=check_feasibility)
-            return vn + vs
-        return vn
+        vs = self.smooth_atom.nonsmooth_objective(x, check_feasibility=check_feasibility)
+        return vn + vs + self.quadratic.objective(x, 'func')
 
     def proximal(self, proxq):
-        if self.smooth_atom.quadratic is not None:
-            proxq = proxq + self.smooth_atom.quadratic
-        return self.nonsmooth_atom.proximal(proxq)
+        proxq = proxq + self.smooth_atom.quadratic + self.quadratic
+        return self.nonsmooth_atom.solve(proxq)
 
     @staticmethod
     def smooth(smooth_atom):

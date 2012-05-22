@@ -18,10 +18,10 @@ def test_l1prox():
 
     l1 = rr.l1norm(4, lagrange=0.3)
     ww = np.random.standard_normal(4)*3
-    ab = l1.proximal(0.5, ww, 0)
+    ab = l1.proximal(rr.identity_quadratic(0.5, ww, 0,0))
 
     l1c = copy(l1)
-    l1c.set_quadratic(0.5, ww, None, 0.)
+    l1c.quadratic = rr.identity_quadratic(0.5, ww, None, 0.)
     a = rr.simple_problem.nonsmooth(l1c)
     solver = rr.FISTA(a)
     solver.fit(tol=1.e-10)
@@ -29,8 +29,8 @@ def test_l1prox():
     ad = a.coefs
 
     l1c = copy(l1)
-    l1c.set_quadratic(0.5, ww, None, 0.)
-    a = rr.dual_problem.fromseq(l1c)
+    l1c.quadratic = rr.identity_quadratic(0.5, ww, None, 0.)
+    a = rr.dual_problem.fromseq(l1c.conjugate)
     solver = rr.FISTA(a)
     solver.fit(tol=1.0e-14)
 
@@ -52,17 +52,17 @@ def test_l1prox_bound():
 
     l1 = rr.l1norm(4, bound=2.)
     ww = np.random.standard_normal(4)*2
-    ab = l1.proximal(0.5, ww, 0)
+    ab = l1.proximal(rr.identity_quadratic(0.5, ww, 0, 0))
 
     l1c = copy(l1)
-    l1c.set_quadratic(0.5, ww, None, 0.)
+    l1c.quadratic = rr.identity_quadratic(0.5, ww, None, 0.)
     a = rr.simple_problem.nonsmooth(l1c)
     solver = rr.FISTA(a)
     solver.fit()
 
     l1c = copy(l1)
-    l1c.set_quadratic(0.5, ww, None, 0.)
-    a = rr.dual_problem.fromseq(l1c)
+    l1c.quadratic = rr.identity_quadratic(0.5, ww, None, 0.)
+    a = rr.dual_problem.fromseq(l1c.conjugate)
     solver = rr.FISTA(a)
     solver.fit()
 
@@ -81,7 +81,7 @@ def test_l1prox_bound():
 #     '''
 
 #     l1 = rr.l1norm(4, lagrange=1.)
-#     l1.set_quadratic(0.5, 0, None, 0.)
+#     l1.quadratic = rr.identity_quadratic(0.5, 0, None, 0.)
 
 #     X = np.random.standard_normal((10,4))
 #     Y = np.random.standard_normal(10) + 3
@@ -91,14 +91,14 @@ def test_l1prox_bound():
 #     print minb
 #     l2constraint = rr.l2norm.affine(X, -Y, bound=1.5 * minb / np.linalg.norm(Y))
 
-#     a = rr.dual_problem.fromseq(l1, l2constraint)
+#     a = rr.dual_problem.fromseq(l1.conjugate, l2constraint)
 #     solver = rr.FISTA(a)
 #     solver.fit(min_its=100, debug=True)
 
 #     ac = a.primal
 
 #     l1c = rr.l1norm(4, bound=np.fabs(ac).sum())
-#     l1c.set_quadratic(0.5, 0, None, 0.)
+#     l1c.quadratic = rr.identity_quadratic(0.5, 0, None, 0.)
 #     loss = rr.quadratic.affine(X, -Y, coef=0.5)
 
 #     p2 = rr.separable_problem.singleton(l1c, loss)
@@ -120,7 +120,7 @@ def test_lasso():
     '''
 
     l1 = rr.l1norm(4, lagrange=2.)
-    l1.set_quadratic(0.5, 0, None, 0.)
+    l1.quadratic = rr.identity_quadratic(0.5, 0, None, 0.)
 
     X = np.random.standard_normal((10,4))
     Y = np.random.standard_normal(10) + 3
