@@ -244,8 +244,6 @@ class atom(nonsmooth):
         debug = False
         if debug:
             print '='*80
-            print 'x :', x
-            print 'grad: ', grad
             print 'atom: ', self
             print 'proxq: ', proxq
             print 'proxarg: ', prox_arg
@@ -482,7 +480,7 @@ class l2norm(atom):
         if n <= lagrange / lipschitz:
             proj = x
         else:
-            proj = (self.lagrange / (lipschitz * n)) * x
+            proj = (lagrange / (lipschitz * n)) * x
         return x - proj 
     lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
 

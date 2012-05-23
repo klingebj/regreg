@@ -309,23 +309,62 @@ class selector(linear_transform):
         self.primal_shape = initial_shape
         self.dual_shape = self.affine_transform.dual_shape
 
-    def linear_map(self, x, copy=True):
+    def linear_map(self, x, copy=False):
         x_indexed = x[self.index_obj]
         return self.affine_transform.linear_map(x_indexed)
 
-    def affine_map(self, x, copy=True):
+    def affine_map(self, x, copy=False):
         x_indexed = x[self.index_obj]
         return self.affine_transform.affine_map(x_indexed)
 
-    def offset_map(self, x, copy=True):
+    def offset_map(self, x, copy=False):
         x_indexed = x[self.index_obj]
         return self.affine_transform.offset_map(x_indexed)
 
-    def adjoint_map(self, u, copy=True):
+    def adjoint_map(self, u, copy=False):
         if not hasattr(self, "_output"):
             self._output = np.zeros(self.initial_shape)
         self._output[self.index_obj] = self.affine_transform.adjoint_map(u)
         return self._output
+
+class reshape(linear_transform):
+
+    """
+    Reshape the output of an affine transform.
+
+    """
+
+    def __init__(self, primal_shape, dual_shape):
+        self.primal_shape = primal_shape
+        self.dual_shape = dual_shape
+
+    def linear_map(self, x, copy=False):
+        if copy:
+            x = x.copy()
+        return x.reshape(self.dual_shape)
+
+    def affine_map(self, x, copy=False):
+        return self.linear_map(x, copy)
+
+    def offset_map(self, x, copy=False):
+        if copy:
+            x = x.copy()
+        return x
+
+    def adjoint_map(self, u, copy=True):
+        if copy:
+            u = u.copy()
+        return u.reshape(self.dual_shape)
+
+def tensor(T, first_primal_index):
+    primal_shape = T.shape[first_primal_index:]
+    dual_shape = T.shape[:first_primal_index]
+
+    Tm = T.reshape((np.product(dual_shape),
+                    np.product(primal_shape)))
+    reshape_primal = reshape(primal_shape, Tm.shape[1])
+    reshape_dual = reshape(Tm.shape[0], dual_shape)
+    return composition(reshape_dual, Tm, reshape_primal)
 
 class normalize(object):
 

@@ -77,21 +77,29 @@ class simple_problem(composite):
         return value
 
     
-def gengrad(simple_problem, L, tol=1.0e-8, max_its=1000, debug=False):
+def gengrad(simple_problem, L, tol=1.0e-8, max_its=1000, debug=False,
+            coef_stop=False):
     """
     A simple generalized gradient solver
     """
     itercount = 0
     coef = simple_problem.coefs
-    print 'coef', coef
     v = np.inf
     while True:
         vnew, g = simple_problem.smooth_objective(coef, 'both')
         vnew += simple_problem.nonsmooth_objective(coef)
         newcoef = simple_problem.proximal(identity_quadratic(L, coef, g, 0))
-        if np.linalg.norm(coef-newcoef) <= tol * np.max([np.linalg.norm(coef),
-                                                         np.linalg.norm(newcoef)]):
-            break
+        if coef_stop:
+            coef_stop_check = (np.linalg.norm(coef-newcoef) <= tol * 
+                               np.max([np.linalg.norm(coef),
+                                       np.linalg.norm(newcoef), 
+                                       1]))
+            if coef_stop_check:
+                break
+        else:
+            obj_stop_check = np.fabs(v - vnew) <= tol * np.max([vnew, 1])
+            if obj_stop_check:
+                break
         if itercount == max_its:
             break
         if debug:

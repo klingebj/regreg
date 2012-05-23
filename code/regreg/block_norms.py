@@ -11,7 +11,6 @@ import numpy as np
 import atoms
 from .identity_quadratic import identity_quadratic
 
-
 class block_sum(atoms.atom):
 
     _doc_dict = {'linear':r' + \text{Tr}(\eta^T X)',
@@ -52,6 +51,7 @@ class block_sum(atoms.atom):
 
     def seminorm(self, x, check_feasibility=False,
                  lagrange=None):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
         return lagrange * np.sum( \
@@ -60,12 +60,14 @@ class block_sum(atoms.atom):
 
     def constraint(self, x):
         # XXX should we check feasibility here?
+        x = x.reshape(self.primal_shape)
         v = np.sum(self.seminorms(x, check_feasibility=False))
         if v <= self.bound * (1 + self.tol):
             return 0
         return np.inf
                     
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.lagrange_prox(self, x, lipschitz, lagrange)
         v = np.empty(x.shape)
         for i in xrange(self.primal_shape[0]):
@@ -74,6 +76,7 @@ class block_sum(atoms.atom):
         return v
 
     def bound_prox(self, x, lipschitz=1, bound=None):
+        x = x.reshape(self.primal_shape)
         warnings.warn('bound_prox of block_sum requires a little thought -- should be like l1prox')
         return 0 * x
 
@@ -129,6 +132,7 @@ class block_max(block_sum):
     _doc_dict['objective'] = objective_template % {'var': r'X + A'}
 
     def seminorm(self, x, lagrange=None, check_feasibility=False):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
         return lagrange * np.max(self.seminorms(x,  
@@ -136,6 +140,7 @@ class block_max(block_sum):
                                                 check_feasibility=check_feasibility))
 
     def constraint(self, x, bound=None):
+        x = x.reshape(self.primal_shape)
         bound = atoms.atom.constraint(self, x, bound=bound)
         # XXX should we check feasibility here?
         v = np.max(self.seminorms(x, lagrange=1., check_feasibility=False))
@@ -148,6 +153,7 @@ class block_max(block_sum):
         return 0 * x
 
     def bound_prox(self, x, lipschitz=1, bound=None):
+        x = x.reshape(self.primal_shape)
         bound = atoms.atom.bound_prox(self, x, lipschitz=lipschitz, 
                                       bound=bound)
         v = np.empty(x.shape)
@@ -177,18 +183,21 @@ class linf_l2(block_max):
                            initial=initial)
 
     def constraint(self, x):
+        x = x.reshape(self.primal_shape)
         norm_max = np.sqrt((x**2).sum(1)).max()
         if norm_max <= self.bound * (1 + self.tol):
             return 0
         return np.inf
                     
     def seminorm(self, x, lagrange=None, check_feasibility=False):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
         norm_max = np.sqrt((x**2).sum(1)).max()
         return lagrange * norm_max
 
     def bound_prox(self, x, lipschitz=1, bound=None):
+        x = x.reshape(self.primal_shape)
         norm = np.sqrt((x**2).sum(1))
         bound = atoms.atom.bound_prox(self, x, lipschitz=lipschitz, 
                                       bound=bound)
@@ -249,12 +258,14 @@ class linf_linf(linf_l2):
                            initial=initial)
 
     def constraint(self, x):
+        x = x.reshape(self.primal_shape)
         norm_max = np.fabs(x).max()
         if norm_max <= self.bound * (1 + self.tol):
             return 0
         return np.inf
                     
     def seminorm(self, x, lagrange=None, check_feasibility=False):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
         norm_max = np.fabs(x).max()
@@ -262,6 +273,7 @@ class linf_linf(linf_l2):
 
 
     def bound_prox(self, x, lipschitz=1, bound=None):
+        x = x.reshape(self.primal_shape)
         bound = atoms.atom.bound_prox(self, x, lipschitz=lipschitz, 
                                       bound=bound)
         # print 'bound', bound
@@ -290,9 +302,10 @@ class l1_l2(block_sum):
 
 
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.lagrange_prox(self, x, lipschitz, lagrange)
         norm = np.sqrt((x**2).sum(1))
-        mult = lipschitz * np.maximum(norm - lagrange / lipschitz, 0) / norm
+        mult = np.maximum(norm - lagrange / lipschitz, 0) / norm
         return x * mult[:, np.newaxis]
 
     @property
@@ -327,15 +340,17 @@ class l1_l2(block_sum):
         return self._conjugate
 
     def constraint(self, x):
+        x = x.reshape(self.primal_shape)
         norm_sum = np.sqrt((x**2).sum(1)).sum()
         if norm_sum <= self.bound * (1 + self.tol):
             return 0
         return np.inf
                     
     def seminorm(self, x, lagrange=None, check_feasibility=False):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
-        norm_sum = np.sqrt((x**2).sum(1)).sum()
+        norm_sum = np.sum(np.sqrt((x**2).sum(1)))
         return lagrange * norm_sum
 
 class l1_l1(l1_l2):
@@ -359,17 +374,20 @@ class l1_l1(l1_l2):
                            initial=initial)
 
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.lagrange_prox(self, x, lipschitz, lagrange)
         norm = np.fabs(x)
         return np.maximum(norm - lagrange, 0) * np.sign(x)
 
     def constraint(self, x):
+        x = x.reshape(self.primal_shape)
         norm_sum = np.fabs(x).sum()
         if norm_sum <= self.bound * (1 + self.tol):
             return 0
         return np.inf
                     
     def seminorm(self, x, lagrange=None, check_feasibility=False):
+        x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
         norm_sum = np.fabs(x).sum()
