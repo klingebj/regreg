@@ -353,7 +353,6 @@ class smooth_conjugate(smooth):
             optimal_value, argmin = self.atom.solve(quadratic=q, return_optimum=True)
             objective = -optimal_value
             # retain a reference
-            print 'optimal', objective
             self.argmin = argmin
             return objective, argmin
         elif mode == 'grad':

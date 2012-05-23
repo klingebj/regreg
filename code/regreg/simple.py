@@ -34,9 +34,6 @@ class simple_problem(composite):
         return vn + vs + self.quadratic.objective(x, 'func')
 
     def proximal(self, proxq):
-        print 'self: ', self.quadratic
-        print 'prox: ', proxq
-        print 'smooth: ', self.smooth_atom.quadratic
         proxq = proxq + self.smooth_atom.quadratic + self.quadratic
         return self.nonsmooth_atom.solve(proxq)
 
@@ -70,6 +67,7 @@ class simple_problem(composite):
 
         solver = FISTA(self)
         solver.fit(**fit_args)
+        self.final_inv_step = solver.inv_step
 
         if return_optimum:
             value = (self.objective(self.coefs), self.coefs)

@@ -368,9 +368,7 @@ class atom(nonsmooth):
 
         if conjugate_atom.quadratic is not None:
             total_q = sq + conjugate_atom.quadratic
-        conjugate_atom.set_quadratic(total_q.coef, total_q.center,
-                                     total_q.linear_term, 
-                                     total_q.constant_term)
+        conjugate_atom.quadratic = total_q
         smoothed_atom = conjugate_atom.conjugate
         return smoothed_atom
     
@@ -485,7 +483,7 @@ class l2norm(atom):
             proj = x
         else:
             proj = (self.lagrange / (lipschitz * n)) * x
-        return x - proj * (1 - l2norm.tol)
+        return x - proj 
     lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
 
     def bound_prox(self, x,  lipschitz=1, bound=None):
@@ -800,9 +798,7 @@ class affine_atom(object):
             total_q = smoothing_quadratic
         if total_q.coef in [None, 0]:
             raise ValueError('quadratic term of smoothing_quadratic must be non 0')
-        conjugate_atom.set_quadratic(total_q.coef, total_q.center,
-                                     total_q.linear_term, 
-                                     total_q.constant_term)
+        conjugate_atom.quadratic = total_q
         smoothed_atom = conjugate_atom.conjugate
         return affine_smooth(smoothed_atom, ltransform)
 

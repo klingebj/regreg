@@ -12,7 +12,7 @@ with :math:`\kappa, \mu, \beta, \gamma` = (coef, center, linear_term, constant_t
 from copy import copy
 
 from numpy.linalg import norm
-from numpy import all
+from numpy import all, asarray
 
 class identity_quadratic(object):
 
@@ -125,15 +125,38 @@ class identity_quadratic(object):
                                       sc.constant_term + oc.constant_term)
             return newq 
 
+    def get_shapes(self):
+        '''
+        Determine shape of any pieces and make sure they agree
+        '''
+        self.zeroify()
+        lt = asarray(self.linear_term)
+        center = asarray(self.center)
+
+        if lt.shape != () and center.shape != ():
+            if lt.shape != center.shape:
+                raise ValueError('conflicting shapes of linear_term and center')
+        return lt.shape, center.shape
+
+
     def __getitem__(self, slice):
         '''
         Return a new quadratic restricted to the variables in slice
         with constant_term=0.
         '''
+        lts, cts = self.get_shapes()
+
+        if lts != ():
+            lt = self.linear_term[slice]
+        else:
+            lt = self.linear_term
+
+        if cts != ():
+            ct = self.center[slice]
+        else:
+            ct = self.center
         return identity_quadratic(self.coef,
-                                  self.center[slice],
-                                  self.linear_term[slice],
-                                  0)
+                                  ct, lt, 0)
 
     def collapsed(self):
         """

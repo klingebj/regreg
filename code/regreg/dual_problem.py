@@ -34,6 +34,7 @@ class dual_problem(composite):
     """
 
     def __init__(self, f_conjugate, transform, atom):
+        self.offset = None
         self.f_conjugate = f_conjugate
         if not isinstance(self.f_conjugate, smooth_composite):
             warn('the conjugate of f should be a smooth_composite to solve with generalized gradient')

@@ -171,16 +171,6 @@ class affine_smooth(smooth_atom):
                 str(self.affine_transform),
                 self.store_grad))
 
-def squaredloss(linear_operator, offset, coef=1):
-    # the affine method gets rid of the need for the squaredloss class
-    # as previously written squared loss had a factor of 2
-
-    #return quadratic.affine(-linear_operator, offset, coef=coef/2., initial=np.zeros(linear_operator.shape[1]))
-    return quadratic.affine(linear_operator, -offset, coef=coef/2.)
-
-def signal_approximator(offset, coef=1):
-    return quadratic.shift(-offset, coef)
-
 class zero(smooth_atom):
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):

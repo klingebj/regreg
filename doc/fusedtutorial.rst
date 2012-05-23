@@ -50,13 +50,14 @@ Now we can create the problem object, beginning with the loss function
 
 .. ipython::
 
-   loss = rr.quadratic.shift(-Y,coef=0.5)
+   loss = rr.signal_approximator(Y)
+   n = Y.shape[0]
 
 there are other loss functions (squared error, logistic, etc) and any differentiable function can be specified. Next, we specifiy the seminorm for this problem by instantiating two l1norm objects,
 
 .. ipython::
 
-   sparsity = rr.l1norm(len(Y), lagrange=0.8)
+   sparsity = rr.l1norm(Y.shape[0], lagrange=0.8)
 
 which creates an l1norm object with :math:`\lambda_2=0.8`. The first argument specifies the length of the coefficient vector. The object sparsity now has a coefficient associated with it that we can access and change,
 

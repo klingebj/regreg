@@ -59,16 +59,16 @@ class separable(atom):
         if initial is None:
             self.coefs = np.zeros(shape)
 
-    def seminorm(self, x, check_feasibility=False):
+    def seminorm(self, x, lagrange=None, check_feasibility=False):
         value = 0.
         for atom, group in zip(self.atoms, self.groups):
-            value += atom.seminorm(x[group], check_feasibility=check_feasibility)
+            value += atom.seminorm(x[group], lagrange=lagrange, check_feasibility=check_feasibility)
         return value
 
-    def constraint(self, x):
+    def constraint(self, x, bound=None):
         value = 0.
         for atom, group in zip(self.atoms, self.groups):
-            value += atom.constraint(x[group])
+            value += atom.constraint(x[group], bound=bound)
         return value
 
     def nonsmooth_objective(self, x, check_feasibility=False):

@@ -146,3 +146,14 @@ class cholesky(object):
 
     def adjoint_map(self, x):
         return self.linear_map(x)
+
+def squared_error(X, Y, coef=1):
+    # the affine method gets rid of the need for the squaredloss class
+    # as previously written squared loss had a factor of 2
+
+    #return quadratic.affine(-linear_operator, offset, coef=coef/2., initial=np.zeros(linear_operator.shape[1]))
+    return quadratic.affine(X, -Y, coef=coef)
+
+def signal_approximator(signal, coef=1):
+    return quadratic.shift(-signal, coef=coef)
+
