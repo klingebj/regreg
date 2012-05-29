@@ -7,7 +7,7 @@ from .composite import composite, nonsmooth, smooth_conjugate
 from .affine import (linear_transform, identity as identity_transform, 
                      affine_transform, selector)
 
-from .atoms import atom as unweighted_atom
+from .atoms import atom as unweighted_atom, _work_out_conjugate
 from .identity_quadratic import identity_quadratic
 
 try:
@@ -90,24 +90,15 @@ class atom(unweighted_atom):
                      str(self.offset),
                      self.quadratic)
 
+
     def get_conjugate(self):
         if self.quadratic.coef == 0:
             inv_weights = 1./self.weights
 
-            if self.offset is not None:
-                if self.quadratic.linear_term is not None:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
-                else:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
-            else:
-                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
-            if self.quadratic.linear_term is not None:
-                offset = -self.quadratic.linear_term
-            else:
-                offset = None
+            offset, outq = _work_out_conjugate(self.offset, self.quadratic)
 
             if self.bound is None:
-                cls = conjugate_seminorm_pairs[self.__class__]
+                cls = conjugate_weighted_pairs[self.__class__]
                 atom = cls(self.primal_shape, 
                            inv_weights, 
                            bound=self.lagrange, 
@@ -115,7 +106,7 @@ class atom(unweighted_atom):
                            offset=offset,
                            quadratic=outq)
             else:
-                cls = conjugate_seminorm_pairs[self.__class__]
+                cls = conjugate_weighted_pairs[self.__class__]
                 atom = cls(self.primal_shape,
                            inv_weights,
                            lagrange=self.bound, 
@@ -130,18 +121,21 @@ class atom(unweighted_atom):
         return self._conjugate
     conjugate = property(get_conjugate)
     
-    @property
-    def linear_transform(self):
+    def form_transform(self, subsample=False):
+        '''
+        By subsampling we can get rid of some variables that have 0 weights.
+        '''
         if not hasattr(self, '_linear_transform'):
             if self.weights is not None:
                 test = self.weights == 0
-                if test.sum():
+                if test.sum() and subsample:
                     self._linear_transform = selector(~test, self.primal_shape)
                 else:
                     self._linear_transform = identity_transform(self.primal_shape)
             else:
                 self._linear_transform = identity_transform(self.primal_shape)
         return self._linear_transform
+    linear_transform = property(form_transform)
 
     _doc_dict = {'linear':r' + \langle \eta, x \rangle',
                  'constant':r' + \tau',
@@ -171,6 +165,7 @@ class l1norm(atom):
             if check_zero.sum():
                 return np.inf
         return lagrange * np.fabs(x[finite] * self.weights[finite]).sum()                
+
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
         inbox = self.seminorm(x, lagrange=1,
@@ -235,11 +230,7 @@ class supnorm(atom):
     bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
 
 
-conjugate_seminorm_pairs = {}
-for n1, n2 in [(l1norm,supnorm)# ,
-               # (l2norm,l2norm),
-               # (positive_part, constrained_max),
-               # (constrained_positive_part, max_positive_part)
-               ]:
-    conjugate_seminorm_pairs[n1] = n2
-    conjugate_seminorm_pairs[n2] = n1
+conjugate_weighted_pairs = {}
+for n1, n2 in [(l1norm,supnorm)]:
+    conjugate_weighted_pairs[n1] = n2
+    conjugate_weighted_pairs[n2] = n1

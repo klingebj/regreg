@@ -200,7 +200,8 @@ class logistic_deviance(smooth_atom):
                              primal_shape,
                              offset=offset,
                              quadratic=quadratic,
-                             initial=initial)
+                             initial=initial,
+                             coef=coef)
 
         if sparse.issparse(successes):
             #Convert sparse success vector to an array
@@ -293,7 +294,8 @@ class poisson_deviance(smooth_atom):
                              primal_shape,
                              offset=offset,
                              quadratic=quadratic,
-                             initial=initial)
+                             initial=initial,
+                             coef=coef)
 
         if sparse.issparse(counts):
             #Convert sparse success vector to an array
@@ -354,7 +356,8 @@ class multinomial_deviance(smooth_atom):
                              primal_shape,
                              offset=offset,
                              quadratic=quadratic,
-                             initial=initial)
+                             initial=initial,
+                             coef=coef)
 
         if sparse.issparse(counts):
             #Convert sparse success vector to an array
@@ -413,3 +416,23 @@ class multinomial_deviance(smooth_atom):
             raise ValueError("mode incorrectly specified")
 
 
+def logistic_loss(X, Y, coef=1.):
+    '''
+    Construct a logistic loss function for successes Y and
+    affine transform X.
+
+    Parameters
+    ----------
+
+    X : [affine_transform, ndarray]
+        Design matrix
+
+    Y : ndarray
+
+    '''
+    n = Y.shape[0]
+    loss = affine_smooth(logistic_deviance(Y.shape, 
+                                           Y,
+                                           coef=coef/n), 
+                         X)
+    return loss

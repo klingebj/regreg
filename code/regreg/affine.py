@@ -376,7 +376,7 @@ class normalize(object):
     '''
 
     def __init__(self, M, center=True, scale=True, value=1, inplace=False,
-                 add_intercept=True):
+                 intercept_column=None):
         '''
         Parameters
         ----------
@@ -398,7 +398,9 @@ class normalize(object):
             If sensible, modify values in place. For a sparse matrix,
             this will raise an exception if True and center==True.
 
-        add_intercept : bool
+        intercept_column : [int,None]
+            Which column is the intercept if any? This column is
+            not centered or scaled.
 
         '''
         n, p = M.shape
@@ -406,66 +408,81 @@ class normalize(object):
         self.dual_shape = (n,)
         self.primal_shape = (p,)
 
-        self.sparseD = sparse.isspmatrix(M)
-        self.add_intercept = add_intercept
-        if self.add_intercept:
-            self.M = M
+        self.sparseM = sparse.isspmatrix(M)
+        self.intercept_column = intercept_column
+        self.M = M
 
         self.center = center
         self.scale = scale
+
+        if value != 1 and not scale:
+            raise ValueError('setting value when not being asked to scale')
 
         # we divide by n instead of n-1 in the scalings
         # so that np.std is constant
         
         if self.center:
-            if inplace and self.sparseD:
+            if inplace and self.sparseM:
                 raise ValueError('resulting matrix will not be sparse if centering performed inplace')
 
-            if not self.sparseD:
+            if not self.sparseM:
                 col_means = M.mean(0)
             else:
                 tmp = M.copy()
                 col_means = np.asarray(tmp.mean(0)).reshape(-1)
                 tmp.data **= 2
 
+            if self.intercept_column is not None:
+                col_means[self.intercept_column] = 0
+
             if self.scale:
-                if not self.sparseD:
-                    self.invcol_scalings = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) * self.value 
+                if not self.sparseM:
+                    self.col_stds = np.sqrt((np.sum(M**2,0) - n * col_means**2) / n) / np.sqrt(self.value)
                 else:
-                    self.invcol_scalings = np.sqrt((np.asarray(tmp.sum(0)).reshape(-1) - n * col_means**2) / n) * self.value
-            if not self.sparseD and inplace:
+                    self.col_stds = np.sqrt((np.asarray(tmp.sum(0)).reshape(-1) - n * col_means**2) / n) / np.sqrt(self.value)
+                if self.intercept_column is not None:
+                    self.col_stds[self.intercept_column] = 1. / np.sqrt(self.value)
+
+            if not self.sparseM and inplace:
                 self.M -= col_means[np.newaxis,:]
                 if self.scale:
-                    self.M /= self.invcol_scalings[np.newaxis,:]
+                    self.M /= self.col_stds[np.newaxis,:]
                     # if scaling has been applied in place, 
                     # no need to do it again
-                    self.invcol_scalings = None
+                    self.col_stds = None
                     self.scale = False
         elif self.scale:
-            if not self.sparseD:
-                self.invcol_scalings = np.sqrt(np.sum(M**2,0) / n) * self.value
+            if not self.sparseM:
+                self.col_stds = np.sqrt(np.sum(M**2,0) / n) / np.sqrt(self.value)
             else:
                 tmp = M.copy()
                 tmp.data **= 2
-                self.invcol_scalings = np.sqrt((tmp.sum(0)) / n) * self.value
+                self.col_stds = np.sqrt((tmp.sum(0)) / n) / np.sqrt(self.value)
+            if self.intercept_column is not None:
+                self.col_stds[self.intercept_column] = 1. / np.sqrt(self.value)
             if inplace:
-                self.M /= self.invcol_scalings[np.newaxis,:]
+                self.M /= self.col_stds[np.newaxis,:]
                 # if scaling has been applied in place, 
                 # no need to do it again
-                self.invcol_scalings = None
+                self.col_stds = None
                 self.scale = False
         self.affine_offset = None
         
     def linear_map(self, x):
         shift = None
+        if self.intercept_column is not None:
+            if self.scale and self.value != 1:
+                x_intercept = x[self.intercept_column] * np.sqrt(self.value)
+            else:
+                x_intercept = x[self.intercept_column]
         if self.scale:
             if x.ndim == 1:
-                x = x / self.invcol_scalings
+                x = x / self.col_stds
             elif x.ndim == 2:
-                x = x / self.invcol_scalings[:,np.newaxis]
+                x = x / self.col_stds[:,np.newaxis]
             else:
                 raise ValueError('normalize only implemented for 1D and 2D inputs')
-        if self.sparseD:
+        if self.sparseM:
             v = self.M * x
         else:
             v = np.dot(self.M, x)
@@ -476,13 +493,18 @@ class normalize(object):
                 v -= v.mean(0)[np.newaxis,:]
             else:
                 raise ValueError('normalize only implemented for 1D and 2D inputs')
-        if shift is not None:
+        if shift is not None: # what is this shift possibly for?
             if x.ndim == 1:
                 return v + shift
             elif x.ndim == 2:
                 w = v + shift[np.newaxis,:]
             else:
                 raise ValueError('normalize only implemented for 1D and 2D inputs')
+        if self.intercept_column is not None and self.center:
+            if x.ndim == 2:
+                v += x_intercept[np.newaxis,:]
+            else:
+                v += x_intercept
         return v
 
     def affine_map(self, x):
@@ -492,19 +514,24 @@ class normalize(object):
         return x
 
     def adjoint_map(self, u):
+        v = np.empty(self.primal_shape)
         if self.center:
             if u.ndim == 1:
-                u = u - u.mean()
+                u_mean = u.mean()
+                u = u - u_mean
             elif u.ndim == 2:
-                u = u - u.mean(0)
+                u_mean = u.mean(0)
+                u = u - u_mean[np.newaxis,:]
             else:
                 raise ValueError('normalize only implemented for 1D and 2D inputs')
-        if self.sparseD:
+        if self.sparseM:
             v = (u.T * self.M).T
         else:
             v = np.dot(u.T, self.M).T
         if self.scale:
-            v /= self.invcol_scalings
+            v /= self.col_stds
+        if self.intercept_column is not None:
+            v[self.intercept_column] = u_mean * u.shape[0]
         return v
 
     def slice_columns(self, index_obj):
@@ -528,8 +555,10 @@ class normalize(object):
         Notes
         -----
 
-        If self.add_intercept is True, then [0] refers to the
-        intercept column.
+        If self.intercept_column is not None, then [0] will be an 
+        intercept column in the sliced object. The method
+        does not check whether or not the intercept column was included
+        in the index_obj so there may be duplicated intercept columns.
         
         >>> X = np.array([1.2,3.4,5.6,7.8,1.3,4.5,5.6,7.8,1.1,3.4])
         >>> D = np.identity(X.shape[0]) - np.diag(np.ones(X.shape[0]-1),1)
@@ -555,16 +584,25 @@ class normalize(object):
             # try to find nonzero indices if a boolean array
             if index_obj.dtype == np.bool:
                 index_obj = np.nonzero(index_obj)[0]
+
         new_obj = normalize.__new__(normalize)
-        new_obj.sparseD = self.sparseD
-        new_obj.M = self.M[:,index_obj]
+        new_obj.sparseM = self.sparseM
+
+        if self.intercept_column is not None:
+            if self.sparseM:
+                new_obj.M = scipy.sparse.hstack([np.ones((self.M.shape[0],1)),self.M[:,index_obj]])
+            else:
+                new_obj.M = np.hstack([np.ones((self.M.shape[0],1)),self.M[:,index_obj]])
+        else:
+            new_obj.M = self.M[:,index_obj]
+
         new_obj.primal_shape = (new_obj.M.shape[1],)
         new_obj.dual_shape = (self.M.shape[0],)
         new_obj.scale = self.scale
         new_obj.center = self.center
         print 'index', index_obj
         if self.scale:
-            new_obj.invcol_scalings = self.invcol_scalings[index_obj]
+            new_obj.col_stds = self.col_stds[index_obj]
         new_obj.affine_offset = self.affine_offset
         return new_obj
         
@@ -885,8 +923,6 @@ class composition(object):
             output = transform.adjoint_map(output)
         return output
 
-
-        
 class affine_sum(object):
 
     """

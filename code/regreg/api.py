@@ -12,7 +12,7 @@ from linear_constraints import (projection, projection_complement)
 
 from affine import (identity, selector, affine_transform, normalize, linear_transform, composition as affine_composition, affine_sum,
                     power_L)
-from smooth import (logistic_deviance, poisson_deviance, multinomial_deviance, smooth_atom, affine_smooth)
+from smooth import (logistic_deviance, poisson_deviance, multinomial_deviance, smooth_atom, affine_smooth, logistic_loss)
 from quadratic import quadratic, cholesky, signal_approximator, squared_error
 
 from factored_matrix import (factored_matrix, compute_iterative_svd, soft_threshold_svd)
