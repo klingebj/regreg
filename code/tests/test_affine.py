@@ -171,3 +171,76 @@ def test_affine_sum():
     yield assert_array_almost_equal, 3*b, sum_transform.offset_map(v)
     yield assert_array_almost_equal, 3*b, sum_transform.affine_offset
 
+def test_normalize_intercept():
+
+    for value in [1,3]:
+
+        # test of intercept column = 2
+        X = np.random.standard_normal((10,3))
+        X[:,2] = 1
+        Y = X.copy()
+        Xn = rr.normalize(X, intercept_column=2, value=value)
+
+        Y[:,1] -= Y[:,1].mean()
+        Y[:,0] -= Y[:,0].mean()
+        Y[:,1] /= np.std(Y[:,1])
+        Y[:,0] /= np.std(Y[:,0])
+        Y *= np.sqrt(value)
+        np.testing.assert_allclose(np.dot(Y, [2,4,6]), Xn.linear_map(np.array([2,4,6])))
+
+        # test of intercept column = 2, no scaling
+        X = np.random.standard_normal((10,3))
+        X[:,2] = 1
+        Y = X.copy()
+        Xn = rr.normalize(X, intercept_column=2, scale=False)
+
+        Y[:,1] -= Y[:,1].mean()
+        Y[:,0] -= Y[:,0].mean()
+        np.testing.assert_allclose(np.dot(Y, [2,4,6]), Xn.linear_map(np.array([2,4,6])))
+
+        # test of intercept column = 2, no centering
+        X = np.random.standard_normal((10,3))
+        X[:,2] = 1
+        Y = X.copy()
+        Xn = rr.normalize(X, intercept_column=2, center=False, value=value)
+
+        Y[:,1] /= (np.linalg.norm(Y[:,1]) / np.sqrt(Y.shape[0]))
+        Y[:,0] /= (np.linalg.norm(Y[:,0]) / np.sqrt(Y.shape[0]))
+        Y *= np.sqrt(value)
+        np.testing.assert_allclose(np.dot(Y, [2,4,6]), Xn.linear_map(np.array([2,4,6])))
+
+        # test of no intercept column, no scaling
+        X = np.random.standard_normal((10,3))
+        Y = X.copy()
+        Xn = rr.normalize(X, intercept_column=None, scale=False)
+
+        Y[:,2] -= Y[:,2].mean()
+        Y[:,1] -= Y[:,1].mean()
+        Y[:,0] -= Y[:,0].mean()
+        np.testing.assert_allclose(np.dot(Y, [2,4,6]), Xn.linear_map(np.array([2,4,6])))
+
+        # test of no intercept column, no centering
+        X = np.random.standard_normal((10,3))
+        Y = X.copy()
+        Xn = rr.normalize(X, intercept_column=None, center=False, value=value)
+
+        Y[:,2] /= (np.linalg.norm(Y[:,2]) / np.sqrt(Y.shape[0]))
+        Y[:,1] /= (np.linalg.norm(Y[:,1]) / np.sqrt(Y.shape[0]))
+        Y[:,0] /= (np.linalg.norm(Y[:,0]) / np.sqrt(Y.shape[0]))
+        Y *= np.sqrt(value)
+        np.testing.assert_allclose(np.dot(Y, [2,4,6]), Xn.linear_map(np.array([2,4,6])))
+
+        # test of no intercept column, no centering
+        X = np.random.standard_normal((10,3))
+        Y = X.copy()
+        Xn = rr.normalize(X, intercept_column=None, value=value)
+
+        Y[:,2] -= Y[:,2].mean()
+        Y[:,1] -= Y[:,1].mean()
+        Y[:,0] -= Y[:,0].mean()
+
+        Y[:,2] /= (np.linalg.norm(Y[:,2]) / np.sqrt(Y.shape[0]))
+        Y[:,1] /= (np.linalg.norm(Y[:,1]) / np.sqrt(Y.shape[0]))
+        Y[:,0] /= (np.linalg.norm(Y[:,0]) / np.sqrt(Y.shape[0]))
+        Y *= np.sqrt(value)
+        np.testing.assert_allclose(np.dot(Y, [2,4,6]), Xn.linear_map(np.array([2,4,6])))

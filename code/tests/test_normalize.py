@@ -1,6 +1,8 @@
 import numpy as np
 import regreg.api as rr
+from regreg.identity_quadratic import identity_quadratic as sq
 import nose.tools as nt
+
 
 def test_centering():
     """
@@ -159,8 +161,8 @@ def test_centering_fit(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(1, beta, g1)
-        b2 = penalty.proximal(1, beta, g1)
+        b1 = penalty.proximal(sq(1, beta, g1, 0))
+        b2 = penalty.proximal(sq(1, beta, g1, 0))
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -231,8 +233,8 @@ def test_scaling_fit(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(1, beta, g1)
-        b2 = penalty.proximal(1, beta, g2)
+        b1 = penalty.proximal(sq(1, beta, g1, 0))
+        b2 = penalty.proximal(sq(1, beta, g2, 0))
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -299,8 +301,8 @@ def test_scaling_and_centering_fit(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(1, beta, g1)
-        b2 = penalty.proximal(1, beta, g2)
+        b1 = penalty.proximal(sq(1, beta, g1, 0))
+        b2 = penalty.proximal(sq(1, beta, g2, 0))
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -369,8 +371,8 @@ def test_scaling_and_centering_fit_inplace(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(1, beta, g1)
-        b2 = penalty.proximal(1, beta, g2)
+        b1 = penalty.proximal(sq(1, beta, g1, 0))
+        b2 = penalty.proximal(sq(1, beta, g2, 0))
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -438,8 +440,8 @@ def test_scaling_fit_inplace(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(1, beta, g1)
-        b2 = penalty.proximal(1, beta, g2)
+        b1 = penalty.proximal(sq(1, beta, g1,0))
+        b2 = penalty.proximal(sq(1, beta, g2,0))
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
@@ -508,8 +510,8 @@ def test_centering_fit_inplace(debug=False):
         g1 = loss.smooth_objective(beta, mode='grad')
         g2 = loss2.smooth_objective(beta, mode='grad')
         np.testing.assert_almost_equal(g1, g2)
-        b1 = penalty.proximal(1, beta, g1)
-        b2 = penalty.proximal(1, beta, g2)
+        b1 = penalty.proximal(sq(1, beta, g1,0))
+        b2 = penalty.proximal(sq(1, beta, g2,0))
         np.testing.assert_almost_equal(b1, b2)
 
         f1 = composite_form.objective(beta)
