@@ -556,7 +556,7 @@ class normalize(object):
         -----
 
         This method does not check whether or not self.intercept_column
-        is None.
+        is None so it must be set by hand on the returned instance.
         
         >>> X = np.array([1.2,3.4,5.6,7.8,1.3,4.5,5.6,7.8,1.1,3.4])
         >>> D = np.identity(X.shape[0]) - np.diag(np.ones(X.shape[0]-1),1)
@@ -586,7 +586,13 @@ class normalize(object):
         new_obj = normalize.__new__(normalize)
         new_obj.sparseM = self.sparseM
 
-        new_obj.M = self.M[:,index_obj]
+        # explicitly assumes there is no intercept column
+        new_obj.intercept_column = None
+        new_obj.value = self.value
+        try:
+            new_obj.M = self.M[:,index_obj]
+        except TypeError: # sparse matrix is of wrong format
+            new_obj.M = self.M.tolil()[:,index_obj].tocsr()
 
         new_obj.primal_shape = (new_obj.M.shape[1],)
         new_obj.dual_shape = (self.M.shape[0],)
