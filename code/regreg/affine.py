@@ -555,10 +555,8 @@ class normalize(object):
         Notes
         -----
 
-        If self.intercept_column is not None, then [0] will be an 
-        intercept column in the sliced object. The method
-        does not check whether or not the intercept column was included
-        in the index_obj so there may be duplicated intercept columns.
+        This method does not check whether or not self.intercept_column
+        is None.
         
         >>> X = np.array([1.2,3.4,5.6,7.8,1.3,4.5,5.6,7.8,1.1,3.4])
         >>> D = np.identity(X.shape[0]) - np.diag(np.ones(X.shape[0]-1),1)
@@ -584,23 +582,16 @@ class normalize(object):
             # try to find nonzero indices if a boolean array
             if index_obj.dtype == np.bool:
                 index_obj = np.nonzero(index_obj)[0]
-
+        
         new_obj = normalize.__new__(normalize)
         new_obj.sparseM = self.sparseM
 
-        if self.intercept_column is not None:
-            if self.sparseM:
-                new_obj.M = scipy.sparse.hstack([np.ones((self.M.shape[0],1)),self.M[:,index_obj]])
-            else:
-                new_obj.M = np.hstack([np.ones((self.M.shape[0],1)),self.M[:,index_obj]])
-        else:
-            new_obj.M = self.M[:,index_obj]
+        new_obj.M = self.M[:,index_obj]
 
         new_obj.primal_shape = (new_obj.M.shape[1],)
         new_obj.dual_shape = (self.M.shape[0],)
         new_obj.scale = self.scale
         new_obj.center = self.center
-        print 'index', index_obj
         if self.scale:
             new_obj.col_stds = self.col_stds[index_obj]
         new_obj.affine_offset = self.affine_offset

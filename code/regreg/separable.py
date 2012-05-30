@@ -5,9 +5,13 @@ regularizer or penalty.
 The penalty is specified by a primal shape, a sequence of atoms and
 a sequence of slicing objects.
 """
-from affine import identity
-from atoms import atom
+
 import numpy as np
+
+from .affine import selector
+from .atoms import atom
+from .simple import simple_problem
+from .cones import zero
 
 def has_overlap(shape, groups):
     """
@@ -55,6 +59,7 @@ class separable(atom):
         self.primal_shape = self.dual_shape = shape
         self.groups = groups
         self.atoms = atoms
+        self.zero_atom = zero(shape)
 
         if initial is None:
             self.coefs = np.zeros(shape)
@@ -78,7 +83,9 @@ class separable(atom):
         return value
 
     def proximal(self, proxq, prox_control=None):
-        v = np.zeros(self.primal_shape)
+        # This allows separable to not have every coefficient penalized in a natural way
+        # because this instantiates it at the prox map of the zero penalty
+        v = self.zero_atom.proximal(proxq)
         for atom, group in zip(self.atoms, self.groups):
             v[group] = atom.proximal(proxq[group], prox_control)
         return v
@@ -95,15 +102,16 @@ class separable(atom):
                                           `self.atoms`,
                                           `self.groups`)
 
-class separable_problem(separable):
-    
-    def __init__(self, smooth_function, shape, atoms, groups, test_for_overlap=False):
-        self._smooth_function = smooth_function
-        separable.__init__(self, shape, atoms, groups, test_for_overlap)
-        
-    def smooth_objective(self, x, mode='both', check_feasibility=False):
-        return self._smooth_function.smooth_objective(x, mode, check_feasibility)
+    @property
+    def selectors(self):
+        return [selector(group, self.shape) for group in self.groups]
 
+class separable_problem(simple_problem):
+    
+    def __init__(self, smooth_atom, shape, atoms, groups, test_for_overlap=False):
+        nonsmooth_atom = separable(shape, atoms, groups, test_for_overlap)
+        simple_problem.__init__(self, smooth_atom, nonsmooth_atom)
+        
     @staticmethod
     def singleton(atom, smooth_f):
         return separable_problem(smooth_f, atom.primal_shape, [atom], [slice(None)], False)
@@ -113,3 +121,6 @@ class separable_problem(separable):
         return separable_problem(smooth_f, separable_atom.primal_shape, 
                                  separable_atom.atoms,
                                  separable_atom.groups, False)
+    @property
+    def selectors(self):
+        return [selector(group, self.nonsmooth_atom.primal_shape) for group in self.nonsmooth_atom.groups]
