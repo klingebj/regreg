@@ -416,7 +416,7 @@ class multinomial_deviance(smooth_atom):
             raise ValueError("mode incorrectly specified")
 
 
-def logistic_loss(X, Y, coef=1.):
+def logistic_loss(X, Y, trials=None, coef=1.):
     '''
     Construct a logistic loss function for successes Y and
     affine transform X.
@@ -433,6 +433,7 @@ def logistic_loss(X, Y, coef=1.):
     n = Y.shape[0]
     loss = affine_smooth(logistic_deviance(Y.shape, 
                                            Y,
-                                           coef=coef/n), 
+                                           coef=coef/n,
+                                           trials=trials), 
                          X)
     return loss
