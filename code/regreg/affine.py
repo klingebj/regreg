@@ -592,7 +592,7 @@ class normalize(object):
         try:
             new_obj.M = self.M[:,index_obj]
         except TypeError: # sparse matrix is of wrong format
-            new_obj.M = self.M.tolil()[:,index_obj].tocsr()
+            new_obj.M = self.M.tolil()[:,index_obj].tocsc()
 
         new_obj.primal_shape = (new_obj.M.shape[1],)
         new_obj.dual_shape = (self.M.shape[0],)
