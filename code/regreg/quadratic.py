@@ -1,5 +1,9 @@
 import numpy as np
-from scipy.linalg import cho_factor, cho_solve, cholesky_banded, cho_solve_banded
+import warnings
+try:
+    from scipy.linalg import cho_factor, cho_solve, cholesky_banded, cho_solve_banded
+except ImportError:
+    warnings.warn('cannot import some cholesky solvers from scipy')
 
 from .affine import affine_transform
 from .smooth import smooth_atom
