@@ -1,23 +1,49 @@
 import numpy as np
 import scipy.sparse
 
-from .affine import power_L, normalize, selector
+from .affine import power_L, normalize, selector, identity
 from .atoms import l1norm 
 from .smooth import logistic_loss
 from .quadratic import squared_error
 from .separable import separable_problem
+from .simple import simple_problem
+from .identity_quadratic import identity_quadratic as iq
 
 import gc
 class lasso(object):
 
-    intercept = True
-    lmin = 0.05
-    nstep = 100
-
-    def __init__(self, loss_factory, X, lmin=0.05):
+    def __init__(self, loss_factory, X, elastic_net=iq(0,0,0,0),
+                 alpha=0., intercept=True,
+                 lagrange_proportion = 0.05,
+                 nstep = 100,
+                 scale=True,
+                 center=True):
         self.loss_factory = loss_factory
-        self._X1 = scipy.sparse.hstack([np.ones((X.shape[0], 1)), X]).tocsc() 
-        self._Xn = normalize(self._X1, center=True, scale=True, intercept_column=0)
+
+        # the normalization of X
+        self.intercept = intercept
+        if self.intercept:
+            if scipy.sparse.issparse(X):
+                self._X1 = scipy.sparse.hstack([np.ones((X.shape[0], 1)), X]).tocsc() 
+            else:
+                self._X1 = np.hstack([np.ones((X.shape[0], 1)), X])
+            self._Xn = normalize(self._X1, center=center, scale=scale, intercept_column=0)
+        else:
+            self._Xn = normalize(X, center=center, scale=scale)
+
+        # the penalty parameters
+        self.alpha = alpha
+        self.lagrange_proportion = lagrange_proportion
+        self.nstep = nstep
+        self._elastic_net = elastic_net.collapsed()
+
+
+    @property
+    def elastic_net(self):
+        q = self._elastic_net
+        q.coef *= self.lagrange
+        q.linear_term *= self.lagrange
+        return q
 
     @property
     def Xn(self):
@@ -34,39 +60,55 @@ class lasso(object):
     def null_solution(self):
         if not hasattr(self, "_null_soln"):
             n, p = self.Xn.dual_shape[0], self.Xn.primal_shape[0]
-            null_design = np.ones((n,1))
-            null_loss = self.loss_factory(null_design)
-            value = np.zeros(p)
-            value[0] = null_loss.solve()
-            self._null_soln = value
+            self._null_soln = np.zeros(p)
+            if self.intercept:
+                null_design = np.ones((n,1))
+                null_loss = self.loss_factory(null_design)
+                self._null_soln[0] = null_loss.solve()
         return self._null_soln
 
     @property
     def lagrange_max(self):
         if not hasattr(self, "_lagrange_max"):
             null_soln = self.null_solution
-            self._lagrange_max = np.fabs(self.loss.smooth_objective(null_soln, 'grad'))[1:].max()
+            if self.intercept:
+                self._lagrange_max = np.fabs(self.loss.smooth_objective(null_soln, 'grad'))[1:].max()
+            else:
+                self._lagrange_max = np.fabs(self.loss.smooth_objective(null_soln, 'grad')).max()
         return self._lagrange_max
 
     @property
     def lagrange_sequence(self):
-        return self.lagrange_max * np.exp(np.linspace(np.log(0.05), 0, 100))[::-1]
+        return self.lagrange_max * np.exp(np.linspace(np.log(self.lagrange_proportion), 0, 
+                                                      self.nstep))[::-1]
 
     @property
     def problem(self):
         p = self.Xn.primal_shape[0]
         if not hasattr(self, "_problem"):
-            linear_slice = slice(1, p)
-            linear_penalty = l1norm(p-1, lagrange=self.lagrange_max)
-            self._problem = separable_problem(self.loss, self.Xn.primal_shape, [linear_penalty], [linear_slice])
-            self._problem.coefs[:] = self.null_solution
+            if self.intercept:
+                linear_slice = slice(1, p)
+                linear_penalty = l1norm(p-1, lagrange=self.lagrange_max)
+                self._problem = separable_problem(self.loss, self.Xn.primal_shape, [linear_penalty], [linear_slice])
+                self._problem.coefs[:] = self.null_solution
+            else:
+                penalty = l1norm(p, lagrange=self.lagrange_max)
+                self._problem = simple_problem(self.loss, penalty)
         return self._problem
 
     def get_lagrange(self):
-        return self._problem.nonsmooth_atom.atoms[0].lagrange
+        if self.intercept:
+            return self._problem.nonsmooth_atom.atoms[0].lagrange
+        else:
+            return self._problem.nonsmooth_atom.lagrange
 
     def set_lagrange(self, lagrange):
-        self._problem.nonsmooth_atom.atoms[0].lagrange = lagrange
+        if self.intercept:
+            self._problem.nonsmooth_atom.atoms[0].lagrange = lagrange
+            self._problem.nonsmooth_atom.atoms[0].quadratic = self.elastic_net
+        else:
+            self._problem.nonsmooth_atom.lagrange = lagrange
+            self._problem.nonsmooth_atom.quadratic = self.elastic_net
     lagrange = property(get_lagrange, set_lagrange)
 
     @property
@@ -87,14 +129,24 @@ class lasso(object):
     def penalized(self):
         if not hasattr(self, '_penalized'):
             p = self.Xn.primal_shape[0]
-            self._penalized = selector(slice(1,p), (p,))
+            if self.intercept:
+                self._penalized = selector(slice(1,p), (p,))
+            else:
+                self._penalized = identity(p)
         return self._penalized
 
     def grad(self):
         '''
-        Gradient at current value.
+        Gradient at current value. This includes the gradient
+        of the smooth loss as well as the gradient of the elastic net part.
+        This is used for determining whether the KKT conditions are met
+        and which coefficients are in the strong set.
         '''
-        return self.loss.smooth_objective(self.solution, 'grad')
+        gsmooth = self.loss.smooth_objective(self.solution, 'grad')
+        p = self.penalized
+        gquad = self.elastic_net.objective(p.linear_map(self.solution), 'grad')
+
+        return gsmooth + p.adjoint_map(gquad)
 
     def strong_set(self, lagrange_cur, lagrange_new, 
                    slope_estimate=1, grad=None):
@@ -110,15 +162,17 @@ class lasso(object):
         Assumes the candidate set includes intercept as first column.
         '''
         Xslice = self.Xn.slice_columns(candidate_set)
+        loss = self.loss_factory(Xslice)
         if self.intercept:
             Xslice.intercept_column = 0
-        loss = self.loss_factory(Xslice)
-        linear_slice = slice(1, Xslice.primal_shape[0])
-        linear_penalty = l1norm(Xslice.primal_shape[0]-1, lagrange=lagrange)
+            linear_slice = slice(1, Xslice.primal_shape[0])
+            linear_penalty = l1norm(Xslice.primal_shape[0]-1, lagrange=lagrange)
+            problem_sliced = separable_problem(loss, Xslice.primal_shape, [linear_penalty], [linear_slice])
+        else:
+            penalty = l1norm(Xslice.primal_shape[0], lagrange=lagrange)
+            problem_sliced = simple_problem(loss, penalty)
         candidate_selector = selector(candidate_set, self.Xn.primal_shape)
-        problem_sliced = separable_problem(loss, Xslice.primal_shape, [linear_penalty], [linear_slice])
         return problem_sliced, candidate_selector
-
 
     def check_KKT(self, tol=1.0e-02):
         '''
@@ -160,7 +214,10 @@ class lasso(object):
     def main(self):
 
         # scaling will be needed to get coefficients on original scale   
-        scalings = np.asarray(self.Xn.col_stds).reshape(-1)
+        if self.Xn.scale:
+            scalings = np.asarray(self.Xn.col_stds).reshape(-1)
+        else:
+            scalings = np.ones(self.Xn.primal_shape)
 
         # take a guess at the inverse step size
         final_inv_step = self.lipschitz / 1000
@@ -175,14 +232,12 @@ class lasso(object):
 
         p = self.Xn.primal_shape[0]
 
-        rescaled_solutions = np.zeros((self.nstep, p-1))
-        rescaled_solutions[0] = self.solution[1:]
+        rescaled_solutions = scipy.sparse.csr_matrix(self.solution / scalings)
 
         objective = [self.loss.smooth_objective(self.solution, 'func')]
         dfs = [1]
         retry_counter = 0
 
-        idx = 1
         for lagrange_new, lagrange_cur in zip(lseq[1:], lseq[:-1]):
             self.lagrange = lagrange_new
             tol = 1.0e-7
@@ -205,7 +260,6 @@ class lasso(object):
                         break
                     else:
                         retry_counter += 1
-                        print 'trying again:', retry_counter, 'failing:', np.nonzero(failing)[0], active.sum()
                         active += strong
                 else:
                     self.strong += active
@@ -220,34 +274,33 @@ class lasso(object):
                     debug=True
                     tol = 1.0e-5
 
-            rescaled_solutions[idx] = self.solution[1:] / scalings[1:]
+            rescaled_solution = self.solution / scalings
+            rescaled_solutions = scipy.sparse.vstack([rescaled_solutions, rescaled_solution])
             objective.append(self.loss.smooth_objective(self.solution, mode='func'))
             dfs.append(active.shape[0])
-            print lagrange_cur / self.lagrange_max, lagrange_new, (self.solution != 0).sum(), 1. - objective[-1] / objective[0], list(self.lagrange_sequence).index(lagrange_new), np.fabs(rescaled_solutions[idx]).sum()
-            idx += 1
             gc.collect()
 
         objective = np.array(objective)
         output = {'devratio': 1 - objective / objective.max(),
                   'df': dfs,
-                  'lagrange': lagrange_sequence,
+                  'lagrange': self.lagrange_sequence,
                   'scalings': scalings,
-                  'rescaled_beta': rescaled_solutions}
+                  'beta':rescaled_solutions}
 
-        scipy.io.savemat('newsgroup_results.mat', output)
+        return output
 
     @staticmethod
-    def logistic(X, Y):
+    def logistic(X, Y, **keyword_args):
         def logistic_factory(X):
             return logistic_loss(X, Y, coef=0.5)
-        return lasso(logistic_factory, X)
+        return lasso(logistic_factory, X, **keyword_args)
 
     @staticmethod
-    def squared_error(X, Y):
+    def squared_error(X, Y, **keyword_args):
         n = Y.shape[0]
         def squared_error_factory(X):
             return squared_error(X, Y, coef=1./n)
-        return lasso(squared_error_factory, X)
+        return lasso(squared_error_factory, X, **keyword_args)
 
 def newsgroup():
     import scipy.io
