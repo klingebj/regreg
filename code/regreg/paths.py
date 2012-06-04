@@ -217,7 +217,7 @@ class lasso(object):
         final_inv_step = subproblem.final_inv_step
         return final_inv_step
 
-    def main(self):
+    def main(self, inner_tol=1.e-5):
 
         # scaling will be needed to get coefficients on original scale   
         if self.Xn.scale:
@@ -247,7 +247,7 @@ class lasso(object):
 
         for lagrange_new, lagrange_cur in zip(lseq[1:], lseq[:-1]):
             self.lagrange = lagrange_new
-            tol = 1.0e-7
+            tol = inner_tol
             active_old = self.active.copy()
             num_tries = 0
             debug = False
@@ -279,7 +279,7 @@ class lasso(object):
                 num_tries += 1
                 if num_tries % 5 == 0:
                     debug=True
-                    tol = 1.0e-5
+                    tol = inner_tol
 
             rescaled_solution = self.solution / scalings
             rescaled_solutions = scipy.sparse.vstack([rescaled_solutions, rescaled_solution])
