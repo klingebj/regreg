@@ -77,10 +77,16 @@ class lasso(object):
                 self._lagrange_max = np.fabs(self.loss.smooth_objective(null_soln, 'grad')).max()
         return self._lagrange_max
 
-    @property
-    def lagrange_sequence(self):
-        return self.lagrange_max * np.exp(np.linspace(np.log(self.lagrange_proportion), 0, 
-                                                      self.nstep))[::-1]
+    def get_lagrange_sequence(self):
+        if not hasattr(self, "_lagrange_sequence"):
+            self._lagrange_sequence = self.lagrange_max * np.exp(np.linspace(np.log(self.lagrange_proportion), 0, 
+                                                                             self.nstep))[::-1]
+        return self._lagrange_sequence
+
+    def set_lagrange_sequence(self, lagrange_sequence):
+        self._lagrange_sequence = lagrange_sequence
+    
+    lagrange_sequence = property(get_lagrange_sequence, set_lagrange_sequence)
 
     @property
     def problem(self):
@@ -238,6 +244,7 @@ class lasso(object):
         dfs = [1]
         retry_counter = 0
 
+
         for lagrange_new, lagrange_cur in zip(lseq[1:], lseq[:-1]):
             self.lagrange = lagrange_new
             tol = 1.0e-7
@@ -260,7 +267,7 @@ class lasso(object):
                         break
                     else:
                         retry_counter += 1
-                        active += strong
+                        active += self.strong
                 else:
                     self.strong += active
                     failing = self.check_KKT()
@@ -279,6 +286,8 @@ class lasso(object):
             objective.append(self.loss.smooth_objective(self.solution, mode='func'))
             dfs.append(active.shape[0])
             gc.collect()
+
+            print lagrange_cur / self.lagrange_max, lagrange_new, (self.solution != 0).sum(), 1. - objective[-1] / objective[0], list(self.lagrange_sequence).index(lagrange_new), np.fabs(rescaled_solution[-1]).sum()
 
         objective = np.array(objective)
         output = {'devratio': 1 - objective / objective.max(),
