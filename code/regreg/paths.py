@@ -51,7 +51,6 @@ class lasso(object):
 
     @property
     def loss(self):
-        # what is X changes?
         if not hasattr(self, '_loss'):
             self._loss = self.loss_factory(self._Xn)
         return self._loss
@@ -300,16 +299,39 @@ class lasso(object):
 
     @staticmethod
     def logistic(X, Y, **keyword_args):
-        def logistic_factory(X):
-            return logistic_loss(X, Y, coef=0.5)
-        return lasso(logistic_factory, X, **keyword_args)
+        return lasso(logistic_factory(Y), X, **keyword_args)
 
     @staticmethod
     def squared_error(X, Y, **keyword_args):
-        n = Y.shape[0]
-        def squared_error_factory(X):
-            return squared_error(X, Y, coef=1./n)
-        return lasso(squared_error_factory, X, **keyword_args)
+        return lasso(squared_error_factory(Y), X, **keyword_args)
+
+class loss_factory(object):
+
+    def __init__(self, response):
+        self._response = np.asarray(response)
+
+    def __call__(self, X):
+        raise NotImplementedError
+
+    def get_response(self):
+        return self._response
+
+    def set_response(self, response):
+        self._response = response
+    response = property(get_response, set_response)
+
+class logistic_factory(loss_factory):
+
+    def __call__(self, X):
+        return logistic_loss(X, self.response, coef=0.5)
+
+class squared_error_factory(loss_factory):
+
+    def __call__(self, X):
+        n = self.response.shape[0]
+        return squared_error(X, -self.response, coef=1./n)
+
+
 
 def newsgroup():
     import scipy.io
