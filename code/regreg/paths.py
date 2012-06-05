@@ -31,12 +31,23 @@ class lasso(object):
         else:
             self._Xn = normalize(X, center=center, scale=scale)
 
+        which_0 = self._Xn.col_stds == 0
+        if np.any(which_0):
+            self._selector = selector(~which_0, self._Xn.primal_shape)
+            self._Xn = self._Xn.slice_columns(~which_0)
+        else:
+            self._selector = identity(self._Xn.primal_shape)
+
         # the penalty parameters
         self.alpha = alpha
         self.lagrange_proportion = lagrange_proportion
         self.nstep = nstep
         self._elastic_net = elastic_net.collapsed()
 
+
+    @property
+    def nonzero(self):
+        return self._selector
 
     @property
     def elastic_net(self):
@@ -203,7 +214,7 @@ class lasso(object):
         failing_s[active] += np.fabs(g_s[active] / lagrange + np.sign(soln_s[active])) >= tol 
         failing += s.adjoint_map(failing_s)
 
-        return failing
+        return failing > 0
 
     def solve_subproblem(self, lagrange_new, **solve_args):
     
@@ -223,6 +234,7 @@ class lasso(object):
             scalings = np.asarray(self.Xn.col_stds).reshape(-1)
         else:
             scalings = np.ones(self.Xn.primal_shape)
+        scalings = self.nonzero.adjoint_map(scalings)
 
         # take a guess at the inverse step size
         final_inv_step = self.lipschitz / 1000
@@ -230,14 +242,14 @@ class lasso(object):
 
         # first solution corresponding to all zeros except intercept 
 
-        self.solution[:] = self.null_solution
+        self.solution[:] = self.null_solution.copy()
 
         self.strong = self.strong_set(lseq[0], lseq[1])
         grad_solution = self.grad().copy()
 
         p = self.Xn.primal_shape[0]
 
-        rescaled_solutions = scipy.sparse.csr_matrix(self.solution / scalings)
+        rescaled_solutions = scipy.sparse.csr_matrix(self.nonzero.adjoint_map(self.solution) / scalings)
 
         objective = [self.loss.smooth_objective(self.solution, 'func')]
         dfs = [1]
@@ -265,6 +277,7 @@ class lasso(object):
                         grad_solution = self.grad().copy()
                         break
                     else:
+                        print 'failing:', np.nonzero(failing)[0]
                         retry_counter += 1
                         active += self.strong
                 else:
@@ -273,6 +286,8 @@ class lasso(object):
                     if not failing.sum():
                         grad_solution = self.grad().copy()
                         break
+                    else:
+                        print 'failing:', np.nonzero(failing)[0]
 
                 tol /= 2.
                 num_tries += 1
@@ -280,20 +295,20 @@ class lasso(object):
                     debug=True
                     tol = inner_tol
 
-            rescaled_solution = self.solution / scalings
+            rescaled_solution = self.nonzero.adjoint_map(self.solution)
             rescaled_solutions = scipy.sparse.vstack([rescaled_solutions, rescaled_solution])
             objective.append(self.loss.smooth_objective(self.solution, mode='func'))
             dfs.append(active.shape[0])
             gc.collect()
 
-            print lagrange_cur / self.lagrange_max, lagrange_new, (self.solution != 0).sum(), 1. - objective[-1] / objective[0], list(self.lagrange_sequence).index(lagrange_new), np.fabs(rescaled_solution[-1]).sum()
+            print lagrange_cur / self.lagrange_max, lagrange_new, (self.solution != 0).sum(), 1. - objective[-1] / objective[0], list(self.lagrange_sequence).index(lagrange_new), np.fabs(rescaled_solution).sum()
 
         objective = np.array(objective)
         output = {'devratio': 1 - objective / objective.max(),
                   'df': dfs,
                   'lagrange': self.lagrange_sequence,
                   'scalings': scalings,
-                  'beta':rescaled_solutions}
+                  'beta':rescaled_solutions.T}
 
         return output
 
