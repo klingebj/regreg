@@ -21,7 +21,7 @@ sys.path.append(os.path.abspath('sphinxext'))
 
 # We load the nipy release info into a dict by explicit execution
 rel = {}
-execfile('../code/regreg/info.py', rel)
+execfile('../../code/regreg/info.py', rel)
 
 # Import support for ipython console session syntax highlighting (lives
 # in the sphinxext directory defined above)
