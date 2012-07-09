@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np, sys
 cimport numpy as np
 
 """
@@ -138,4 +138,97 @@ cdef soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
                 y[i] = xi + lagrange
     return y
 
-                
+def projl1_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
+    """
+    Project center onto the l1 epigraph. The norm term is center[0],
+    the coef term is center[1:]
+
+    The l1 epigraph is the collection of points (u,v): \|v\|_1 \leq u
+    np.fabs(coef).sum() <= bound.
+
+    """
+
+    cdef np.ndarray[DTYPE_float_t, ndim=1] coef = center[1:]
+    cdef DTYPE_float_t norm = center[0]
+    cdef np.ndarray[DTYPE_float_t, ndim=1] sorted_coefs = np.sort(np.fabs(coef))
+
+    cdef int n = sorted_coefs.shape[0]
+    cdef np.ndarray[DTYPE_float_t, ndim=1] result = np.zeros(n+1, np.float)
+    cdef int i, stop, idx
+    cdef DTYPE_float_t csum = 0
+    cdef DTYPE_float_t thold = sorted_coefs[n-1]
+    cdef DTYPE_float_t x1, x2, y1, y2, slope
+    
+    # check to see if it's already in the epigraph
+
+    if sorted_coefs.sum() <= norm:
+        result[0] = norm
+        result[1:] = coef
+        return result
+    x1 = sorted_coefs[n-1]
+    y1 = - norm - x1
+    for i in range(1, n-1):
+        x2 = sorted_coefs[n-1-i]
+        csum += x1
+        y2 = (csum - i*x2) - (norm + x2)
+        print x1, y1, x2, y2, np.fabs(soft_threshold(coef, x2)).sum() - norm - x2
+        if y2 > 0:
+            slope = (y1-y2) / (x1-x2)
+            thold = (slope * x2 - y2) / slope
+            print 'thold', thold
+            break
+        
+        x1, y1 = x2, y2
+    if thold != sorted_coefs[n-1]:
+        result[0] = norm + thold
+        result[1:] = soft_threshold(coef, thold)
+    return result
+
+                    
+def projlinf_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
+    """
+    Project center onto the l-infinty epigraph. The norm term is center[0],
+    the coef term is center[1:]
+
+    The l-infinity epigraph is the collection of points (u,v): \|v\|_{\infty} \leq u
+    np.fabs(coef).max() <= bound.
+
+    """
+    # we just use the fact that the polar of the linf epigraph is
+    # is the negative of the l1 epigraph, so we project
+    # -center onto the l1-epigraph and add the result to center...
+    cdef np.ndarray[DTYPE_float_t, ndim=1] coef = -center[1:]
+    cdef DTYPE_float_t norm = -center[0]
+    cdef np.ndarray[DTYPE_float_t, ndim=1] sorted_coefs = np.sort(np.fabs(coef))
+
+    cdef int n = sorted_coefs.shape[0]
+    cdef np.ndarray[DTYPE_float_t, ndim=1] result = np.zeros(n+1, np.float)
+    cdef int i, stop, idx
+    cdef DTYPE_float_t csum = 0
+    cdef DTYPE_float_t thold = sorted_coefs[n-1]
+    cdef DTYPE_float_t x1, x2, y1, y2, slope
+    
+    # check to see if it's already in the epigraph
+
+    if sorted_coefs.sum() <= norm:
+        result[0] = norm
+        result[1:] = coef
+        return result
+    x1 = sorted_coefs[n-1]
+    y1 = - norm - x1
+    for i in range(1, n-1):
+        x2 = sorted_coefs[n-1-i]
+        csum += x1
+        y2 = (csum - i*x2) - (norm + x2)
+        print x1, y1, x2, y2, np.fabs(soft_threshold(coef, x2)).sum() - norm - x2
+        if y2 > 0:
+            slope = (y1-y2) / (x1-x2)
+            thold = (slope * x2 - y2) / slope
+            print 'thold', thold
+            break
+        
+        x1, y1 = x2, y2
+    if thold != sorted_coefs[n-1]:
+        result[0] = norm + thold
+        result[1:] = soft_threshold(coef, thold)
+    return center + result

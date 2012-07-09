@@ -437,3 +437,44 @@ def logistic_loss(X, Y, trials=None, coef=1.):
                                            trials=trials), 
                          X)
     return loss
+
+class sum(smooth_atom):
+    """
+    A simple way to combine smooth objectives
+    """
+    def __init__(self, atoms, weights=None):
+        self.offset = None
+        self.atoms = atoms
+        if weights is None:
+            weights = np.ones(len(self.atoms))
+        self.weights = np.asarray(weights).reshape(-1)
+        if self.weights.shape[0] != len(atoms):
+            raise ValueError('weights and atoms have different lengths')
+
+    def smooth_objective(self, x, mode='both', check_feasibility=False):
+        """
+        Evaluate a smooth function and/or its gradient
+
+        if mode == 'both', return both function value and gradient
+        if mode == 'grad', return only the gradient
+        if mode == 'func', return only the function value
+        """
+        x = self.apply_offset(x)
+        f, g = 0, 0
+        for w, atom in zip(self.weights, self.atoms):
+            if mode == 'func':
+                f += w * atom.smooth_objective(x, 'func')
+            elif mode == 'grad':
+                g += w * atom.smooth_objective(x, 'grad')
+            elif mode == 'both':
+                fa, ga = atom.smooth_objective(x, 'both')
+                f += fa; g += ga
+
+        if mode == 'func':
+            return f
+        elif mode == 'grad':
+            return g
+        elif mode == 'both':
+            return f, g
+        else:
+            raise ValueError("mode incorrectly specified")

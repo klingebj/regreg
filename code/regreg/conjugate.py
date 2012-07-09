@@ -50,7 +50,7 @@ class conjugate(composite):
         """
 
         self.solver.debug = False
-        self.atom.quadratic.linear_term -= x
+        self.atom.quadratic.linear_term -= x.T
         self.solver.fit(max_its=5000, tol=self.tol, backtrack=self._backtrack)
         minimizer = self.atom.coefs
             

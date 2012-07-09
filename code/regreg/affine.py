@@ -1043,3 +1043,29 @@ class scalar_multiply(object):
             return self._atransform.adjoint_map(x, copy) * self.scalar 
         else:
             return self._atransform.adjoint_map(x, copy)
+
+class posneg(affine_transform):
+
+    def __init__(self, linear_transform):
+        self.linear_transform = astransform(linear_transform)
+        # where to store output so we don't recreate arrays 
+        self.affine_offset = None
+        self.primal_shape = (2,) + self.linear_transform.primal_shape
+        self._adjoint_output = np.zeros(self.primal_shape)
+        self.dual_shape = self.linear_transform.dual_shape
+
+    def linear_map(self, x):
+        X = self.linear_transform.linear_map
+        return  X(x[0]) - X(x[1])
+
+    def affine_map(self, x):
+        return self.linear_map(x)
+
+    def offset_map(self, x):
+        return x
+
+    def adjoint_map(self, x):
+        u = self._adjoint_output
+        u[0] = self.linear_transform.adjoint_map(x)
+        u[1] = -u[0]
+        return u

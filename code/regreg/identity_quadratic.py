@@ -196,6 +196,13 @@ class identity_quadratic(object):
         return v
 
     @property
+    def true_center(self):
+        q = self.collapsed()
+        if q.coef > 0:
+            return -q.linear_term / q.coef
+        return None
+
+    @property
     def conjugate(self):
         a = self.collapsed()
         if a.coef != 0:
