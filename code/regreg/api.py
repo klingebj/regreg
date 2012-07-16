@@ -41,4 +41,4 @@ from identity_quadratic import identity_quadratic
 from weighted_atoms import (l1norm as weighted_l1norm,
                             supnorm as weighted_supnorm)
 
-from paths import lasso
+from paths import lasso, nesta as nesta_path
