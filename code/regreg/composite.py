@@ -230,9 +230,9 @@ class smooth_conjugate(smooth):
         if quadratic is None:
             quadratic = sq(0,0,0,0)
         self.smoothing_quadratic = quadratic
-        total_quadratic = self.atom.quadratic + self.smoothing_quadratic
+        self.total_quadratic = self.atom.quadratic + self.smoothing_quadratic
 
-        if total_quadratic.coef in [0,None]:
+        if self.total_quadratic.coef in [0,None]:
             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
 
         self.primal_shape = atom.primal_shape
@@ -353,18 +353,18 @@ class smooth_conjugate(smooth):
             optimal_value, argmin = self.atom.solve(quadratic=q, return_optimum=True)
             objective = -optimal_value
             # retain a reference
-            self.argmin = argmin
+            self.grad = argmin
             return objective, argmin
         elif mode == 'grad':
             argmin = self.atom.solve(quadratic=q)
             # retain a reference
-            self.argmin = argmin
+            self.grad = argmin
             return argmin
         elif mode == 'func':
             optimal_value, argmin = self.atom.solve(quadratic=q, return_optimum=True)
             objective = -optimal_value
             # retain a reference
-            self.argmin = argmin
+            self.grad = argmin
             return objective
         else:
             raise ValueError("mode incorrectly specified")

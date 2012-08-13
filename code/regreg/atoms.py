@@ -800,8 +800,9 @@ class affine_atom(object):
             raise ValueError('quadratic term of smoothing_quadratic must be non 0')
         conjugate_atom.quadratic = total_q
         smoothed_atom = conjugate_atom.conjugate
-        return affine_smooth(smoothed_atom, ltransform)
-
+        value = affine_smooth(smoothed_atom, ltransform)
+        value.total_quadratic = smoothed_atom.total_quadratic
+        return value
 
 
 conjugate_seminorm_pairs = {}

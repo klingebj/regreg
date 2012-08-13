@@ -66,6 +66,7 @@ class simple_problem(composite):
             oldq = self.quadratic
 
         solver = FISTA(self)
+        solver.composite.coefs[:] = self.coefs
         solver.fit(**fit_args)
         self.final_inv_step = solver.inv_step
 
@@ -109,17 +110,19 @@ def gengrad(simple_problem, L, tol=1.0e-8, max_its=1000, debug=False,
         coef = newcoef
     return coef
 
-def nesta(smooth_atom, proximal_atom, atom_to_be_smoothed, epsilon=None,
+def nesta(smooth_atom, proximal_atom, atom, epsilon=None,
           tol=1.e-06):
     if epsilon is None:
         epsilon = 2.**(-np.arange(20))
 
-    dual_coef = np.zeros(atom_to_be_smoothed.dual_shape)
+    transform, conjugate = atom.dual
+    dual_coef = np.zeros(atom.dual_shape)
     for eps in epsilon:
-        smoothed = atom_to_be_smoothed.smoothed(identity_quadratic(eps, dual_coef, 0, 0))
+        smoothed = atom.smoothed(identity_quadratic(eps, dual_coef, 0, 0))
         final_smooth = smooth_sum([smooth_atom, smoothed])
         problem = simple_problem(final_smooth, proximal_atom)
         primal_coef = problem.solve(tol=tol)
+        # when there's an affine transform involved
         dual_coef = smoothed.grad
     
     return primal_coef, dual_coef
@@ -141,6 +144,7 @@ def tfocs(atom_presmooth, transform, proximal_atom, epsilon=None,
         final_smooth = affine_smooth(smoothed, scalar_multiply(adjoint(transform), -1))
         problem = simple_problem(final_smooth, proximal_atom_c)
         dual_coef = problem.solve(sq, tol=tol)
+        # when there's an affine transform involved
         primal_coef = final_smooth.grad
     
     return primal_coef, dual_coef
