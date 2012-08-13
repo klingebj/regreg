@@ -117,7 +117,10 @@ def nesta(smooth_atom, proximal_atom, atom_to_be_smoothed, epsilon=None,
     dual_coef = np.zeros(atom_to_be_smoothed.dual_shape)
     for eps in epsilon:
         smoothed = atom_to_be_smoothed.smoothed(identity_quadratic(eps, dual_coef, 0, 0))
-        final_smooth = smooth_sum([smooth_atom, smoothed])
+        if smooth_atom is not None:
+            final_smooth = smooth_sum([smooth_atom, smoothed])
+        else:
+            final_smooth = smoothed
         problem = simple_problem(final_smooth, proximal_atom)
         primal_coef = problem.solve(tol=tol)
         dual_coef = smoothed.grad
@@ -134,7 +137,11 @@ def tfocs(atom_presmooth, transform, proximal_atom, epsilon=None,
         epsilon = 2.**(-np.arange(20))
 
     offset = transform.affine_offset
-    sq = identity_quadratic(0,0,-offset, 0)
+    if offset is not None:
+        sq = identity_quadratic(0,0,-offset, 0)
+    else:
+        sq = identity_quadratic(0,0,0,0)
+        
     primal_coef = np.zeros(atom_presmooth.primal_shape)
     for eps in epsilon:
         smoothed = atom_presmooth_c.smoothed(identity_quadratic(eps, primal_coef, 0, 0))
