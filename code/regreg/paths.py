@@ -118,6 +118,7 @@ class lasso(object):
         self.ever_active = self.penalty_structure == UNPENALIZED
         grad_solution = np.zeros(p)
 
+
     @property
     def shape(self):
         if self.scale or self.center:
@@ -151,10 +152,8 @@ class lasso(object):
         if not hasattr(self, "_null_soln"):
             n, p = self.shape
             self._null_soln = np.zeros(p)
-            if self.intercept:
-                null_design = np.ones((n,1))
-                null_loss = self.loss_factory(null_design)
-                self._null_soln[0] = null_loss.solve()
+            null_problem, null_selector = self.restricted_problem(self.penalty_structure == UNPENALIZED, self.lagrange_max)[:2]
+            self._null_soln = null_selector.adjoint_map(null_problem.solve())
         return self._null_soln
 
     @property
