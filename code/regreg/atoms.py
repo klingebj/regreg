@@ -11,10 +11,10 @@ from .affine import (linear_transform, identity as identity_transform,
 from .smooth import affine_smooth
 
 try:
-    from projl1_cython import projl1
+    from .projl1_cython import projl1
 except:
     warnings.warn('Cython version of projl1 not available. Using slower python version')
-    from projl1_python import projl1
+    from .projl1_python import projl1
 
 class atom(nonsmooth):
 

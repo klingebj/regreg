@@ -14,9 +14,9 @@ from .identity_quadratic import identity_quadratic as iq
 
 # Constants used below
 
-UNPENALIZED = 0
-L1_PENALTY = 1
-POSITIVE_PART = 2
+UNPENALIZED = -1
+L1_PENALTY = -2
+POSITIVE_PART = -3
 
 class lasso(object):
 
@@ -458,7 +458,9 @@ class squared_error_factory(loss_factory):
 
 class nesta(lasso):
 
-    def __init__(self, loss_factory, X, atom, epsilon=None,
+    # atom_factory takes candidate_set, epsilon
+
+    def __init__(self, loss_factory, X, atom_factory, epsilon=None,
                  **lasso_keywords):
         self.atom = atom 
         self.epsilon_values = epsilon
@@ -483,10 +485,23 @@ class nesta(lasso):
         nesta_smooth = smooth_sum([subproblem.smooth_atom, nesta_term])
         self._problem = simple_problem(nesta_smooth, subproblem.proximal_atom)
 
-
     def get_epsilon(self):
         return self._epsilon
     epsilon = property(get_epsilon, set_epsilon)
+
+    def set_final_inv_step(self):
+        if not hasattr(self, "_final_inv_step_lookup"):
+            self._final_inv_step_lookup = {}
+        self._final_inv_step_lookup[self.epsilon]
+
+    def get_final_inv_step(self):
+        if not hasattr(self, "_final_inv_step_lookup"):
+            self._final_inv_step_lookup = {}
+        if self.epsilon not in self._final_inv_step_lookup:
+            self._final_inv_step_lookup[self.epsilon] = \
+                max(self._final_inv_step_lookup.value())
+        return self._final_inv_step_lookup[self.epsilon]
+    final_inv_step = property(get_final_inv_step, set_final_inv_step)
 
     def form_nesta_term(self, epsilon, candidate_set):
         pass
