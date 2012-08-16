@@ -11,7 +11,7 @@ from .quadratic import squared_error
 from .separable import separable_problem, separable
 from .simple import simple_problem
 from .identity_quadratic import identity_quadratic as iq
-from .group_lasso import group_lasso
+from .group_lasso import group_lasso, strong_set as strong_set_gl
 
 # Constants used below
 
@@ -129,18 +129,10 @@ class lasso(object):
         if not hasattr(self, "_lagrange_max"):
             null_soln = self.null_solution
             null_grad = self.loss.smooth_objective(null_soln, 'grad')
-            l1_set = self.penalty_structure == L1_PENALTY
-            if l1_set.sum():
-                l1_lagrange_max = np.fabs(null_grad)[l1_set].max()
-            else:
-                l1_lagrange_max = -np.inf
+            self.penalty = group_lasso(self.penalty_structure, 1., weights=self.group_weights)
+            conj = self.penalty.conjugate
+            self._lagrange_max = conj.seminorm(null_grad)
 
-            pp_set = self.penalty_structure == POSITIVE_PART
-            if pp_set.sum():
-                pp_lagrange_max = null_grad[pp_set].max()
-            else:
-                pp_lagrange_max = -np.inf
-            self._lagrange_max = max(l1_lagrange_max, pp_lagrange_max)
         return self._lagrange_max
 
     def get_lagrange_sequence(self):
@@ -201,33 +193,12 @@ class lasso(object):
 
         return gsmooth
 
-    def strong_set(self, lagrange_cur, lagrange_new, 
-                   slope_estimate=1, grad=None):
+    def strong_set(self, lagrange_cur, lagrange_new, grad=None,
+                   slope_estimate=1):
         if grad is None:
             grad = self.grad()
 
-        if (hasattr(self, 'dual_term') and self.dual_term is not None and not np.all(self.dual_term == 0)):
-            grad += self.nesta_term.affine_transform.adjoint_map(self.dual_term) # sign correct?
-
-        value = np.zeros(grad.shape, np.bool)
-
-        # strong set for l1 penalty
-        l1_set = self.penalty_structure == L1_PENALTY
-        if l1_set.sum():
-            value[l1_set] += np.fabs(grad[l1_set]) < (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
-
-        # strong set for constrained_positive_part penalty
-
-        # lagrange multipler of pospart is the same as the l1 for now
-
-        pp_set = self.penalty_structure == POSITIVE_PART
-        if pp_set.sum():
-            value[pp_set] += -grad[pp_set] < (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
-
-        value[self.ever_active] = False
-        value = ~value
-        p = self.shape[1]
-        return value, selector(value, (p,))
+        return strong_set_gl(self.penalty, lagrange_cur, lagrange_new, grad, slope_estimate)
 
     def slice_columns(self, columns):
         if self.scale or self.center:
@@ -253,8 +224,8 @@ class lasso(object):
         restricted_penalty_structure = self.penalty_structure[candidate_set]
         rps = restricted_penalty_structure # shorthand
 
-        penalty = group_lasso(rps, lagrange, weights=self.group_weights)
-        problem_sliced = simple_problem(loss, penalty)
+        sliced_penalty = group_lasso(rps, lagrange, weights=self.group_weights)
+        problem_sliced = simple_problem(loss, sliced_penalty)
         candidate_selector = selector(candidate_set, self.Xn.primal_shape)
         return problem_sliced, candidate_selector, restricted_penalty_structure
 

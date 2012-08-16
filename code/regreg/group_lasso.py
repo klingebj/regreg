@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 
 from .composite import composite, nonsmooth, smooth_conjugate
-from .affine import linear_transform, identity as identity_transform
+from .affine import linear_transform, identity as identity_transform, selector
 from .identity_quadratic import identity_quadratic
 from .atoms import _work_out_conjugate
 from .smooth import affine_smooth
@@ -18,7 +18,8 @@ POSITIVE_PART = -3
 try:
     from .projl1_cython import (prox_group_lasso, project_group_lasso,
                                 seminorm_group_lasso,
-                                seminorm_group_lasso_conjugate)
+                                seminorm_group_lasso_conjugate,
+                                strong_set_group_lasso)
 except ImportError:
     raise ImportError('need cython module projl1_cython')
 
@@ -206,7 +207,24 @@ class group_lasso(nonsmooth):
         else:
             return eta - offset
 
-class group_lasso_conjugate(nonsmooth):
+def strong_set(glasso, lagrange_cur, lagrange_new, grad,
+               slope_estimate=1):
+
+    p = grad.shape[0]
+    value = strong_set_group_lasso(grad, 
+                                   lagrange_new,
+                                   lagrange_cur,
+                                   slope_estimate,
+                                   glasso._l1_penalty, 
+                                   glasso._unpenalized,
+                                   glasso._positive_part,
+                                   glasso._groups,
+                                   glasso._weight_array)
+    value = value.astype(np.bool)
+    return value, selector(value, (p,))
+
+
+class group_lasso_conjugate(group_lasso):
 
     _doc_dict = {'linear':r' + \langle \eta, x \rangle',
                  'constant':r' + \tau',
@@ -224,26 +242,34 @@ class group_lasso_conjugate(nonsmooth):
                  offset=None,
                  quadratic=None,
                  initial=None):
-        primal_shape = np.asarray(penalty_structure).shape
-        nonsmooth.__init__(self, primal_shape, offset,
-                           quadratic, initial)
 
-        self.weights = weights
+        group_lasso.__init__(self, penalty_structure, bound, 
+                             weights=weights,
+                             offset=offset,
+                             quadratic=quadratic,
+                             initial=initial)
+        del(self.lagrange)
         self.bound = bound
-        self.penalty_structure = penalty_structure
-        self._groups = np.zeros(self.primal_shape, np.int)
-        groups = set(np.unique(self.penalty_structure)).difference( \
-            set([UNPENALIZED, L1_PENALTY, POSITIVE_PART]))
-        self._weight_array = np.zeros(len(groups))
+#         primal_shape = np.asarray(penalty_structure).shape
+#         nonsmooth.__init__(self, primal_shape, offset,
+#                            quadratic, initial)
 
-        self._l1_penalty = np.nonzero(self.penalty_structure == L1_PENALTY)[0]
-        self._positive_part = np.nonzero(self.penalty_structure == POSITIVE_PART)[0]
-        self._unpenalized = np.nonzero(self.penalty_structure == UNPENALIZED)[0]
+#         self.weights = weights
+#         self.bound = bound
+#         self.penalty_structure = penalty_structure
+#         self._groups = -np.ones(self.primal_shape, np.int)
+#         groups = set(np.unique(self.penalty_structure)).difference( \
+#             set([UNPENALIZED, L1_PENALTY, POSITIVE_PART]))
+#         self._weight_array = np.zeros(len(groups))
 
-        for idx, label in enumerate(groups):
-            g = self.penalty_structure == label
-            self._groups[g] = idx
-            self._weight_array[idx] = self.weights.get(label, np.sqrt(g.sum()))
+#         self._l1_penalty = np.nonzero(self.penalty_structure == L1_PENALTY)[0]
+#         self._positive_part = np.nonzero(self.penalty_structure == POSITIVE_PART)[0]
+#         self._unpenalized = np.nonzero(self.penalty_structure == UNPENALIZED)[0]
+
+#         for idx, label in enumerate(groups):
+#             g = self.penalty_structure == label
+#             self._groups[g] = idx
+#             self._weight_array[idx] = self.weights.get(label, np.sqrt(g.sum()))
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -342,7 +368,7 @@ class group_lasso_conjugate(nonsmooth):
         v += self.quadratic.objective(x, 'func')
         return v
         
-    def seminorm(x, check_feasibility=False):
+    def seminorm(self, x, lagrange=1, check_feasibility=False):
         x_offset = self.apply_offset(x)
         v = seminorm_group_lasso_conjugate(x_offset,
                                  self._l1_penalty,

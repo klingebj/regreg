@@ -316,9 +316,38 @@ def seminorm_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
     tol = 1.e-5
     if check_feasibility:
         xpos = x[positive_part]
-        if xpos.shape not in [(),(0,)] and xpos.min() < tol:
+        if tuple(xpos.shape) not in [(),(0,)] and xpos.min() < tol:
             value = np.inf
     return value
+
+
+def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x, 
+                           DTYPE_float_t lagrange_new,
+                           DTYPE_float_t lagrange_cur,
+                           DTYPE_float_t slope_estimate,
+                           np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
+                           np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
+                           np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
+                           np.ndarray[DTYPE_int_t, ndim=1] groups,
+                           np.ndarray[DTYPE_float_t, ndim=1] weights):
+    
+    cdef np.ndarray value = np.zeros_like(x)
+    cdef np.ndarray norms = np.zeros_like(weights)
+    cdef int i
+    cdef int p = groups.shape[0]
+    
+    for i in range(p):
+        if groups[i] >= 0:
+            norms[groups[i]] = norms[groups[i]] + x[i]**2
+    
+    value[l1_penalty] = np.fabs(x[l1_penalty]) < (slope_estimate+1)*lagrange_new - slope_estimate*lagrange_cur
+    value[positive_part] = -x[positive_part] < (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
+
+    for j in range(weights.shape[0]):
+        norms[j] = np.sqrt(norms[j])
+        value[groups == j] = norms[j] < (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
+
+    return 1 - value
 
     
 def seminorm_group_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x, 
@@ -337,8 +366,15 @@ def seminorm_group_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x,
         if groups[i] >= 0:
             norms[groups[i]] = norms[groups[i]] + x[i]**2
     
-    value = np.fabs(x[l1_penalty]).max()
-    value = max(value, np.maximum(x[positive_part], 0).max())
+    xl1 = x[l1_penalty]
+    if xl1.shape not in [(), (0,)]:
+        value = np.fabs(xl1).max()
+    else:
+        value = -np.inf
+
+    xpos = x[positive_part]
+    if xpos.shape not in [(), (0,)]:
+        value = max(value, np.maximum(xpos, 0).max())
 
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
