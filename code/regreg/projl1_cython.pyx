@@ -314,8 +314,10 @@ def seminorm_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
         value += weights[j] * norms[j]
 
     tol = 1.e-5
-    if check_feasibility and x[positive_part].min() < tol:
-        value = np.inf
+    if check_feasibility:
+        xpos = x[positive_part]
+        if xpos.shape not in [(),(0,)] and xpos.min() < tol:
+            value = np.inf
     return value
 
     

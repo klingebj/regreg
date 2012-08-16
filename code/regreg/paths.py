@@ -11,6 +11,7 @@ from .quadratic import squared_error
 from .separable import separable_problem, separable
 from .simple import simple_problem
 from .identity_quadratic import identity_quadratic as iq
+from .group_lasso import group_lasso
 
 # Constants used below
 
@@ -57,7 +58,6 @@ class lasso(object):
                 self._Xn = normalize(self._X1, center=self.center, scale=self.scale, intercept_column=0)
             else:
                 self._Xn = self._X1
-
 
         else:
             self.penalty_structure = np.ones(p) * L1_PENALTY
@@ -162,16 +162,12 @@ class lasso(object):
                                                     self.lagrange_max)[0]
         return self._problem
 
-    # for now, the lagrange of the positive part is the same as the L1 so it
-    # can be found on either of the atoms..
     def get_lagrange(self):
-        return self._problem.proximal_atom.atoms[0].lagrange
+        return self._problem.proximal_atom.lagrange
 
     def set_lagrange(self, lagrange):
         proximal_atom = self._problem.proximal_atom
-        for atom, group in zip(proximal_atom.atoms, proximal_atom.groups):
-            atom.lagrange = lagrange
-            atom.quadratic = self.elastic_net[group]
+        proximal_atom.lagrange = lagrange
     lagrange = property(get_lagrange, set_lagrange)
 
     @property
@@ -243,6 +239,8 @@ class lasso(object):
     def construct_loss(self, candidate_set, lagrange):
         Xslice = self.slice_columns(candidate_set)
         loss = self.loss_factory(Xslice)
+        if self.intercept:
+            Xslice.intercept_column = 0
         return Xslice, loss
 
     def restricted_problem(self, candidate_set, lagrange):
@@ -254,21 +252,9 @@ class lasso(object):
 
         restricted_penalty_structure = self.penalty_structure[candidate_set]
         rps = restricted_penalty_structure # shorthand
-        if self.intercept:
-            Xslice.intercept_column = 0
-        l1_set = rps == L1_PENALTY
-        pp_set = rps == POSITIVE_PART
 
-        groups = [l1_set, pp_set]
-        penalties = [penalty(group.sum(), lagrange=lagrange) for group, penalty 
-                     in zip([l1_set, pp_set], [l1norm, constrained_positive_part])]
-
-        #XXX check elastic_net
-        for penalty, group in zip(penalties, groups):
-            penalty.quadratic = self._elastic_net[group]
-
-        penalty_sliced = separable(Xslice.primal_shape, penalties, groups)
-        problem_sliced = simple_problem(loss, penalty_sliced)
+        penalty = group_lasso(rps, lagrange, weights=self.group_weights)
+        problem_sliced = simple_problem(loss, penalty)
         candidate_selector = selector(candidate_set, self.Xn.primal_shape)
         return problem_sliced, candidate_selector, restricted_penalty_structure
 
@@ -453,6 +439,10 @@ class nesta(lasso):
             self.dual_term = dual_term
             nesta_loss = atom.smoothed(iq(self.epsilon, self.dual_term, 0, 0))
         loss = smooth_sum([loss, nesta_loss])
+
+        if self.intercept:
+            Xslice.intercept_column = 0
+
         return Xslice, loss
 
     def set_dual_term(self, lagrange, dual_term):

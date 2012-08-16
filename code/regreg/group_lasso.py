@@ -8,7 +8,12 @@ from .affine import linear_transform, identity as identity_transform
 from .identity_quadratic import identity_quadratic
 from .atoms import _work_out_conjugate
 from .smooth import affine_smooth
-from .paths import UNPENALIZED, L1_PENALTY, POSITIVE_PART
+
+# Constants used below
+
+UNPENALIZED = -1
+L1_PENALTY = -2
+POSITIVE_PART = -3
 
 try:
     from .projl1_cython import (prox_group_lasso, project_group_lasso,
@@ -152,7 +157,7 @@ class group_lasso(nonsmooth):
         v += self.quadratic.objective(x, 'func')
         return v
         
-    def seminorm(x, check_feasibility=False):
+    def seminorm(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
         v = seminorm_group_lasso(x_offset,
                                  self._l1_penalty,
