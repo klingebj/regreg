@@ -16,12 +16,12 @@ L1_PENALTY = -2
 POSITIVE_PART = -3
 
 try:
-    from .projl1_cython import (prox_group_lasso, project_group_lasso,
+    from .group_lasso_cython import (prox_group_lasso, project_group_lasso,
                                 seminorm_group_lasso,
                                 seminorm_group_lasso_conjugate,
                                 strong_set_group_lasso)
 except ImportError:
-    raise ImportError('need cython module projl1_cython')
+    raise ImportError('need cython module group_lasso_cython')
 
 class group_lasso(nonsmooth):
 
