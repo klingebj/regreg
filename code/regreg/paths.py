@@ -33,7 +33,6 @@ class lasso(object):
         self.scale = scale
         self.center = center
 
-        print 'positive_part', positive_part
         # normalize X, adding intercept if needed
         self.intercept = intercept
         if self.intercept:
@@ -84,7 +83,6 @@ class lasso(object):
                 positive_part_b[positive_part] = 1
                 positive_part = positive_part_b
 
-
         which_0 = self._Xn.col_stds == 0
         if np.any(which_0):
             self._selector = selector(~which_0, self._Xn.primal_shape)
@@ -110,14 +108,11 @@ class lasso(object):
         self.penalty_structure[positive_part] = POSITIVE_PART
         self.penalty_structure[unpenalized] = UNPENALIZED
 
-        print self.penalty_structure, positive_part, 'again'
         if not (np.all(self.penalty_structure[positive_part] == POSITIVE_PART) and
                 np.all(self.penalty_structure[unpenalized] == UNPENALIZED)):
             warn('conflict in positive part and unpenalized coefficients')
 
         self.ever_active = self.penalty_structure == UNPENALIZED
-        grad_solution = np.zeros(p)
-
 
     @property
     def shape(self):
@@ -231,9 +226,10 @@ class lasso(object):
             loss = self.loss
         gsmooth = self.loss.smooth_objective(self.solution, 'grad')
         penalized = self.penalty_structure != UNPENALIZED
+        # XXX the elastic net is probably not quite right here if the elastic net has a non-zero center
         gquad = self.elastic_net.objective(self.solution[penalized], 'grad')
-
         gsmooth[penalized] += gquad
+
         return gsmooth
 
     def strong_set(self, lagrange_cur, lagrange_new, 
@@ -271,14 +267,18 @@ class lasso(object):
             Xslice = self.Xn[:,columns]
         return Xslice
 
+    def construct_loss(self, candidate_set, lagrange):
+        Xslice = self.slice_columns(candidate_set)
+        loss = self.loss_factory(Xslice)
+        return Xslice, loss
+
     def restricted_problem(self, candidate_set, lagrange):
         '''
         Assumes the candidate set includes intercept as first column.
         '''
 
-        Xslice = self.slice_columns(candidate_set)
+        Xslice, loss = self.construct_loss(candidate_set, lagrange)
 
-        loss = self.loss_factory(Xslice)
         restricted_penalty_structure = self.penalty_structure[candidate_set]
         rps = restricted_penalty_structure # shorthand
         if self.intercept:
@@ -290,6 +290,7 @@ class lasso(object):
         penalties = [penalty(group.sum(), lagrange=lagrange) for group, penalty 
                      in zip([l1_set, pp_set], [l1norm, constrained_positive_part])]
 
+        #XXX check elastic_net
         for penalty, group in zip(penalties, groups):
             penalty.quadratic = self._elastic_net[group]
 
@@ -462,37 +463,53 @@ class nesta(lasso):
 
     def __init__(self, loss_factory, X, atom_factory, epsilon=None,
                  **lasso_keywords):
-        self.atom = atom 
+        self.atom_factory = atom_factory 
         self.epsilon_values = epsilon
         lasso.__init__(self, loss_factory, X, **lasso_keywords)
+
+    def construct_loss(self, candidate_set, lagrange):
+        Xslice = self.slice_columns(candidate_set)
+        loss = self.loss_factory(Xslice)
+        atom = self.atom_factory(candidate_set)
+        dual_term = self.get_dual_term(lagrange)
+        if dual_term is None:
+            nesta_loss = atom.smoothed(iq(self.epsilon, 0, 0, 0))
+            nesta_loss.smooth_objective(np.zeros(Xslice.primal_shape), mode='grad')
+            self.dual_term = nesta_loss.grad
+        else:
+            self.dual_term = dual_term
+            nesta_loss = atom.smoothed(iq(self.epsilon, self.dual_term, 0, 0))
+        loss = smooth_sum([loss, nesta_loss])
+        return Xslice, loss
+
+    def set_dual_term(self, lagrange, dual_term):
+        if not hasattr(self, "_dual_term_lookup"):
+            self._dual_term_lookup = {}
+        self._dual_term_lookup[lagrange] = dual_term
+
+    def get_dual_term(self, lagrange):
+        return self._dual_term_lookup.get(lagrange, None)
 
     @property
     def problem(self):
         if not hasattr(self, '_problem'):
             self.epsilon = self.epsilon_values[0]
+            self._problem = self.restricted_problem(np.ones(self.shape[1]),
+                                                    self.lagrange_max)[0]
         return self._problem
 
     def set_epsilon(self, epsilon):
         self._epsilon = epsilon
-        if not hasattr(self, 'dual_term'):
-            self.nesta_term = self.atom.smoothed(iq(epsilon, 0, 0, 0))
-            self.nesta_term.smooth_objective(np.zeros(self.shape[1]), mode='grad')
-            self.dual_term = self.nesta_term.grad
-        else:
-            self.nesta_term = self.atom.smoothed(iq(epsilon, self.dual_term, 0, 0))
-        subproblem = self.restricted_problem(np.ones(self.shape[1], np.bool), self.lagrange_max)[0]
-        nesta_term = self.nesta_term
-        nesta_smooth = smooth_sum([subproblem.smooth_atom, nesta_term])
-        self._problem = simple_problem(nesta_smooth, subproblem.proximal_atom)
-
+        self._problem = self.restricted_problem(np.ones(self.shape[1]),
+                                                self.lagrange_max)[0]
     def get_epsilon(self):
         return self._epsilon
     epsilon = property(get_epsilon, set_epsilon)
 
-    def set_final_inv_step(self):
+    def set_final_inv_step(self, value):
         if not hasattr(self, "_final_inv_step_lookup"):
             self._final_inv_step_lookup = {}
-        self._final_inv_step_lookup[self.epsilon]
+        self._final_inv_step_lookup[self.epsilon] = value
 
     def get_final_inv_step(self):
         if not hasattr(self, "_final_inv_step_lookup"):
@@ -503,9 +520,6 @@ class nesta(lasso):
         return self._final_inv_step_lookup[self.epsilon]
     final_inv_step = property(get_final_inv_step, set_final_inv_step)
 
-    def form_nesta_term(self, epsilon, candidate_set):
-        pass
-
     def solve_subproblem(self, candidate_set, lagrange_new, **solve_args):
     
         # try to solve the problem with the active set
@@ -513,18 +527,12 @@ class nesta(lasso):
             print 'epsilon:', epsilon
             self.epsilon = epsilon
             subproblem, selector, penalty_structure = self.restricted_problem(candidate_set, lagrange_new)
-            nesta_term = affine_smooth(self.nesta_term, adjoint(selector), store_grad=True)
-            nesta_smooth = smooth_sum([subproblem.smooth_atom, nesta_term])
-            nesta_problem = simple_problem(nesta_smooth, subproblem.proximal_atom)
-
-            nesta_problem.coefs[:] = selector.linear_map(self.solution)
-            sub_soln = nesta_problem.solve(**solve_args)
+            subproblem.coefs[:] = selector.linear_map(self.solution)
+            sub_soln = subproblem.solve(**solve_args)
             self.solution[:] = selector.adjoint_map(sub_soln)
-            self.dual_term[:] = self.nesta_term.grad
             print 'DUALDUAL: ', self.dual_term
             self.final_inv_step = nesta_problem.final_inv_step
-        grad = nesta_problem.smooth_objective(sub_soln, mode='grad') 
-        
+        grad = subproblem.smooth_objective(sub_soln, mode='grad') 
         return self.final_inv_step, grad, sub_soln, penalty_structure
 
 

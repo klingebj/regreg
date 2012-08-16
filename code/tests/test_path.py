@@ -9,6 +9,7 @@ def test_path():
     X = np.random.standard_normal((100,5))
     Z = np.zeros((100,10))
     Y = np.random.standard_normal(100)
+    U = np.random.standard_normal((100,2))
     betaX = np.array([3,4,5,0,0])
     betaU = np.array([10,-5])
     Y += np.dot(X, betaX) + np.dot(U, betaU)
