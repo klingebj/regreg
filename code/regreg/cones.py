@@ -172,11 +172,27 @@ class cone(nonsmooth):
     def linear(cls, linear_operator, diag=False,
                offset=None,
                quadratic=None):
-        l = linear_transform(linear_operator, diag=diag)
-        cone = cls(l.primal_shape, 
+        if not isinstance(linear_operator, linear_transform):
+            l = linear_transform(linear_operator, diag=diag)
+        else:
+            l = linear_operator
+        cone = cls(l.dual_shape, 
                    offset=offset,
                    quadratic=quadratic)
         return affine_cone(cone, l)
+
+    @classmethod
+    def affine(cls, linear_operator, offset, diag=False,
+               quadratic=None):
+        if not isinstance(linear_operator, linear_transform):
+            l = linear_transform(linear_operator, diag=diag)
+        else:
+            l = linear_operator
+        cone = cls(l.dual_shape, 
+                   offset=offset,
+                   quadratic=quadratic)
+        return affine_cone(cone, l)
+
 
 class affine_cone(object):
 
