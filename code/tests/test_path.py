@@ -21,7 +21,7 @@ def test_path():
     Z2[:,6:] = -X[:,3:]
 
     lasso1 = rr.lasso.squared_error(X,Y, nstep=23)
-    lasso2 = rr.lasso.squared_error(Z,Y, positive_part=np.arange(10), nstep=23)
+    lasso2 = rr.lasso.squared_error(Z,Y, penalty_structure=[rr.POSITIVE_PART]*10, nstep=23)
 
     sol1 = lasso1.main(inner_tol=1.e-12)
     beta1 = sol1['beta'].todense()
@@ -31,7 +31,7 @@ def test_path():
     beta2[1:6] = beta2[1:6] - beta2[6:11]
     beta2 = beta2[:6]
 
-    lasso3 = rr.lasso.squared_error(Z2,Y, positive_part=np.arange(6), nstep=23)
+    lasso3 = rr.lasso.squared_error(Z2,Y, penalty_structure=[rr.POSITIVE_PART]*6 + [rr.L1_PENALTY]*2, nstep=23)
     sol3 = lasso3.main(inner_tol=1.e-12)
     beta3 = sol3['beta'].todense()
     beta3[1:4] = beta3[1:4] - beta3[4:7]
@@ -58,9 +58,8 @@ def test_path_unpenalized():
     Z2[:,3:6] = -X[:,:3]
     Z2[:,6:] = -X[:,3:]
 
-    lasso1 = rr.lasso.squared_error(np.hstack([X,U]),Y, unpenalized=[5,6], nstep=23)
-    lasso2 = rr.lasso.squared_error(np.hstack([Z,U]),Y, positive_part=np.arange(10), 
-                                    unpenalized=[10,11], nstep=23)
+    lasso1 = rr.lasso.squared_error(np.hstack([X,U]),Y, penalty_structure=[rr.L1_PENALTY]*5 + [rr.UNPENALIZED]*2, nstep=23)
+    lasso2 = rr.lasso.squared_error(np.hstack([Z,U]),Y, penalty_structure=[rr.POSITIVE_PART]*10 + [rr.UNPENALIZED]*2, nstep=23)
 
     sol1 = lasso1.main(inner_tol=1.e-12)
     beta1 = sol1['beta'].todense()
@@ -72,8 +71,7 @@ def test_path_unpenalized():
     beta2 = beta2[:8]
 
     lasso3 = rr.lasso.squared_error(np.hstack([Z2,U]),Y, 
-                                    positive_part=np.arange(6), nstep=23,
-                                    unpenalized=[8,9])
+                                    penalty_structure=[rr.POSITIVE_PART]*6 + [rr.L1_PENALTY]*2 + [rr.UNPENALIZED]*2, nstep=23)
     sol3 = lasso3.main(inner_tol=1.e-12)
     beta3 = sol3['beta'].todense()
     beta3[1:4] = beta3[1:4] - beta3[4:7]

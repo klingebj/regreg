@@ -20,7 +20,9 @@ POSITIVE_PART = -3
 
 class lasso(object):
 
-    def __init__(self, loss_factory, X, elastic_net=iq(0,0,0,0),
+    def __init__(self, loss_factory, X, penalty_structure=None, 
+                 group_weights={},
+                 elastic_net=iq(0,0,0,0),
                  alpha=0., intercept=True,
                  positive_part=None,
                  unpenalized=None,
@@ -28,15 +30,24 @@ class lasso(object):
                  nstep = 100,
                  scale=True,
                  center=True):
+
+
         self.loss_factory = loss_factory
 
         self.scale = scale
         self.center = center
 
+        # for group lasso weights, if implied by penalty_structure
+        self.group_weights = group_weights
+
         # normalize X, adding intercept if needed
         self.intercept = intercept
+        p = X.shape[1]
         if self.intercept:
-            p = X.shape[1]
+            self.penalty_structure = np.ones(p+1) * L1_PENALTY
+            self.penalty_structure[0] = UNPENALIZED
+            if penalty_structure is not None:
+                self.penalty_structure[1:] = penalty_structure
 
             if scipy.sparse.issparse(X):
                 self._X1 = scipy.sparse.hstack([np.ones((X.shape[0], 1)), X]).tocsc() 
@@ -47,41 +58,16 @@ class lasso(object):
             else:
                 self._Xn = self._X1
 
-            if unpenalized is None:
-                unpenalized = np.zeros(p, np.bool)
-                unpenalized[0] = 1
-            else:
-                unpenalized_b = np.zeros(p+1, np.bool)
-                unpenalized_b[np.arange(1,p+1)[unpenalized]] = 1
-                unpenalized_b[0] = 1
-                unpenalized = unpenalized_b
-
-            if positive_part is None:
-                positive_part = np.zeros(p, np.bool)
-            else:
-                positive_part_b = np.zeros(p+1, np.bool)
-                positive_part_b[np.arange(1,p+1)[positive_part]] = 1
-                positive_part = positive_part_b
 
         else:
+            self.penalty_structure = np.ones(p) * L1_PENALTY
+            if penalty_structure is not None:
+                self.penalty_structure[:] = penalty_structure
+
             if self.scale or self.center:
                 self._Xn = normalize(X, center=self.center, scale=self.scale)
             else:
                 self._Xn = X
-
-            if unpenalized is None:
-                unpenalized = np.zeros(p, np.bool)
-            else:
-                unpenalized_b = np.zeros(p, np.bool)
-                unpenalized_b[unpenalized] = 1
-                unpenalized = unpenalized_b
-
-            if positive_part is None:
-                positive_part = np.zeros(p, np.bool)
-            else:
-                positive_part_b = np.zeros(p, np.bool)
-                positive_part_b[positive_part] = 1
-                positive_part = positive_part_b
 
         which_0 = self._Xn.col_stds == 0
         if np.any(which_0):
@@ -98,19 +84,6 @@ class lasso(object):
         self.lagrange_proportion = lagrange_proportion
         self.nstep = nstep
         self._elastic_net = elastic_net.collapsed()
-
-        # settle what is penalized and what is not
-        p = self.shape[1]
-        self.penalty_structure = np.zeros(p, np.int)
-        self.penalty_structure[:] = L1_PENALTY
-        if self.intercept:
-            self.penalty_structure[0] = UNPENALIZED
-        self.penalty_structure[positive_part] = POSITIVE_PART
-        self.penalty_structure[unpenalized] = UNPENALIZED
-
-        if not (np.all(self.penalty_structure[positive_part] == POSITIVE_PART) and
-                np.all(self.penalty_structure[unpenalized] == UNPENALIZED)):
-            warn('conflict in positive part and unpenalized coefficients')
 
         self.ever_active = self.penalty_structure == UNPENALIZED
 
