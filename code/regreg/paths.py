@@ -308,7 +308,7 @@ class lasso(object):
         self.solution[:] = selector.adjoint_map(sub_soln)
 
         grad = subproblem.smooth_objective(sub_soln, mode='grad') 
-        self.final_inv_step.setdefault(self.epsilon, subproblem.final_inv_step)
+        self.final_inv_step = subproblem.final_inv_step
         return self.final_inv_step, grad, sub_soln, penalty_structure
 
     def main(self, inner_tol=1.e-5):
@@ -321,8 +321,7 @@ class lasso(object):
         scalings = self.nonzero.adjoint_map(scalings)
 
         # take a guess at the inverse step size
-        self.final_inv_step = {}
-        self.final_inv_step[self.epsilon_values[0]] = self.lipschitz / 1000
+        self.final_inv_step = self.lipschitz / 1000
         lseq = self.lagrange_sequence # shorthand
 
         # first solution corresponding to all zeros except intercept 
@@ -359,7 +358,7 @@ class lasso(object):
                     = self.solve_subproblem(subproblem_set,
                                             lagrange_new,
                                             tol=tol,
-                                            start_inv_step=self.final_inv_step[self.epsilon_values[0]],
+                                            start_inv_step=self.final_inv_step,
                                             debug=debug,
                                             coef_stop=coef_stop)
 
@@ -509,7 +508,7 @@ class nesta(lasso):
             self.solution[:] = selector.adjoint_map(sub_soln)
             self.dual_term[:] = self.nesta_term.grad
             print 'DUALDUAL: ', self.dual_term
-            self.final_inv_step[epsilon] = nesta_problem.final_inv_step
+            self.final_inv_step = nesta_problem.final_inv_step
         grad = nesta_problem.smooth_objective(sub_soln, mode='grad') 
         
         return self.final_inv_step, grad, sub_soln, penalty_structure
