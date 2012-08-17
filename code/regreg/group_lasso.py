@@ -17,9 +17,10 @@ POSITIVE_PART = -3
 
 try:
     from .group_lasso_cython import (prox_group_lasso, project_group_lasso,
-                                seminorm_group_lasso,
-                                seminorm_group_lasso_conjugate,
-                                strong_set_group_lasso)
+                                     seminorm_group_lasso,
+                                     seminorm_group_lasso_conjugate,
+                                     strong_set_group_lasso,
+                                     check_KKT_group_lasso)
 except ImportError:
     raise ImportError('need cython module group_lasso_cython')
 
@@ -206,23 +207,6 @@ class group_lasso(nonsmooth):
             return eta
         else:
             return eta - offset
-
-def strong_set(glasso, lagrange_cur, lagrange_new, grad,
-               slope_estimate=1):
-
-    p = grad.shape[0]
-    value = strong_set_group_lasso(grad, 
-                                   lagrange_new,
-                                   lagrange_cur,
-                                   slope_estimate,
-                                   glasso._l1_penalty, 
-                                   glasso._unpenalized,
-                                   glasso._positive_part,
-                                   glasso._groups,
-                                   glasso._weight_array)
-    value = value.astype(np.bool)
-    return value, selector(value, (p,))
-
 
 class group_lasso_conjugate(group_lasso):
 
@@ -416,3 +400,31 @@ class group_lasso_conjugate(group_lasso):
         else:
             return eta - offset
 
+def strong_set(glasso, lagrange_cur, lagrange_new, grad,
+               slope_estimate=1):
+
+    p = grad.shape[0]
+    value = strong_set_group_lasso(grad, 
+                                   lagrange_new,
+                                   lagrange_cur,
+                                   slope_estimate,
+                                   glasso._l1_penalty, 
+                                   glasso._unpenalized,
+                                   glasso._positive_part,
+                                   glasso._groups,
+                                   glasso._weight_array)
+    value = value.astype(np.bool)
+    return value, selector(value, (p,))
+
+def check_KKT(glasso, grad, solution, lagrange, tol=1.e-2):
+
+    failing = check_KKT_group_lasso(grad, 
+                                    solution, 
+                                    lagrange,
+                                    glasso._l1_penalty, 
+                                    glasso._unpenalized,
+                                    glasso._positive_part, 
+                                    glasso._groups,
+                                    glasso._weight_array,
+                                    tol=tol)
+    return failing > 0

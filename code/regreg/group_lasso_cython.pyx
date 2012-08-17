@@ -22,7 +22,7 @@ def prox_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
     
     cdef np.ndarray norms = np.zeros_like(weights)
     cdef np.ndarray projection = np.zeros_like(prox_center)
-    cdef int i
+    cdef int i, j
     cdef int p = groups.shape[0]
     
     cdef lf = lagrange / lipschitz
@@ -51,7 +51,7 @@ def project_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
     
     cdef np.ndarray norms = np.zeros_like(weights)
     cdef np.ndarray projection = np.zeros_like(prox_center)
-    cdef int i
+    cdef int i, j
     cdef int p = groups.shape[0]
     
     for i in range(p):
@@ -77,7 +77,7 @@ def seminorm_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
                          DTYPE_int_t check_feasibility):
     
     cdef np.ndarray norms = np.zeros_like(weights)
-    cdef int i
+    cdef int i, j
     cdef DTYPE_float_t value
     cdef int p = groups.shape[0]
     
@@ -112,7 +112,7 @@ def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
     
     cdef np.ndarray value = np.zeros_like(x)
     cdef np.ndarray norms = np.zeros_like(weights)
-    cdef int i
+    cdef int i, j
     cdef int p = groups.shape[0]
     
     for i in range(p):
@@ -124,11 +124,89 @@ def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
 
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
-        value[groups == j] = norms[j] < (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
+        value[groups == j] = norms[j] < weights[j] * (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
 
     return 1 - value
 
+def check_KKT_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] grad, 
+                          np.ndarray[DTYPE_float_t, ndim=1] solution, 
+                          DTYPE_float_t lagrange,
+                          np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
+                          np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
+                          np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
+                          np.ndarray[DTYPE_int_t, ndim=1] groups,
+                          np.ndarray[DTYPE_float_t, ndim=1] weights,
+			  DTYPE_float_t tol=1.e-2):
     
+    cdef np.ndarray failing = np.zeros_like(grad)
+    cdef np.ndarray norms = np.zeros_like(weights)
+    cdef np.ndarray snorms = np.zeros_like(weights)
+    cdef int i, j
+    cdef int p = groups.shape[0]
+    
+    # L1 check
+
+    cdef int debug = 0
+    g_l1 = grad[l1_penalty]
+    if g_l1.shape not in [(), (0,)]:
+
+        failing[l1_penalty] += np.fabs(g_l1) > lagrange * (1 + tol)
+        if debug:
+            print 'l1 (dual) feasibility:', np.fabs(g_l1) > lagrange * (1 + tol), np.fabs(g_l1), lagrange * (1 + tol)
+
+        # Check that active coefficients are on the boundary 
+        soln_l1 = solution[l1_penalty]
+        active_l1 = soln_l1 != 0
+
+        failing_l1 = np.zeros(g_l1.shape, np.int)
+        failing_l1[active_l1] = np.fabs(-g_l1[active_l1] / lagrange - np.sign(soln_l1[active_l1])) >= tol 
+        failing[l1_penalty] += failing_l1
+
+        if debug:
+            print 'l1 (dual) tightness:', failing_l1, np.fabs(-g_l1[active_l1] / lagrange - np.sign(soln_l1[active_l1]))
+
+    # Positive part
+
+    # Check subgradient is feasible
+            
+    g_pp = grad[positive_part]
+    if g_pp.shape not in [(), (0,)]:
+        failing[positive_part] += -g_pp > lagrange * (1 + tol)
+        if debug:
+            print 'positive part (dual) feasibility:', -g_pp > lagrange * (1 + tol)
+
+        # Check that active coefficients are on the boundary 
+        soln_pp = solution[positive_part]
+        active_pp = soln_pp != 0
+
+        failing_pp = np.zeros(g_pp.shape, np.int)
+        failing_pp[active_pp] += np.fabs(-g_pp[active_pp] / lagrange - 1) >= tol 
+        if debug:
+            print 'positive part (dual) tightness:', -g_pp[active_pp] / lagrange - 1
+        failing[positive_part] += failing_pp
+
+    # group norms
+
+    for i in range(p):
+        if groups[i] >= 0:
+            norms[groups[i]] = norms[groups[i]] + grad[i]**2
+            snorms[groups[i]] = snorms[groups[i]] + solution[i]**2
+
+    for j in range(weights.shape[0]):
+        norms[j] = np.sqrt(norms[j])
+
+        # check that the subgradient is feasible 
+
+        failing[groups == j] = norms[j] > weights[j] * lagrange * (1 + tol)
+
+        # check that the active groups have a tight subgradient
+        
+        if snorms[j] != 0:
+            failing[groups == j] += norms[j] < weights[j] * lagrange * (1 - tol)
+
+    return failing
+
+   
 def seminorm_group_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x, 
                                    np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                                    np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
