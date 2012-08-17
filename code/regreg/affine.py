@@ -974,50 +974,6 @@ class affine_sum(object):
             output += weight * transform.adjoint_map(x)
         return output
 
-def difference_transform(X, order=1, sorted=False,
-                         transform=False):
-    """
-    Compute the divided difference matrix for X
-    after sorting X.
-
-    Parameters
-    ----------
-
-    X: np.array, np.float, ndim=1
-
-    order: int
-        What order of difference should we compute?
-
-    sorted: bool
-        Is X sorted?
-
-    transform: bool
-        If True, return a linear_transform rather
-        than a sparse matrix.
-
-    Returns
-    -------
-
-    D: np.array, ndim=2, shape=(n-order,order)
-        Matrix of divided differences of sorted X.
-
-    """
-    if not sorted:
-        X = np.sort(X)
-    X = np.asarray(X)
-    n = X.shape[0]
-    Dfinal = np.identity(n)
-    for j in range(1, order+1):
-        D = (-np.identity(n-j+1)+np.diag(np.ones(n-j),k=1))[:-1]
-        steps = X[j:]-X[:-j]
-        inv_steps = np.zeros(steps.shape)
-        inv_steps[steps != 0] = 1. / steps[steps != 0]
-        D = np.dot(np.diag(inv_steps), D)
-        Dfinal = np.dot(D, Dfinal)
-    if not transform:
-        return sparse.csr_matrix(Dfinal)
-    return astransform(Dfinal)
-
 
 class scalar_multiply(object):
 
