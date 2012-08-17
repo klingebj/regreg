@@ -293,7 +293,7 @@ class lasso(object):
                                                           lagrange_new, grad=grad_solution)
 
                 subproblem_set = self.ever_active + all_failing
-                self.final_inv_step, grad, sub_soln, penalty_structure \
+                final_inv_step, grad, sub_soln, penalty_structure \
                     = self.solve_subproblem(subproblem_set,
                                             lagrange_new,
                                             tol=tol,
@@ -324,6 +324,7 @@ class lasso(object):
 
                     if not all_failing.sum():
                         self.ever_active += self.solution != 0
+                        self.final_inv_step = final_inv_step
                         break
                     else:
                         if verbose:
@@ -341,7 +342,7 @@ class lasso(object):
 
                     debug = True
                     tol = inner_tol
-                    if num_tries >= 50:
+                    if num_tries >= 10:
                         warn('convergence not achieved for lagrange=%0.4e' % lagrange_new)
                         break
 
