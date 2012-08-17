@@ -17,6 +17,7 @@ def prox_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
                      np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                      np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
                      np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
+                     np.ndarray[DTYPE_int_t, ndim=1] nonnegative, 
                      np.ndarray[DTYPE_int_t, ndim=1] groups,
                      np.ndarray[DTYPE_float_t, ndim=1] weights):
     
@@ -43,7 +44,8 @@ def prox_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
     projection[l1_penalty] = prox_center[l1_penalty] * np.minimum(1, lf / np.fabs(prox_center[l1_penalty]))
     projection[unpenalized] = 0
     projection[positive_part] = np.minimum(lf, prox_center[positive_part])
-    
+    projection[nonnegative] = np.minimum(prox_center[nonnegative], 0)
+
     return prox_center - projection
 
 def project_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center, 
@@ -51,6 +53,7 @@ def project_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
                      np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                      np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
                      np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
+                     np.ndarray[DTYPE_int_t, ndim=1] nonnegative, 
                      np.ndarray[DTYPE_int_t, ndim=1] groups,
                      np.ndarray[DTYPE_float_t, ndim=1] weights):
     
@@ -75,16 +78,19 @@ def project_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
     projection[l1_penalty] = prox_center[l1_penalty] * np.minimum(1, bound / np.fabs(prox_center[l1_penalty]))
     projection[unpenalized] = 0
     projection[positive_part] = np.minimum(bound, prox_center[positive_part])
-    
+    projection[nonnegative] = np.minimum(prox_center[nonnegative], 0)
+
     return projection
 
 def seminorm_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x, 
                          np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                          np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
                          np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
+                         np.ndarray[DTYPE_int_t, ndim=1] nonnegative, 
                          np.ndarray[DTYPE_int_t, ndim=1] groups,
                          np.ndarray[DTYPE_float_t, ndim=1] weights,
-                         DTYPE_int_t check_feasibility):
+                         DTYPE_int_t check_feasibility,
+			 DTYPE_float_t nntol=1.e-5):
     
     cdef np.ndarray norms = np.zeros_like(weights)
     cdef int i, j
@@ -107,6 +113,10 @@ def seminorm_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
         xpos = x[positive_part]
         if tuple(xpos.shape) not in [(),(0,)] and xpos.min() < tol:
             value = np.inf
+        xnn = x[nonnegative]
+        if tuple(xnn.shape) not in [(),(0,)] and xnn.min() < nntol:
+            value = np.inf
+
     return value
 
 
@@ -117,6 +127,7 @@ def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
                            np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                            np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
                            np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
+                           np.ndarray[DTYPE_int_t, ndim=1] nonnegative, 
                            np.ndarray[DTYPE_int_t, ndim=1] groups,
                            np.ndarray[DTYPE_float_t, ndim=1] weights):
     
@@ -132,6 +143,7 @@ def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
     
     value[l1_penalty] = np.fabs(x[l1_penalty]) < (slope_estimate+1)*lagrange_new - slope_estimate*lagrange_cur
     value[positive_part] = -x[positive_part] < (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
+    value[nonnegative] = -x[nonnegative] < -np.fabs(lagrange_new - lagrange_cur) * slope_estimate
 
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
@@ -149,9 +161,11 @@ def check_KKT_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] grad,
                           np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                           np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
                           np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
+                          np.ndarray[DTYPE_int_t, ndim=1] nonnegative, 
                           np.ndarray[DTYPE_int_t, ndim=1] groups,
                           np.ndarray[DTYPE_float_t, ndim=1] weights,
-			  DTYPE_float_t tol=1.e-2):
+			  DTYPE_float_t tol=1.e-2,
+			  DTYPE_float_t nntol=1.e-2):
     
     cdef np.ndarray failing = np.zeros_like(grad)
     cdef np.ndarray norms = np.zeros_like(weights)
@@ -200,6 +214,26 @@ def check_KKT_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] grad,
             print 'positive part (dual) tightness:', -g_pp[active_pp] / lagrange - 1
         failing[positive_part] += failing_pp
 
+    # Nonnegative
+
+    # Check subgradient is feasible
+            
+    g_nn = grad[nonnegative]
+    if g_nn.shape not in [(), (0,)]:
+        failing[nonnegative] += -g_nn > lagrange * tol
+        if debug:
+            print 'nonnegative (dual) feasibility:', -g_nn > nntol
+
+        # Check that active coefficients are on the boundary 
+        soln_nn = solution[nonnegative]
+        active_nn = soln_nn != 0
+
+        failing_nn = np.zeros(g_nn.shape, np.int)
+        failing_nn[active_nn] += -g_nn[active_nn] < -nntol
+        if debug:
+            print 'nonnegative (dual) tightness:', -g_nn[active_nn] / lagrange - 1
+        failing[nonnegative] += failing_nn
+
     # group norms
 
     for i in range(p):
@@ -222,14 +256,16 @@ def check_KKT_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] grad,
                 failing[i] += norms[j] < weights[j] * lagrange * (1 - tol)
 
     return failing
-
    
 def seminorm_group_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x, 
                                    np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                                    np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
                                    np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
+                                   np.ndarray[DTYPE_int_t, ndim=1] nonnegative, 
                                    np.ndarray[DTYPE_int_t, ndim=1] groups,
-                                   np.ndarray[DTYPE_float_t, ndim=1] weights):
+                                   np.ndarray[DTYPE_float_t, ndim=1] weights,
+                                   DTYPE_float_t nntol=1.e-5,
+				   DTYPE_int_t check_feasibility=0):
     
     cdef np.ndarray norms = np.zeros_like(weights)
     cdef int i
@@ -253,6 +289,12 @@ def seminorm_group_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x,
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
         value = max(value, weights[j] * norms[j])
+
+    if check_feasibility:
+        xnn = x[nonnegative]
+        if xnn.shape not in [(), (0,)]:
+            if xnn.min() < -nntol:
+                value = np.inf
 
     return value
 

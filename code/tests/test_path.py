@@ -182,3 +182,39 @@ def test_path_group_lasso():
     nt.assert_true(np.linalg.norm(beta - sols) / (1 + np.linalg.norm(beta)) <= 1.e-4)
     nt.assert_true(np.linalg.norm(beta - sols_sep) / (1 + np.linalg.norm(beta)) <= 1.e-4)
 
+
+def test_path_nonnegative():
+    '''
+    this test looks at the paths of three different parameterizations
+    of the same problem
+
+    '''
+    X = np.random.standard_normal((100,5))
+    U = np.random.standard_normal((100,2))
+    U2 = np.zeros((100,4))
+    Y = np.random.standard_normal(100)
+    betaX = np.array([3,4,5,0,0])
+    betaU = np.array([10,-5])
+    Y += np.dot(X, betaX) + np.dot(U, betaU)
+
+    U2[:,:2] = U
+    U2[:,2:] = -U
+
+    lasso1 = rr.lasso.squared_error(np.hstack([X,U]),Y, penalty_structure=[rr.L1_PENALTY]*5 + [rr.UNPENALIZED]*2, nstep=23)
+    lasso2 = rr.lasso.squared_error(np.hstack([X,U2]),Y, penalty_structure=[rr.L1_PENALTY]*5 + [rr.NONNEGATIVE]*4, nstep=23)
+
+    problem = lasso2.problem
+    soln = problem.solve(debug=True)
+
+    sol1 = lasso1.main(inner_tol=1.e-12)
+    beta1 = sol1['beta'].todense()
+
+    sol2 = lasso2.main(inner_tol=1.e-12)
+    beta2 = sol2['beta'].todense()
+
+    beta2[6:8] = beta2[6:8] - beta2[8:10]
+    beta2 = beta2[:8]
+
+    nt.assert_true(np.linalg.norm(beta1-beta2) / np.linalg.norm(beta1) < 1.e-5)
+
+
