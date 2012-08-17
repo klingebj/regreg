@@ -11,7 +11,7 @@ from .quadratic import squared_error
 from .separable import separable_problem, separable
 from .simple import simple_problem
 from .identity_quadratic import identity_quadratic as iq
-from .group_lasso import group_lasso, strong_set as strong_set_gl
+from .group_lasso import group_lasso, strong_set as strong_set_gl, check_KKT
 
 # Constants used below
 
@@ -160,6 +160,7 @@ class lasso(object):
     def set_lagrange(self, lagrange):
         proximal_atom = self._problem.proximal_atom
         proximal_atom.lagrange = lagrange
+        self.penalty.lagrange = lagrange
     lagrange = property(get_lagrange, set_lagrange)
 
     @property
@@ -302,17 +303,17 @@ class lasso(object):
                 strong_soln = self.solution[strong]
                 strong_grad = (strong_problem.smooth_objective(strong_soln, mode='grad') + 
                                self.elastic_net[strong].objective(strong_soln, mode='grad'))
-                strong_penalty_structure = self.penalty_structure[strong]
+                strong_penalty = strong_problem.proximal_atom
 
-                strong_failing = check_KKT(strong_grad, strong_soln, lagrange_new, 
-                                           strong_penalty_structure, debug=False)
+                strong_failing = check_KKT(strong_penalty, strong_grad, strong_soln, lagrange_new) 
+
                 if np.any(strong_failing):
                     all_failing += strong_selector.adjoint_map(strong_failing)
                 else:
                     self.solution[subproblem_set][:] = sub_soln
                     grad_solution = self.grad()
-                    all_failing = check_KKT(grad_solution, self.solution, lagrange_new, 
-                                        self.penalty_structure)
+                    all_failing = check_KKT(self.penalty, grad_solution, self.solution, lagrange_new)
+
                     if not all_failing.sum():
                         self.ever_active += self.solution != 0
                         break
@@ -468,69 +469,6 @@ class nesta(lasso):
             self.final_inv_step = nesta_problem.final_inv_step
         grad = subproblem.smooth_objective(sub_soln, mode='grad') 
         return self.final_inv_step, grad, sub_soln, penalty_structure
-
-
-def check_KKT(grad, solution, lagrange, penalty_structure, subset=None, tol=1.0e-02,
-              debug=False):
-    '''
-    Verify that the KKT conditions for the LASSO possibly with unpenalized coefficients
-    is satisfied for (grad, solution) where grad is the gradient of the loss evaluated
-    at solution.
-
-    Does not check unpenalized coefficients as solver has should have returned
-    a solution at which the gradient is 0 on these coordinates.
-
-    '''
-
-    failing = np.zeros(grad.shape)
-
-    if subset is None:
-        subset = slice(None, None, None)
-
-    # L1 check
-
-    # Check subgradient is feasible
-    l1_set = (penalty_structure == L1_PENALTY)[subset]
-    if l1_set.sum():
-
-        g_l1 = grad[l1_set]
-        failing[l1_set] += np.fabs(g_l1) > lagrange * (1 + tol)
-        if debug:
-            print 'l1 (dual) feasibility:', np.fabs(g_l1), lagrange * (1 + tol)
-
-        # Check that active coefficients are on the boundary 
-        soln_l1 = solution[l1_set]
-        active_l1 = soln_l1 != 0
-
-        failing_l1 = np.zeros(g_l1.shape)
-        failing_l1[active_l1] += np.fabs(-g_l1[active_l1] / lagrange - np.sign(soln_l1[active_l1])) >= tol 
-        failing[l1_set] += failing_l1
-
-        if debug:
-            print 'l1 (dual) tightness:', np.fabs(-g_l1[active_l1] / lagrange - np.sign(soln_l1[active_l1]))
-
-    # Positive part
-
-    # Check subgradient is feasible
-    pp_set = (penalty_structure == POSITIVE_PART)[subset]
-    if pp_set.sum():
-        g_pp = -grad[pp_set]
-        failing_pp = np.zeros(g_pp.shape)
-        failing[pp_set] += g_pp > lagrange * (1 + tol)
-        if debug:
-            print 'positive part (dual) feasibility:', g_pp > lagrange * (1 + tol)
-
-        # Check that active coefficients are on the boundary 
-        soln_pp = solution[pp_set]
-        active_pp = soln_pp != 0
-
-        failing_pp[active_pp] += g_pp[active_pp] / lagrange - 1 >= tol 
-        if debug:
-            print 'positive part (dual) tightness:', g_pp[active_pp] / lagrange - 1
-        failing[pp_set] += failing_pp
-
-    return failing > 0
-
 
 def newsgroup():
     import scipy.io
