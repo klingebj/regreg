@@ -11,10 +11,10 @@ from .affine import (linear_transform, identity as identity_transform,
 from .smooth import affine_smooth
 
 try:
-    from projl1_cython import projl1
+    from .projl1_cython import projl1
 except:
     warnings.warn('Cython version of projl1 not available. Using slower python version')
-    from projl1_python import projl1
+    from .projl1_python import projl1
 
 class atom(nonsmooth):
 
@@ -332,7 +332,7 @@ class atom(nonsmooth):
             l = linear_transform(linear_operator, diag=diag)
         else:
             l = linear_operator
-        atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
+        atom = cls(l.dual_shape, lagrange=lagrange, bound=bound,
                    offset=offset,
                    quadratic=quadratic)
         return affine_atom(atom, l)
@@ -344,7 +344,7 @@ class atom(nonsmooth):
             l = linear_transform(linear_operator, diag=diag)
         else:
             l = linear_operator
-        atom = cls(l.primal_shape, lagrange=lagrange, bound=bound,
+        atom = cls(l.dual_shape, lagrange=lagrange, bound=bound,
                    quadratic=quadratic, offset=offset)
         return affine_atom(atom, l)
 
@@ -800,8 +800,9 @@ class affine_atom(object):
             raise ValueError('quadratic term of smoothing_quadratic must be non 0')
         conjugate_atom.quadratic = total_q
         smoothed_atom = conjugate_atom.conjugate
-        return affine_smooth(smoothed_atom, ltransform)
-
+        value = affine_smooth(smoothed_atom, ltransform)
+        value.total_quadratic = smoothed_atom.total_quadratic
+        return value
 
 
 conjugate_seminorm_pairs = {}

@@ -184,7 +184,6 @@ def projl1_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
         result[1:] = soft_threshold(coef, thold)
     return result
 
-                    
 def projlinf_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
     """
     Project center onto the l-infinty epigraph. The norm term is center[0],
@@ -232,3 +231,5 @@ def projlinf_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
         result[0] = norm + thold
         result[1:] = soft_threshold(coef, thold)
     return center + result
+
+    

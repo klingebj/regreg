@@ -20,10 +20,10 @@ lasso3 = rr.lasso.squared_error(Z2,Y, positive_part=np.arange(6), nstep=10)
 sol3 = lasso3.main()
 
 constraint_matrix = np.zeros((3,9))
-constraint_matrix[0,1:7] = 1
+constraint_matrix[2,1:6] = 1
+constraint_matrix[0,6] = 1
 constraint_matrix[1,7] = 1
-constraint_matrix[2,8] = 1
-constraint = rr.l1_epigraph.linear(constraint_matrix)
+constraint = rr.nonnegative.linear(constraint_matrix)
 lasso_constraint = rr.nesta_path.squared_error(Z2, Y, constraint,
                                                epsilon=2.**(-np.arange(10)), nstep=10)
 sol4 = lasso_constraint.main()
