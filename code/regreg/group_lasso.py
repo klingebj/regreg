@@ -14,6 +14,10 @@ from .smooth import affine_smooth
 UNPENALIZED = -1
 L1_PENALTY = -2
 POSITIVE_PART = -3
+NONNEGATIVE = -4
+
+reserved = [UNPENALIZED, L1_PENALTY, POSITIVE_PART,
+            NONNEGATIVE]
 
 try:
     from .group_lasso_cython import (prox_group_lasso, project_group_lasso,
@@ -50,13 +54,14 @@ class group_lasso(nonsmooth):
         self.lagrange = lagrange
         self.penalty_structure = penalty_structure
         self._groups = -np.ones(self.primal_shape, np.int)
-        groups = set(np.unique(self.penalty_structure)).difference( \
-            set([UNPENALIZED, L1_PENALTY, POSITIVE_PART]))
+        groups = set(np.unique(self.penalty_structure)).difference(
+            set(reserved))
         self._weight_array = np.zeros(len(groups))
 
         self._l1_penalty = np.nonzero(self.penalty_structure == L1_PENALTY)[0]
         self._positive_part = np.nonzero(self.penalty_structure == POSITIVE_PART)[0]
         self._unpenalized = np.nonzero(self.penalty_structure == UNPENALIZED)[0]
+        self._nonnegative = np.nonzero(self.penalty_structure == NONNEGATIVE)[0]
 
         for idx, label in enumerate(groups):
             g = self.penalty_structure == label
@@ -165,6 +170,7 @@ class group_lasso(nonsmooth):
                                  self._l1_penalty,
                                  self._unpenalized,
                                  self._positive_part,
+                                 self._nonnegative,
                                  self._groups, 
                                  self._weight_array,
                                  int(check_feasibility))
@@ -200,6 +206,7 @@ class group_lasso(nonsmooth):
                                self._l1_penalty,
                                self._unpenalized,
                                self._positive_part,
+                               self._nonnegative,
                                self._groups, 
                                self._weight_array)
 
@@ -243,7 +250,7 @@ class group_lasso_conjugate(group_lasso):
 #         self.penalty_structure = penalty_structure
 #         self._groups = -np.ones(self.primal_shape, np.int)
 #         groups = set(np.unique(self.penalty_structure)).difference( \
-#             set([UNPENALIZED, L1_PENALTY, POSITIVE_PART]))
+#             set(reserved)
 #         self._weight_array = np.zeros(len(groups))
 
 #         self._l1_penalty = np.nonzero(self.penalty_structure == L1_PENALTY)[0]
@@ -358,6 +365,7 @@ class group_lasso_conjugate(group_lasso):
                                  self._l1_penalty,
                                  self._unpenalized,
                                  self._positive_part,
+                                 self._nonnegative,          
                                  self._groups, 
                                  self._weight_array)
         return v 
@@ -411,6 +419,7 @@ def strong_set(glasso, lagrange_cur, lagrange_new, grad,
                                    glasso._l1_penalty, 
                                    glasso._unpenalized,
                                    glasso._positive_part,
+                                   glasso._nonnegative,
                                    glasso._groups,
                                    glasso._weight_array)
     value = value.astype(np.bool)
@@ -424,6 +433,7 @@ def check_KKT(glasso, grad, solution, lagrange, tol=1.e-2):
                                     glasso._l1_penalty, 
                                     glasso._unpenalized,
                                     glasso._positive_part, 
+                                    glasso._nonnegative,
                                     glasso._groups,
                                     glasso._weight_array,
                                     tol=tol)

@@ -415,6 +415,8 @@ class normalize(object):
         self.center = center
         self.scale = scale
 
+        self.inplace = inplace
+
         if value != 1 and not scale:
             raise ValueError('setting value when not being asked to scale')
 
@@ -422,7 +424,7 @@ class normalize(object):
         # so that np.std is constant
         
         if self.center:
-            if inplace and self.sparseM:
+            if self.inplace and self.sparseM:
                 raise ValueError('resulting matrix will not be sparse if centering performed inplace')
 
             if not self.sparseM:
@@ -443,7 +445,7 @@ class normalize(object):
                 if self.intercept_column is not None:
                     self.col_stds[self.intercept_column] = 1. / np.sqrt(self.value)
 
-            if not self.sparseM and inplace:
+            if not self.sparseM and self.inplace:
                 self.M -= col_means[np.newaxis,:]
                 if self.scale:
                     self.M /= self.col_stds[np.newaxis,:]
@@ -460,7 +462,7 @@ class normalize(object):
                 self.col_stds = np.sqrt((tmp.sum(0)) / n) / np.sqrt(self.value)
             if self.intercept_column is not None:
                 self.col_stds[self.intercept_column] = 1. / np.sqrt(self.value)
-            if inplace:
+            if self.inplace:
                 self.M /= self.col_stds[np.newaxis,:]
                 # if scaling has been applied in place, 
                 # no need to do it again
@@ -603,6 +605,12 @@ class normalize(object):
         new_obj.affine_offset = self.affine_offset
         return new_obj
         
+    def normalized_array(self):
+        if self.inplace:
+            return self.M
+        else:
+            raise ValueError('only possible to extract matrix if normalization was done inplace')
+
 class identity(object):
 
     def __init__(self, primal_shape):

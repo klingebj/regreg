@@ -18,6 +18,7 @@ from .group_lasso import group_lasso, strong_set as strong_set_gl, check_KKT
 UNPENALIZED = -1
 L1_PENALTY = -2
 POSITIVE_PART = -3
+NONNEGATIVE = -4
 
 class lasso(object):
 
@@ -85,7 +86,9 @@ class lasso(object):
         self.nstep = nstep
         self._elastic_net = elastic_net.collapsed()
 
-        self.ever_active = self.penalty_structure == UNPENALIZED
+        self.initial_active = (np.equal(self.penalty_structure, UNPENALIZED) + 
+                               np.equal(self.penalty_structure, NONNEGATIVE))
+        self.ever_active = self.initial_active.copy()
 
     @property
     def shape(self):
@@ -120,7 +123,7 @@ class lasso(object):
         if not hasattr(self, "_null_soln"):
             n, p = self.shape
             self._null_soln = np.zeros(p)
-            null_problem, null_selector = self.restricted_problem(self.penalty_structure == UNPENALIZED, self.lagrange_max)[:2]
+            null_problem, null_selector = self.restricted_problem(self.initial_active, self.lagrange_max)[:2]
             self._null_soln = null_selector.adjoint_map(null_problem.solve())
         return self._null_soln
 
@@ -242,7 +245,7 @@ class lasso(object):
         self.final_inv_step = subproblem.final_inv_step
         return self.final_inv_step, grad, sub_soln, penalty_structure
 
-    def main(self, inner_tol=1.e-5):
+    def main(self, inner_tol=1.e-5, verbose=False):
 
         # scaling will be needed to get coefficients on original scale   
         if self.Xn.scale:
@@ -268,7 +271,8 @@ class lasso(object):
                                                      / scalings)
 
         objective = [self.loss.smooth_objective(self.solution, 'func')]
-        dfs = [np.sum(self.penalty_structure == UNPENALIZED)]
+        # not quite right -- should check tight constraints
+        dfs = [np.sum(self.initial_active)]
         retry_counter = 0
 
         all_failing = np.zeros(grad_solution.shape, np.bool)
@@ -290,7 +294,7 @@ class lasso(object):
                                             lagrange_new,
                                             tol=tol,
                                             start_inv_step=self.final_inv_step,
-                                            debug=debug,
+                                            debug=debug and verbose,
                                             coef_stop=coef_stop)
 
                 p = self.shape[1]
@@ -318,7 +322,8 @@ class lasso(object):
                         self.ever_active += self.solution != 0
                         break
                     else:
-                        print 'failing:', np.nonzero(all_failing)[0]
+                        if verbose:
+                            print 'failing:', np.nonzero(all_failing)[0]
                         retry_counter += 1
                         self.ever_active += all_failing
 
@@ -332,7 +337,6 @@ class lasso(object):
 
                     debug = True
                     tol = inner_tol
-                    #stop
 
             rescaled_solution = self.nonzero.adjoint_map(self.solution)
             rescaled_solutions = scipy.sparse.vstack([rescaled_solutions, rescaled_solution])
@@ -340,7 +344,8 @@ class lasso(object):
             dfs.append(self.ever_active.shape[0])
             gc.collect()
 
-            print lagrange_cur / self.lagrange_max, lagrange_new, (self.solution != 0).sum(), 1. - objective[-1] / objective[0], list(self.lagrange_sequence).index(lagrange_new), np.fabs(rescaled_solution).sum()
+            if verbose:
+                print lagrange_cur / self.lagrange_max, lagrange_new, (self.solution != 0).sum(), 1. - objective[-1] / objective[0], list(self.lagrange_sequence).index(lagrange_new), np.fabs(rescaled_solution).sum()
 
         objective = np.array(objective)
         output = {'devratio': 1 - objective / objective.max(),
