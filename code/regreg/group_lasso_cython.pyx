@@ -21,6 +21,7 @@ def prox_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
                      np.ndarray[DTYPE_float_t, ndim=1] weights):
     
     cdef np.ndarray norms = np.zeros_like(weights)
+    cdef np.ndarray factors = np.zeros_like(weights)
     cdef np.ndarray projection = np.zeros_like(prox_center)
     cdef int i, j
     cdef int p = groups.shape[0]
@@ -33,8 +34,12 @@ def prox_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
     
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
-        projection[groups == j] = prox_center[groups == j] / norms[j] * min(norms[j], lf * weights[j])
+        factors[j] = min(1., lf * weights[j] / norms[j])
     
+    for i in range(p):
+        if groups[i] >= 0:
+            projection[i] = prox_center[i] * factors[groups[i]]
+
     projection[l1_penalty] = prox_center[l1_penalty] * np.minimum(1, lf / np.fabs(prox_center[l1_penalty]))
     projection[unpenalized] = 0
     projection[positive_part] = np.minimum(lf, prox_center[positive_part])
@@ -50,6 +55,7 @@ def project_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
                      np.ndarray[DTYPE_float_t, ndim=1] weights):
     
     cdef np.ndarray norms = np.zeros_like(weights)
+    cdef np.ndarray factors = np.zeros_like(weights)
     cdef np.ndarray projection = np.zeros_like(prox_center)
     cdef int i, j
     cdef int p = groups.shape[0]
@@ -60,8 +66,12 @@ def project_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
     
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
-        projection[groups == j] = prox_center[groups == j] / norms[j] * min(norms[j], bound * weights[j])
+        factors[j] = min(1., bound * weights[j] / norms[j])
     
+    for i in range(p):
+        if groups[i] >= 0:
+            projection[i] = prox_center[i] * factors[groups[i]]
+
     projection[l1_penalty] = prox_center[l1_penalty] * np.minimum(1, bound / np.fabs(prox_center[l1_penalty]))
     projection[unpenalized] = 0
     projection[positive_part] = np.minimum(bound, prox_center[positive_part])
@@ -112,6 +122,7 @@ def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
     
     cdef np.ndarray value = np.zeros_like(x)
     cdef np.ndarray norms = np.zeros_like(weights)
+    cdef np.ndarray group_value = np.zeros_like(weights)
     cdef int i, j
     cdef int p = groups.shape[0]
     
@@ -124,7 +135,11 @@ def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
 
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
-        value[groups == j] = norms[j] < weights[j] * (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
+        group_value[j] = norms[j] < weights[j] * (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
+
+    for i in range(p):
+        if groups[i] >= 0:
+            value[i] = group_value[groups[i]]
 
     return 1 - value
 
@@ -195,14 +210,16 @@ def check_KKT_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] grad,
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
 
-        # check that the subgradient is feasible 
+    for i in range(p):
+        if groups[i] >= 0:
+            j = groups[i]
 
-        failing[groups == j] = norms[j] > weights[j] * lagrange * (1 + tol)
+	    # check that the subgradient is feasible 
+            failing[i] += norms[j] > weights[j] * lagrange * (1 + tol)
 
-        # check that the active groups have a tight subgradient
-        
-        if snorms[j] != 0:
-            failing[groups == j] += norms[j] < weights[j] * lagrange * (1 - tol)
+            # check that the active groups have a tight subgradient
+            if snorms[j] != 0:
+                failing[i] += norms[j] < weights[j] * lagrange * (1 - tol)
 
     return failing
 

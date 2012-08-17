@@ -290,7 +290,7 @@ class lasso(object):
                                             lagrange_new,
                                             tol=tol,
                                             start_inv_step=self.final_inv_step,
-                                            debug=debug,
+                                            debug=debug and verbose,
                                             coef_stop=coef_stop)
 
                 p = self.shape[1]
@@ -333,7 +333,6 @@ class lasso(object):
 
                     debug = True
                     tol = inner_tol
-                    #stop
 
             rescaled_solution = self.nonzero.adjoint_map(self.solution)
             rescaled_solutions = scipy.sparse.vstack([rescaled_solutions, rescaled_solution])

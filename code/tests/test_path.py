@@ -161,17 +161,24 @@ def test_path_group_lasso():
     Xn = rr.normalize(np.hstack([np.ones((100,1)),X]), inplace=True, center=True, scale=True, intercept_column=0).normalized_array()
     lasso = rr.lasso.squared_error(Xn[:,1:] ,Y, penalty_structure=[0]*7+[1]*3, nstep=10)
 
-    sol = lasso.main(inner_tol=1.e-12)
+    sol = lasso.main(inner_tol=1.e-12, verbose=True)
     beta = np.array(sol['beta'].todense())
 
     sols = []
+    sols_sep = []
     for l in sol['lagrange']:
         loss = rr.squared_error(Xn, Y, coef=1./n)
         penalty = rr.group_lasso([rr.UNPENALIZED] + [0]*7 + [1]*3, l) # matrix contains an intercept...
         problem = rr.simple_problem(loss, penalty)
         sols.append(problem.solve(tol=1.e-12).copy())
 
+        sep = rr.separable((11,), [rr.l2norm((7,),np.sqrt(7)*l), rr.l2norm((3,),np.sqrt(3)*l)],[np.arange(1,8),np.arange(8,11)])
+        sep_problem = rr.simple_problem(loss, sep)
+        sols_sep.append(sep_problem.solve(tol=1.e-12).copy())
+
     sols = np.array(sols).T
+    sols_sep = np.array(sols_sep).T
 
     nt.assert_true(np.linalg.norm(beta - sols) / (1 + np.linalg.norm(beta)) <= 1.e-4)
+    nt.assert_true(np.linalg.norm(beta - sols_sep) / (1 + np.linalg.norm(beta)) <= 1.e-4)
 
