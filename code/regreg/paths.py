@@ -341,6 +341,9 @@ class lasso(object):
 
                     debug = True
                     tol = inner_tol
+                    if num_tries >= 50:
+                        warn('convergence not achieved for lagrange=%0.4e' % lagrange_new)
+                        break
 
             rescaled_solution = self.nonzero.adjoint_map(self.solution)
             rescaled_solutions = scipy.sparse.vstack([rescaled_solutions, rescaled_solution])
