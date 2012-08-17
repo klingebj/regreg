@@ -67,7 +67,7 @@ class simple_problem(composite):
 
         solver = FISTA(self)
         solver.composite.coefs[:] = self.coefs
-        solver.fit(**fit_args)
+        self.solver_results = solver.fit(**fit_args)
         self.final_inv_step = solver.inv_step
 
         if return_optimum:
