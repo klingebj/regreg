@@ -67,10 +67,11 @@ class lasso(object):
 
             if self.scale or self.center:
                 self._Xn = normalize(X, center=self.center, scale=self.scale)
+                which_0 = self._Xn.col_stds == 0
             else:
                 self._Xn = X
+                which_0 = np.zeros(self._Xn.shape)
 
-        which_0 = self._Xn.col_stds == 0
         if np.any(which_0):
             self._selector = selector(~which_0, self._Xn.primal_shape)
             if self.scale or self.center:
@@ -78,7 +79,10 @@ class lasso(object):
             else:
                 self._Xn = self._Xn[:,~which_0]
         else:
-            self._selector = identity(self._Xn.primal_shape)
+            if self.scale or self.center:
+                self._selector = identity(self._Xn.primal_shape)
+            else:
+                self._selector = identity(self._Xn.shape)
 
         # the penalty parameters
         self.alpha = alpha
@@ -248,10 +252,10 @@ class lasso(object):
     def main(self, inner_tol=1.e-5, verbose=False):
 
         # scaling will be needed to get coefficients on original scale   
-        if self.Xn.scale:
+        if self.scale:
             scalings = np.asarray(self.Xn.col_stds).reshape(-1)
         else:
-            scalings = np.ones(self.Xn.primal_shape)
+            scalings = np.ones(self.shape[1])
         scalings = self.nonzero.adjoint_map(scalings)
 
         # take a guess at the inverse step size
