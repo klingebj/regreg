@@ -52,7 +52,7 @@ class group_lasso(nonsmooth):
 
         self.weights = weights
         self.lagrange = lagrange
-        self.penalty_structure = penalty_structure
+        self.penalty_structure = np.array(penalty_structure)
         self._groups = -np.ones(self.primal_shape, np.int)
         groups = set(np.unique(self.penalty_structure)).difference(
             set(reserved))

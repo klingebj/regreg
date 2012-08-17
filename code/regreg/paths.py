@@ -57,6 +57,7 @@ class lasso(object):
                 self._X1 = np.hstack([np.ones((X.shape[0], 1)), X])
             if self.scale or self.center:
                 self._Xn = normalize(self._X1, center=self.center, scale=self.scale, intercept_column=0)
+                which_0 = self._Xn.col_stds == 0
             else:
                 self._Xn = self._X1
 
