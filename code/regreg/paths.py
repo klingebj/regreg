@@ -385,7 +385,7 @@ class squared_error_factory(loss_factory):
 
     def __call__(self, X):
         n = self.response.shape[0]
-        return squared_error(X, -self.response, coef=1./n)
+        return squared_error(X, self.response, coef=1./n)
 
 
 class nesta(lasso):
