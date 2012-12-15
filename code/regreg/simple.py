@@ -111,7 +111,7 @@ def gengrad(simple_problem, L, tol=1.0e-8, max_its=1000, debug=False,
     return coef
 
 def nesta(smooth_atom, proximal_atom, conjugate_atom, epsilon=None,
-          tol=1.e-06):
+          tol=1.e-06, initial=None):
     '''
     Parameters
     ==========
@@ -132,6 +132,9 @@ def nesta(smooth_atom, proximal_atom, conjugate_atom, epsilon=None,
     tol: np.float
         Tolerance to which each problem is solved is max(tol, epsilon)
     
+    initial : np.array
+        Initial values for primal coefficients.
+
     Returns
     =======
 
@@ -154,6 +157,8 @@ def nesta(smooth_atom, proximal_atom, conjugate_atom, epsilon=None,
         else:
             final_smooth = smoothed
         problem = simple_problem(final_smooth, proximal_atom)
+        if initial is not None:
+            problem.coefs[:] = initial
         primal_coef = problem.solve(tol=max(eps,tol))
         # when there's an affine transform involved
         dual_coef[:] = smoothed.grad
