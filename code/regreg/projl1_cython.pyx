@@ -2,9 +2,10 @@ import numpy as np, sys
 cimport numpy as np
 
 """
-Implements (expected) linear time projections onto \ell_1 ball as described in
+Implements (expected) linear time projections onto $\ell_1$ ball as described in
 title = {Efficient projections onto the l1-ball for learning in high dimensions}
-author = {Duchi, John and Shalev-Shwartz, Shai and Singer, Yoram and Chandra, Tushar}
+author = {Duchi, John and Shalev-Shwartz, Shai and Singer, Yoram and Chandra,
+Tushar}
 """
 
 DTYPE_float = np.float
@@ -36,12 +37,9 @@ def projl1(np.ndarray[DTYPE_float_t, ndim=1]  x,
     else:
         return x
 
-                                                            
 
 def projl1_2(np.ndarray[DTYPE_float_t, ndim=1]  x, 
              DTYPE_float_t bound=1.):
-
-
 
     cdef int p = x.shape[0]
     cdef np.ndarray[DTYPE_int_t, ndim=2] U = np.empty((3,p),dtype=int)
@@ -66,10 +64,10 @@ def projl1_2(np.ndarray[DTYPE_float_t, ndim=1]  x,
         else:
             Lrow = 0
             Grow = 1
-            
+
         Lcol = 0
         Gcol = 0
-        
+
         kind = np.random.randint(0,lenU)
         if first:
             k = kind
@@ -115,7 +113,7 @@ def projl1_2(np.ndarray[DTYPE_float_t, ndim=1]  x,
     if eta < 0:
         eta = 0.
     return soft_threshold(x, eta)
-        
+
 
 cdef soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
                     DTYPE_float_t lagrange):
@@ -138,14 +136,14 @@ cdef soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
                 y[i] = xi + lagrange
     return y
 
+
 def projl1_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
     """
     Project center onto the l1 epigraph. The norm term is center[0],
     the coef term is center[1:]
 
-    The l1 epigraph is the collection of points (u,v): \|v\|_1 \leq u
+    The l1 epigraph is the collection of points $(u,v): \|v\|_1 \leq u$
     np.fabs(coef).sum() <= bound.
-
     """
 
     cdef np.ndarray[DTYPE_float_t, ndim=1] coef = center[1:]
@@ -184,14 +182,14 @@ def projl1_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
         result[1:] = soft_threshold(coef, thold)
     return result
 
+
 def projlinf_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
     """
     Project center onto the l-infinty epigraph. The norm term is center[0],
     the coef term is center[1:]
 
-    The l-infinity epigraph is the collection of points (u,v): \|v\|_{\infty} \leq u
-    np.fabs(coef).max() <= bound.
-
+    The l-infinity epigraph is the collection of points $(u,v): \|v\|_{\infty}
+    \leq u$ np.fabs(coef).max() <= bound.
     """
     # we just use the fact that the polar of the linf epigraph is
     # is the negative of the l1 epigraph, so we project
@@ -232,4 +230,3 @@ def projlinf_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
         result[1:] = soft_threshold(coef, thold)
     return center + result
 
-    

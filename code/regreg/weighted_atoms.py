@@ -174,20 +174,20 @@ class l1norm(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
         return np.sign(x) * np.maximum(np.fabs(x)-lagrange * self.weights /lipschitz, 0)
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, x, lipschitz=1, bound=None):
         raise NotImplementedError
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
 class supnorm(atom):
 
-    """
+    r"""
     The :math:`\ell_{\infty}` norm
     """
 
@@ -207,7 +207,7 @@ class supnorm(atom):
                 return np.inf
         return lagrange * np.fabs(x[finite] * self.weights[finite]).max()
             
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
@@ -217,17 +217,17 @@ class supnorm(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         raise NotImplementedError
     
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         return np.clip(x, -bound/self.weights, bound/self.weights)
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
 
 conjugate_weighted_pairs = {}

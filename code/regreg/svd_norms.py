@@ -15,13 +15,13 @@ from atoms import atom, conjugate_seminorm_pairs
 from copy import copy
 
 class svd_atom(atom):
-    
+
     _doc_dict = {'linear':r' + \text{Tr}(\eta^T X)',
                  'constant':r' + \tau',
                  'objective': '',
                  'shape':r'p \times q',
                  'var':r'X'}
-    
+
     def compute_and_store_svd(self, X):
         """
         Compute and store svd of X for use in multiple function calls.
@@ -58,6 +58,12 @@ class svd_atom(atom):
     SVD = property(get_SVD, set_SVD)
 
     def lagrange_prox(self, X, lipschitz=1, lagrange=None):
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
+        return lagrange
+    lagrange_prox._doc_template = \
         r"""
         Return unique minimizer
 
@@ -81,13 +87,14 @@ class svd_atom(atom):
         The class atom's lagrange_prox just returns the appropriate lagrange
         parameter for use by the subclasses.
         """
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
-        return lagrange
 
     def bound_prox(self, X, lipschitz=1, bound=None):
+        if bound is None:
+            bound = self.bound
+        if bound is None:
+            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
+        return bound
+    bound_prox._doc_template = \
         r"""
         Return unique minimizer
 
@@ -112,11 +119,6 @@ class svd_atom(atom):
         parameter for use by the subclasses.
 
         """
-        if bound is None:
-            bound = self.bound
-        if bound is None:
-            raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
-        return bound
 
 class nuclear_norm(svd_atom):
 
@@ -138,7 +140,7 @@ class nuclear_norm(svd_atom):
         self.X = X
         _, D, _ = self.SVD
         return self.lagrange * np.sum(D)
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, X, bound=None):
         # This will compute an svd of X
@@ -151,7 +153,7 @@ class nuclear_norm(svd_atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, X,  lipschitz=1, lagrange=None):
         lagrange = svd_atom.lagrange_prox(self, X, lipschitz, lagrange)
@@ -164,7 +166,7 @@ class nuclear_norm(svd_atom):
         c.SVD = self.SVD
         self._X = np.dot(U[:,keepD], D_soft_thresholded[keepD][:,np.newaxis] * V[keepD])
         return self.X
-    lagrange_prox.__doc__ = svd_atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = svd_atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, X, lipschitz=1, bound=None):
         bound = svd_atom.bound_prox(self, X, lipschitz, bound)
@@ -179,7 +181,7 @@ class nuclear_norm(svd_atom):
         self._X = np.dot(U[:,keepD], D_projected[keepD][:,np.newaxis] * V[keepD])
         return self.X
 
-    bound_prox.__doc__ = svd_atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = svd_atom.bound_prox._doc_template % _doc_dict
 
 class operator_norm(svd_atom):
 
@@ -200,7 +202,7 @@ class operator_norm(svd_atom):
         self.X = X
         _, D, _ = self.SVD
         return self.lagrange * np.max(D)
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, X, bound=None):
         # This will compute an svd of X
@@ -213,7 +215,7 @@ class operator_norm(svd_atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, X,  lipschitz=1, lagrange=None):
         lagrange = svd_atom.lagrange_prox(self, X, lipschitz, lagrange)
@@ -226,7 +228,7 @@ class operator_norm(svd_atom):
         c.SVD = self.SVD
         self._X = np.dot(U[:,keepD], D_soft_thresholded[keepD][:,np.newaxis] * V[keepD])
         return self.X
-    lagrange_prox.__doc__ = svd_atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = svd_atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, X, lipschitz=1, bound=None):
         bound = svd_atom.bound_prox(self, X, lipschitz, bound)
@@ -236,7 +238,7 @@ class operator_norm(svd_atom):
         # store the projected X -- or should we keep original?
         self._X = np.dot(U, D[:,np.newaxis] * V)
         return self.X
-    bound_prox.__doc__ = svd_atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = svd_atom.bound_prox._doc_template % _doc_dict
 
 conjugate_svd_pairs = {}
 conjugate_svd_pairs[nuclear_norm] = operator_norm

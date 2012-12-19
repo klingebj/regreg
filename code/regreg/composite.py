@@ -68,7 +68,7 @@ class composite(object):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
     def proximal_optimum(self, quadratic):
-        """
+        r"""
         Returns
 
         .. math::
@@ -76,11 +76,10 @@ class composite(object):
            \inf_{v \in \mathbb{R}^p} \frac{L}{2}
            \|x-v\|^2_2 + \lambda h(v)
 
-        where *p*=x.shape[0] and :math:`h(v)` = self.seminorm(v).
+        where $p$ = ``x.shape[0]`` and $h(v)$ = ``self.seminorm(v)``.
 
         Here, h represents the nonsmooth part and the quadratic
         part of the composite object.
-
         """
         argmin = self.proximal(quadratic)
         if self.quadratic is None:

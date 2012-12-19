@@ -108,7 +108,7 @@ class cone(nonsmooth):
             v = 0
         v += self.quadratic.objective(x, 'func')
         return v
-        
+
     def proximal(self, proxq, prox_control=None):
         r"""
         The proximal operator. If the atom is in
@@ -128,7 +128,6 @@ class cone(nonsmooth):
            \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
 
         """
-
         offset, totalq = (self.quadratic + proxq).recenter(self.offset)
         if totalq.coef == 0:
             raise ValueError('lipschitz + quadratic coef must be positive')
@@ -160,11 +159,11 @@ class cone(nonsmooth):
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
            \|x-v\|^2_2 + \lambda h(v)
 
-        where *p*=x.shape[0] and :math:`h(v)` is the support function of self (with a
-        Lagrange multiplier of 1 in front) and :math:`\lambda` is the Lagrange parameter.
-        If the argument is None and the atom is in Lagrange mode, this parameter
-        is used for the proximal operator, else an exception is raised.
-        
+        where *p*=x.shape[0] and :math:`h(v)` is the support function of self
+        (with a Lagrange multiplier of 1 in front) and :math:`\lambda` is the
+        Lagrange parameter.  If the argument is None and the atom is in Lagrange
+        mode, this parameter is used for the proximal operator, else an
+        exception is raised.
         """
         raise NotImplementedError
 
@@ -195,21 +194,18 @@ class cone(nonsmooth):
 
 
 class affine_cone(object):
+    r"""
+    Given a seminorm on :math:`\mathbb{R}^p`, i.e.  :math:`\beta \mapsto
+    h_K(\beta)` this class creates a new seminorm that evaluates
+    :math:`h_K(D\beta+\alpha)`
 
-    """
-    Given a seminorm on :math:`\mathbb{R}^p`, i.e.
-    :math:`\beta \mapsto h_K(\beta)`
-    this class creates a new seminorm 
-    that evaluates :math:`h_K(D\beta+\alpha)`
-
-    This class does not have a prox, but its
-    dual does. The prox of the dual is
+    This class does not have a prox, but its dual does. The prox of the dual is
 
     .. math::
 
        \text{minimize} \frac{1}{2} \|y-x\|^2_2 + x^T\alpha
        \ \text{s.t.} \ x \in \lambda K
-    
+
     """
 
     def __init__(self, cone_obj, atransform):
@@ -262,12 +258,11 @@ class affine_cone(object):
 
 
 class nonnegative(cone):
-
     """
     The non-negative cone constraint (which is the support
     function of the non-positive cone constraint).
     """
-    
+
     objective_template = r"""I^{\infty}(%(var)s \succeq 0)"""
     _doc_dict = copy(cone._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
@@ -310,7 +305,7 @@ class nonpositive(nonnegative):
     The non-positive cone constraint (which is the support
     function of the non-negative cone constraint).
     """
-    
+
     objective_template = r"""I^{\infty}(%(var)s \preceq 0)"""
     _doc_dict = copy(cone._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
@@ -384,7 +379,7 @@ class l2_epigraph(cone):
     """
     The l2_epigraph constraint.
     """
-    
+
     objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_2)})"""
     _doc_dict = copy(cone._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
@@ -427,7 +422,7 @@ class l2_epigraph_polar(cone):
     The polar of the l2_epigraph constraint, which is the negative of the 
     l2 epigraph..
     """
-    
+
     objective_template = r"""I^{\infty}(-%(var)s \in \mathbf{epi}(\ell_2)})"""
     _doc_dict = copy(cone._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
@@ -436,7 +431,6 @@ class l2_epigraph_polar(cone):
         """
         The non-negative constraint of x.
         """
-        
         incone = np.linalg.norm(x[1:]) / -x[0] <= 1 + self.tol
         if incone:
             return 0
@@ -470,7 +464,7 @@ class l1_epigraph(cone):
     """
     The l1_epigraph constraint.
     """
-    
+
     objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_1)})"""
     _doc_dict = copy(cone._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
@@ -479,7 +473,6 @@ class l1_epigraph(cone):
         """
         The non-negative constraint of x.
         """
-        
         incone = np.fabs(x[1:]).sum() / x[0] <= 1 + self.tol
         if incone:
             return 0
@@ -506,7 +499,7 @@ class l1_epigraph_polar(cone):
     The polar l1_epigraph constraint which is just the
     negative of the linf_epigraph.
     """
-    
+
     objective_template = r"""I^{\infty}(%(var)s  \in -\mathbf{epi}(\ell_{\inf})})"""
     _doc_dict = copy(cone._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
@@ -542,7 +535,7 @@ class linf_epigraph(cone):
     """
     The l1_epigraph constraint.
     """
-    
+
     objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_1)})"""
     _doc_dict = copy(cone._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
@@ -551,7 +544,7 @@ class linf_epigraph(cone):
         """
         The non-negative constraint of x.
         """
-        
+
         incone = np.fabs(x[1:]).max() / x[0] <= 1 + self.tol
         if incone:
             return 0
@@ -579,7 +572,7 @@ class linf_epigraph_polar(cone):
     The polar linf_epigraph constraint which is just the
     negative of the l1_epigraph.
     """
-    
+
     objective_template = r"""I^{\infty}(%(var)s \in -\mathbf{epi}(\ell_1)})"""
     _doc_dict = copy(cone._doc_dict)
     _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}

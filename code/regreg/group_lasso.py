@@ -141,29 +141,27 @@ class group_lasso(nonsmooth):
         return obj
 
     def constraint(self, x, bound=None):
-        """
-        Verify :math:`\cdot %(objective)s \leq \lambda`, where
-        :math:`\lambda` is bound,
-        :math:`\alpha` is self.offset (if any). 
-
-        If True, returns 0,
-        else returns np.inf.
-
-        The class atom's constraint just returns the appropriate bound
-        parameter for use by the subclasses.
-
-        """
         if bound is None:
             raise ValueError('bound must be suppled')
         x_offset = self.apply_offset(x)
         return self.seminorm(x_offset) <= bound
+    constraint._doc_template = \
+        r"""
+        Verify :math:`\cdot %(objective)s \leq \lambda`, where :math:`\lambda`
+        is bound, :math:`\alpha` is self.offset (if any).
+
+        If True, returns 0, else returns np.inf.
+
+        The class atom's constraint just returns the appropriate bound
+        parameter for use by the subclasses.
+        """
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
         v = self.seminorm(x_offset, check_feasibility=check_feasibility)
         v += self.quadratic.objective(x, 'func')
         return v
-        
+
     def seminorm(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
         v = seminorm_group_lasso(x_offset,
@@ -335,22 +333,11 @@ class group_lasso_conjugate(group_lasso):
         return obj
 
     def constraint(self, x, bound=None):
-        """
-        Verify :math:`\cdot %(objective)s \leq \lambda`, where
-        :math:`\lambda` is bound,
-        :math:`\alpha` is self.offset (if any). 
-
-        If True, returns 0,
-        else returns np.inf.
-
-        The class atom's constraint just returns the appropriate bound
-        parameter for use by the subclasses.
-
-        """
         if bound is None:
             raise ValueError('bound must be suppled')
         x_offset = self.apply_offset(x)
         return self.seminorm(x_offset) <= bound
+    constraint._doc_template = group_lasso.constraint._doc_template
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
@@ -358,7 +345,7 @@ class group_lasso_conjugate(group_lasso):
             v = self.constraint(x_offset, self.bound)
         v += self.quadratic.objective(x, 'func')
         return v
-        
+
     def seminorm(self, x, lagrange=1, check_feasibility=False):
         x_offset = self.apply_offset(x)
         v = seminorm_group_lasso_conjugate(x_offset,
@@ -389,7 +376,6 @@ class group_lasso_conjugate(group_lasso):
            \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
 
         """
-
         offset, totalq = (self.quadratic + proxq).recenter(self.offset)
         if totalq.coef == 0:
             raise ValueError('lipschitz + quadratic coef must be positive')

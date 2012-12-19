@@ -168,7 +168,13 @@ class atom(nonsmooth):
         return self._linear_transform
     
     def seminorm(self, x, lagrange=None, check_feasibility=False):
-        """
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
+        return lagrange
+    seminorm._doc_template = \
+        r"""
         Return :math:`\lambda \cdot %(objective)s`, where
         :math:`\lambda` is lagrange. If check_feasibility
         is True, and seminorm is unbounded, will return np.inf
@@ -177,30 +183,23 @@ class atom(nonsmooth):
         The class atom's seminorm just returns the appropriate lagrange
         parameter for use by the subclasses.
         """
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
-        return lagrange
 
     def constraint(self, x, bound=None):
-        """
-        Verify :math:`\cdot %(objective)s \leq \lambda`, where
-        :math:`\lambda` is bound,
-        :math:`\alpha` is self.offset (if any). 
-
-        If True, returns 0,
-        else returns np.inf.
-
-        The class atom's constraint just returns the appropriate bound
-        parameter for use by the subclasses.
-
-        """
         if bound is None:
             bound = self.bound
         if bound is None:
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
         return bound
+    constraint._doc_template = \
+        r"""
+        Verify :math:`\cdot %(objective)s \leq \lambda`, where :math:`\lambda`
+        is bound, :math:`\alpha` is self.offset (if any).
+
+        If True, returns 0, else returns np.inf.
+
+        The class atom's constraint just returns the appropriate bound
+        parameter for use by the subclasses.
+        """
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
@@ -216,27 +215,6 @@ class atom(nonsmooth):
         return v
 
     def proximal(self, proxq, prox_control=None):
-        r"""
-        The proximal operator. If the atom is in
-        Lagrange mode, this has the form
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v+\alpha) + \langle v, \eta \rangle
-
-        where :math:`\alpha` is the offset of self.affine_transform and
-        :math:`\eta` is self.linear_term.
-
-        If the atom is in bound mode, then this has the form
-        
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
-
-        """
-
         offset, totalq = (self.quadratic + proxq).recenter(self.offset)
         if totalq.coef == 0:
             raise ValueError('lipschitz + quadratic coef must be positive')
@@ -260,8 +238,35 @@ class atom(nonsmooth):
             return eta
         else:
             return eta - offset
+    proximal._doc_template = \
+        r"""
+        The proximal operator. If the atom is in
+        Lagrange mode, this has the form
+
+        .. math::
+
+           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+           \|x-v\|^2_2 + \lambda h(v+\alpha) + \langle v, \eta \rangle
+
+        where :math:`\alpha` is the offset of self.affine_transform and
+        :math:`\eta` is self.linear_term.
+
+        If the atom is in bound mode, then this has the form
+
+        .. math::
+
+           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+           \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
+
+        """
 
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
+        return lagrange
+    lagrange_prox._doc_template = \
         r"""
         Return unique minimizer
 
@@ -278,49 +283,43 @@ class atom(nonsmooth):
         :math:`\eta` is self.linear_term (if any)
         and :math:`\tau` is self.constant_term.
 
-        If the argument lagragne is None and the atom is in lagrange mode, 
-        self.lagrange is used as the lagrange parameter, 
-        else an exception is raised.
+        If the argument `lagrange` is None and the atom is in lagrange mode,
+        ``self.lagrange`` is used as the lagrange parameter, else an exception
+        is raised.
 
         The class atom's lagrange_prox just returns the appropriate lagrange
         parameter for use by the subclasses.
         """
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in Lagrange mode or a keyword "lagrange" argument must be supplied')
-        return lagrange
 
     def bound_prox(self, x, lipschitz=1, bound=None):
-        r"""
-        Return unique minimizer
-
-        .. math::
-
-           %(var)s^{\lambda}(u) \in 
-           \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
-           \frac{L}{2}
-           \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
-           \text{s.t.} \   %(objective)s \leq \lambda
-
-        Above, :math:`\lambda` is the bound parameter,
-        :math:`\alpha` is self.offset (if any), 
-        :math:`\eta` is self.linear_term (if any)
-        and :math:`\tau` is self.constant_term (if any).
-
-        If the argument is bound None and the atom is in bound mode, 
-        self.bound is used as the bound parameter, 
-        else an exception is raised.
-
-        The class atom's bound_prox just returns the appropriate bound
-        parameter for use by the subclasses.
-
-        """
         if bound is None:
             bound = self.bound
         if bound is None:
             raise ValueError('either atom must be in bound mode or a keyword "bound" argument must be supplied')
         return bound
+    bound_prox._doc_template = \
+        r"""
+        Return unique minimizer
+
+        .. math::
+
+           %(var)s^{\lambda}(u) \in
+           \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
+           \frac{L}{2}
+           \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
+           \text{s.t.} \   %(objective)s \leq \lambda
+
+        Above, :math:`\lambda` is the bound parameter, :math:`\alpha` is
+        self.offset (if any), :math:`\eta` is self.linear_term (if any) and
+        :math:`\tau` is self.constant_term (if any).
+
+        If the argument `bound` is None and the atom is in bound mode,
+        ``self.bound`` is used as the bound parameter, else an exception is
+        raised.
+
+        The class atom's bound_prox just returns the appropriate bound
+        parameter for use by the subclasses.
+        """
 
     @classmethod
     def affine(cls, linear_operator, offset, lagrange=None, diag=False,
@@ -371,7 +370,8 @@ class atom(nonsmooth):
         conjugate_atom.quadratic = total_q
         smoothed_atom = conjugate_atom.conjugate
         return smoothed_atom
-    
+
+
 class l1norm(atom):
 
     """
@@ -388,7 +388,7 @@ class l1norm(atom):
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return lagrange * np.fabs(x).sum()
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
@@ -397,18 +397,18 @@ class l1norm(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
         return np.sign(x) * np.maximum(np.fabs(x)-lagrange/lipschitz, 0)
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         x = np.asarray(x, np.float)
         return projl1(x, self.bound)
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
 class supnorm(atom):
 
@@ -426,7 +426,7 @@ class supnorm(atom):
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return lagrange * np.fabs(x).max()
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
@@ -435,19 +435,19 @@ class supnorm(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
         x = np.asarray(x, np.float)
         d = projl1(x, lagrange/lipschitz)
         return x - d
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         return np.clip(x, -bound, bound)
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
 class l2norm(atom):
 
@@ -465,7 +465,7 @@ class l2norm(atom):
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return lagrange * np.linalg.norm(x)
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
@@ -474,7 +474,7 @@ class l2norm(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
@@ -484,7 +484,7 @@ class l2norm(atom):
         else:
             proj = (lagrange / (lipschitz * n)) * x
         return x - proj 
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, x,  lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
@@ -493,7 +493,7 @@ class l2norm(atom):
             return x
         else:
             return (bound / n) * x
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
 
 def positive_part_lagrange(primal_shape, lagrange,
@@ -532,7 +532,7 @@ class positive_part(atom):
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return lagrange * np.maximum(x, 0).sum()
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
@@ -541,7 +541,7 @@ class positive_part(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
@@ -551,7 +551,7 @@ class positive_part(atom):
         v = np.atleast_1d(v)
         v[pos] = np.maximum(v[pos] - lagrange/lipschitz, 0)
         return v.reshape(x.shape)
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, x,  lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
@@ -562,7 +562,7 @@ class positive_part(atom):
         if np.any(pos):
             v[pos] = projl1(v[pos], bound)
         return v.reshape(x.shape)
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
 class constrained_max(atom):
     """
@@ -583,7 +583,7 @@ class constrained_max(atom):
         if not anyneg or not check_feasibility:
             return v
         return np.inf
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
@@ -593,7 +593,7 @@ class constrained_max(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
@@ -604,12 +604,12 @@ class constrained_max(atom):
         if np.any(pos):
             v[pos] = projl1(v[pos], lagrange/lipschitz)
         return x-v.reshape(x.shape)
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, x,  lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         return np.clip(x, 0, bound)
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
 class constrained_positive_part(atom):
 
@@ -631,7 +631,7 @@ class constrained_positive_part(atom):
         if not anyneg or not check_feasibility:
             return v * lagrange
         return np.inf
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
@@ -644,7 +644,7 @@ class constrained_positive_part(atom):
 #         if anyneg or v >= bound * (1 + self.tol):
 #             return np.inf
 #         return 0
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
@@ -656,7 +656,7 @@ class constrained_positive_part(atom):
             v[pos] = np.maximum(x[pos] - lagrange/lipschitz, 0)
         return v.reshape(x.shape)
 
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
     def bound_prox(self, x,  lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
@@ -667,7 +667,7 @@ class constrained_positive_part(atom):
         if np.any(pos):
             v[pos] = projl1(v[pos], bound)
         return v.reshape(x.shape)
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
 class max_positive_part(atom):
 
@@ -684,7 +684,7 @@ class max_positive_part(atom):
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return np.max(np.maximum(x,0)) * lagrange
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
+    seminorm.__doc__ = atom.seminorm._doc_template % _doc_dict
 
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
@@ -692,12 +692,12 @@ class max_positive_part(atom):
         if v >= bound * (1 + self.tol):
             return np.inf
         return 0
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
+    constraint.__doc__ = atom.constraint._doc_template % _doc_dict
 
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         return np.clip(x, -np.inf, bound)
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
+    bound_prox.__doc__ = atom.bound_prox._doc_template % _doc_dict
 
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
@@ -708,24 +708,21 @@ class max_positive_part(atom):
         if np.any(pos):
             v[pos] = projl1(v[pos], lagrange / lipschitz)
         return x-v.reshape(x.shape)
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
+    lagrange_prox.__doc__ = atom.lagrange_prox._doc_template % _doc_dict
 
 class affine_atom(object):
+    r"""
+    Given a seminorm on :math:`\mathbb{R}^p`, i.e.  :math:`\beta \mapsto
+    h_K(\beta)` this class creates a new seminorm that evaluates
+    :math:`h_K(D\beta+\alpha)`
 
-    """
-    Given a seminorm on :math:`\mathbb{R}^p`, i.e.
-    :math:`\beta \mapsto h_K(\beta)`
-    this class creates a new seminorm 
-    that evaluates :math:`h_K(D\beta+\alpha)`
-
-    This class does not have a prox, but its
-    dual does. The prox of the dual is
+    This class does not have a prox, but its dual does. The prox of the dual is
 
     .. math::
 
        \text{minimize} \frac{1}{2} \|y-x\|^2_2 + x^T\alpha
        \ \text{s.t.} \ x \in \lambda K
-    
+
     """
 
     def __init__(self, atom_obj, atransform):

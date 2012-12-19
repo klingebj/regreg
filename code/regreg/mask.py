@@ -26,39 +26,43 @@ def adj_from_3dmask(mask,num_time_points,numx=1,numy=1,numz=1,regions=None):
     adj = convert_to_array(adj)
     return adj
 
-def prepare_adj(mask,numx=1,numy=1,numz=1,regions=None,return_array=True):
+def prepare_adj(mask, numx=1,numy=1,numz=1,regions=None,return_array=True):
     """
-    Return adjacency list, where the voxels are considered
-    neighbors if they fall in a ball of radius numt, numx, numy, and numz
-    for time, x position, y position, and z position respectively.
+    Return adjacency list, where the voxels are considered neighbors if they
+    fall in a ball of radius numt, numx, numy, and numz for time, x position, y
+    position, and z position respectively.
 
-    INPUT:
+    Parameters
+    ----------
+    X :  (T, N, P, Q, R) shape ndarray
+        The first index is trial, the second index is time, the third index is x
+        position, the fourth index is y position and the fifth position is z
+        position.
+    mask : (N, P, Q, R) shape binary ndarray
+        The same size as X[0,:,:,:,:] where 1 indicates that the voxel-timepoint
+        is included and 0 indicates that it is excluded. NOTE: Usually the mask
+        is thought of as a 3-dimensional ndarray, since it is uniform across
+        time.
+    regions : (N, P, Q, R) shape ndarray
+        A multivalued array the same size as the mask that indicates different
+        regions in the spatial structure. No adjacency edges will be made across
+        region boundaries.
+    numt: int XXX NOT IN ARG LIST XXX
+        The radius of the "neighborhood ball" in the t direction
+    numx : int, optional
+        The radius of the "neighborhood ball" in the x direction
+    numy : int, optional
+        The radius of the "neighborhood ball" in the y direction
+    numz : int, optional
+        The radius of the "neighborhood ball" in the z direction
+    regions :
+    return_array : {True, False}, optional
 
-    X: a 5-dimensional ndarray. The first index is trial, the second index is time,
-    the third index is x position, the fourth index is y position and the fifth
-    position is z position.
-
-    mask: a binary 4-dimensional ndarray, the same size as X[0,:,:,:,:] where
-    1 indicates that the voxel-timepoint is included and 0 indicates that it is
-    excluded. NOTE: Usually the mask is thought of as a 3-dimensional ndarray, since
-    it is uniform across time. 
-
-    regions: a multivalued array the same size as the mask that indicates different
-    regions in the spatial structure. No adjacency edges will be made across region
-    boundaries.
-
-    numt: an integer, the radius of the "neighborhood ball" in the t direction
-    numx: an integer, the radius of the "neighborhood ball" in the x direction                                                                
-    numy: an integer, the radius of the "neighborhood ball" in the y direction                                                                
-    numz: an integer, the radius of the "neighborhood ball" in the z direction                                                                
-                                                                    
-    OUTPUT:
-
-    newX: The matrix X reshaped as a 2-dimensional array for analysis
+    Returns
+    -------
+    newX : The matrix X reshaped as a 2-dimensional array for analysis
     adj: The adjacency list associated with newX
-
     """
-    
     #Create map going from X to predictor vector indices. The entries of
     # this array are -1 if the voxel is not included in the mask, and the 
     # index in the new predictor corresponding to the voxel if the voxel
