@@ -39,7 +39,6 @@ extensions = ['sphinx.ext.autodoc',
               'ipython_console_highlighting', 
               'ipython_directive',
               'inheritance_diagram',
-              'rdirective'
               ]
 
 # Current version (as of 11/2010) of numpydoc is only compatible with sphinx >
