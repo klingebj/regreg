@@ -10,9 +10,10 @@ SPHINXBUILD   = sphinx-build
 PAPER         =
 
 # Internal variables.
+BUILDROOT       = build
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
-ALLSPHINXOPTS   = -d build/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
+ALLSPHINXOPTS   = -d build/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) source
 
 .PHONY: help clean pdf all dist public_html web web_public htmlonly api html pickle htmlhelp latex changes linkcheck doctest
 
@@ -57,8 +58,8 @@ public_html: dist
 	rsync -avH --delete dist/* $(WWW)
 
 htmlonly:
-	mkdir -p build/html build/doctrees
-	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) build/html
+	mkdir -p $(BUILDROOT)/html $(BUILDROOT)/doctrees
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDROOT)/html
 	@echo
 	@echo "Build finished. The HTML pages are in build/html."
 
