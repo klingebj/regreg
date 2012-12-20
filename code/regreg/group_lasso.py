@@ -9,6 +9,9 @@ from .identity_quadratic import identity_quadratic
 from .atoms import _work_out_conjugate
 from .smooth import affine_smooth
 
+from .objdoctemplates import objective_doc_templater
+from .doctemplates import (doc_template_user, doc_template_provider)
+
 # Constants used below
 
 UNPENALIZED = -1
@@ -28,6 +31,7 @@ try:
 except ImportError:
     raise ImportError('need cython module group_lasso_cython')
 
+@objective_doc_templater()
 class group_lasso(nonsmooth):
 
     _doc_dict = {'linear':r' + \langle \eta, x \rangle',
@@ -140,12 +144,8 @@ class group_lasso(nonsmooth):
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
 
+    @doc_template_provider
     def constraint(self, x, bound=None):
-        if bound is None:
-            raise ValueError('bound must be suppled')
-        x_offset = self.apply_offset(x)
-        return self.seminorm(x_offset) <= bound
-    constraint._doc_template = \
         r"""
         Verify :math:`\cdot %(objective)s \leq \lambda`, where :math:`\lambda`
         is bound, :math:`\alpha` is self.offset (if any).
@@ -155,6 +155,10 @@ class group_lasso(nonsmooth):
         The class atom's constraint just returns the appropriate bound
         parameter for use by the subclasses.
         """
+        if bound is None:
+            raise ValueError('bound must be suppled')
+        x_offset = self.apply_offset(x)
+        return self.seminorm(x_offset) <= bound
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
@@ -213,6 +217,8 @@ class group_lasso(nonsmooth):
         else:
             return eta - offset
 
+
+@objective_doc_templater()
 class group_lasso_conjugate(group_lasso):
 
     _doc_dict = {'linear':r' + \langle \eta, x \rangle',
@@ -332,12 +338,12 @@ class group_lasso_conjugate(group_lasso):
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
 
+    @doc_template_user
     def constraint(self, x, bound=None):
         if bound is None:
             raise ValueError('bound must be suppled')
         x_offset = self.apply_offset(x)
         return self.seminorm(x_offset) <= bound
-    constraint._doc_template = group_lasso.constraint._doc_template
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
