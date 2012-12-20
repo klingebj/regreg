@@ -1,6 +1,7 @@
 from numpy.linalg import norm
 from numpy import zeros, array
 import new
+from copy import copy
 
 # local imports
 
@@ -126,9 +127,7 @@ class composite(object):
 
         if conjugate_atom.quadratic is not None:
             total_q = sq + conjugate_atom.quadratic
-        conjugate_atom.set_quadratic(total_q.coef, total_q.center,
-                                     total_q.linear_term, 
-                                     total_q.constant_term)
+        conjugate_atom.set_quadratic(total_q)
         smoothed_atom = conjugate_atom.conjugate
         return smoothed_atom
 
@@ -298,8 +297,8 @@ class smooth_conjugate(smooth):
                 return atom
             if q.coef != 0:
                 r = q.coef
-                sq = self.smoothing_quadratic
-                newq = sq + q.conjugate
+                sq_ = self.smoothing_quadratic
+                newq = sq_ + q.conjugate
                 new_smooth = smooth_conjugate(self.atom, quadratic=newq)
                 output = smooth(self.atom.primal_shape,
                                 offset=None,
