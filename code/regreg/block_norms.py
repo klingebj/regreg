@@ -4,13 +4,16 @@ l1/l*, linf/l* norms. These are used in multiresponse LASSOs.
 
 """
 
-from copy import copy
 import warnings
 
 import numpy as np
 import atoms
 from .identity_quadratic import identity_quadratic
 
+from .objdoctemplates import objective_doc_templater
+from .doctemplates import (doc_template_user, doc_template_provider)
+
+@objective_doc_templater()
 class block_sum(atoms.atom):
 
     _doc_dict = {'linear':r' + \text{Tr}(\eta^T X)',
@@ -20,7 +23,7 @@ class block_sum(atoms.atom):
                  'var':r'X'}
 
     objective_template = r"""\|%(var)s\|_{1,h}"""
-    _doc_dict['objective'] = objective_template % {'var': r'X + A'}
+    objective_vars = {'var': r'X + A'}
 
     def __init__(self, atom_cls, primal_shape,
                  lagrange=None,
@@ -36,7 +39,7 @@ class block_sum(atoms.atom):
                             initial=initial,
                             lagrange=lagrange,
                             bound=bound)
-            
+
         self.atom = atom_cls(primal_shape[1:], lagrange=lagrange,
                              bound=bound,
                              offset=None,
@@ -65,7 +68,7 @@ class block_sum(atoms.atom):
         if v <= self.bound * (1 + self.tol):
             return 0
         return np.inf
-                    
+
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.lagrange_prox(self, x, lipschitz, lagrange)
@@ -85,7 +88,7 @@ class block_sum(atoms.atom):
     def set_lagrange(self, lagrange):
         self.atom.lagrange = lagrange
     lagrange = property(get_lagrange, set_lagrange)
-    
+
     def get_bound(self):
         return self.atom.bound
     def set_bound(self, bound):
@@ -125,11 +128,11 @@ class block_sum(atoms.atom):
         return self._conjugate
 
 
+@objective_doc_templater()
 class block_max(block_sum):
 
     objective_template = r"""\|%(var)s\|_{\infty,h}"""
-    _doc_dict = copy(block_sum._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'X + A'}
+    objective_vars = {'var': r'X + A'}
 
     def seminorm(self, x, lagrange=None, check_feasibility=False):
         x = x.reshape(self.primal_shape)
@@ -147,7 +150,7 @@ class block_max(block_sum):
         if v <= self.bound * (1 + self.tol):
             return 0
         return np.inf
-                    
+
     def lagrange_prox(self, x, lipschitz=1, lagrange=None):
         warnings.warn('lagrange_prox of block_max requires a little thought -- should be like l1prox')
         return 0 * x
@@ -162,11 +165,12 @@ class block_max(block_sum):
                                         bound=bound)
         return v
 
+
+@objective_doc_templater()
 class linf_l2(block_max):
-    
+
     objective_template = r"""\|%(var)s\|_{\infty,2}"""
-    _doc_dict = copy(block_sum._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'X + A'}
+    objective_vars = {'var': r'X + A'}
 
     def __init__(self, primal_shape,
                  lagrange=None,
@@ -188,7 +192,7 @@ class linf_l2(block_max):
         if norm_max <= self.bound * (1 + self.tol):
             return 0
         return np.inf
-                    
+
     def seminorm(self, x, lagrange=None, check_feasibility=False):
         x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
@@ -237,11 +241,11 @@ class linf_l2(block_max):
         return self._conjugate
 
 
+@objective_doc_templater()
 class linf_linf(linf_l2):
-    
+
     objective_template = r"""\|%(var)s\|_{\infty,\infty}"""
-    _doc_dict = copy(block_sum._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'X + A'}
+    objective_vars = {'var': r'X + A'}
 
     def __init__(self, primal_shape,
                  lagrange=None,
@@ -263,7 +267,7 @@ class linf_linf(linf_l2):
         if norm_max <= self.bound * (1 + self.tol):
             return 0
         return np.inf
-                    
+
     def seminorm(self, x, lagrange=None, check_feasibility=False):
         x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
@@ -279,12 +283,12 @@ class linf_linf(linf_l2):
         # print 'bound', bound
         return np.clip(x, -bound, bound)
 
-class l1_l2(block_sum):
-    
-    objective_template = r"""\|%(var)s\|_{1,2}"""
-    _doc_dict = copy(block_sum._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'X + A'}
 
+@objective_doc_templater()
+class l1_l2(block_sum):
+
+    objective_template = r"""\|%(var)s\|_{1,2}"""
+    objective_vars = {'var': r'X + A'}
 
     def __init__(self, primal_shape,
                  lagrange=None,
@@ -345,7 +349,7 @@ class l1_l2(block_sum):
         if norm_sum <= self.bound * (1 + self.tol):
             return 0
         return np.inf
-                    
+
     def seminorm(self, x, lagrange=None, check_feasibility=False):
         x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
@@ -353,11 +357,12 @@ class l1_l2(block_sum):
         norm_sum = np.sum(np.sqrt((x**2).sum(1)))
         return lagrange * norm_sum
 
+
+@objective_doc_templater()
 class l1_l1(l1_l2):
-    
+
     objective_template = r"""\|%(var)s\|_{1,1}"""
-    _doc_dict = copy(block_sum._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'X + A'}
+    objective_vars = {'var': r'X + A'}
 
     def __init__(self, primal_shape,
                  lagrange=None,
@@ -385,15 +390,13 @@ class l1_l1(l1_l2):
         if norm_sum <= self.bound * (1 + self.tol):
             return 0
         return np.inf
-                    
+
     def seminorm(self, x, lagrange=None, check_feasibility=False):
         x = x.reshape(self.primal_shape)
         lagrange = atoms.atom.seminorm(self, x, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
         norm_sum = np.fabs(x).sum()
         return lagrange * norm_sum
-
-
 
 
 conjugate_block_pairs = {}
@@ -403,4 +406,3 @@ for n1, n2 in [(block_max, block_sum),
                ]:
     conjugate_block_pairs[n1] = n2
     conjugate_block_pairs[n2] = n1
-

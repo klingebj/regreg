@@ -234,7 +234,7 @@ class lasso(object):
 
         sliced_penalty = group_lasso(rps, lagrange, weights=self.group_weights)
         problem_sliced = simple_problem(loss, sliced_penalty)
-        candidate_selector = selector(candidate_set, self.Xn.primal_shape)
+        candidate_selector = selector(candidate_set, self.shape[1])
         return problem_sliced, candidate_selector, restricted_penalty_structure
 
     def solve_subproblem(self, candidate_set, lagrange_new, **solve_args):
@@ -342,6 +342,9 @@ class lasso(object):
 
                     debug = True
                     tol = inner_tol
+                    if num_tries >= 10:
+                        warn('convergence not achieved for lagrange=%0.4e' % lagrange_new)
+                        break
 
             rescaled_solution = self.nonzero.adjoint_map(self.solution)
             rescaled_solutions = scipy.sparse.vstack([rescaled_solutions, rescaled_solution])

@@ -1,4 +1,4 @@
-"""
+r"""
 This module contains a single class that is meant to represent
 a quadratic of the form
 
@@ -6,7 +6,8 @@ a quadratic of the form
 
    \frac{\kappa}{2} \|x-\mu\|^2_2 + \beta^Tx + \gamma
 
-with :math:`\kappa, \mu, \beta, \gamma` = (coef, center, linear_term, constant_term).
+with :math:`\kappa, \mu, \beta, \gamma` = (coef, center, linear_term,
+constant_term).
 """
 
 from copy import copy
@@ -101,14 +102,14 @@ class identity_quadratic(object):
                 return coef * r
         else:
             raise ValueError("Mode incorrectly specified")
-                        
+
     def __repr__(self):
         return 'identity_quadratic(%f, %s, %s, %f)' % (self.coef, str(self.center), str(self.linear_term), self.constant_term)
 
     def __add__(self, other):
-        """
-        Return an identity quadratic given by the sum in the obvious way. it has center of 0,
-        would be nice to have None, but there are some 
+        """ Return an identity quadratic given by the sum in the obvious way.
+
+        It has center of 0, would be nice to have None, but there are some
         places we are still multiplying by -1
         """
         if not (other is None or isinstance(other, identity_quadratic)):

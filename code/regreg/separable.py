@@ -31,11 +31,12 @@ def has_overlap(shape, groups):
     res : boolean
         True if the slices overlap, else False.
 
+    Examples
+    --------
     >>> has_overlap((4,5), [slice(2,3), slice(4,5)])
     False
     >>> has_overlap((4,5), [slice(2,3), [Ellipsis, slice(4,5)]])
     True
-
     """
     indices = np.arange(np.product(shape)).reshape(shape)
     subsets = []

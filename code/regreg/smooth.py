@@ -450,6 +450,7 @@ class sum(smooth_atom):
         self.weights = np.asarray(weights).reshape(-1)
         if self.weights.shape[0] != len(atoms):
             raise ValueError('weights and atoms have different lengths')
+        self.coefs = self.atoms[0].coefs
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
