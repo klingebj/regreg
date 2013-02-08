@@ -354,12 +354,12 @@ class smooth_conjugate(smooth):
             objective = -optimal_value
             # retain a reference
             self.grad = argmin
-            return objective, argmin
+            return objective, self.grad
         elif mode == 'grad':
             argmin = self.atom.solve(quadratic=q)
             # retain a reference
             self.grad = argmin
-            return argmin
+            return self.grad
         elif mode == 'func':
             optimal_value, argmin = self.atom.solve(quadratic=q, return_optimum=True)
             objective = -optimal_value
