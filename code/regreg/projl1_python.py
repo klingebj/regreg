@@ -1,20 +1,20 @@
 import numpy as np
 
 """
-Implements (expected) linear time projections onto \ell_1 ball as described in
+Implements (expected) linear time projections onto $\ell_1$ ball as described in
 title = {Efficient projections onto the l1-ball for learning in high dimensions}
-author = {Duchi, John and Shalev-Shwartz, Shai and Singer, Yoram and Chandra, Tushar}
+author = {Duchi, John and Shalev-Shwartz, Shai and Singer, Yoram and Chandra,
+Tushar}
 """
 
 #A faster Cython implementation is in projl1_cython.pyx
 
 
-def projl1(x, 
-           bound=1.):
+def projl1(x, bound=1.):
 
     sorted_x = np.sort(np.fabs(x))
     p = x.shape[0]
-    
+
     csum = 0.
     for i in range(p):
         next = sorted_x[p-i-1]
@@ -28,17 +28,16 @@ def projl1(x,
     else:
         return x
 
-                
+
 def projl1_epigraph(center):
     """
-    Project center=proxq.true_center onto the l1 epigraph. The bound term is center[0],
-    the coef term is center[1:]
+    Project center=proxq.true_center onto the l1 epigraph. The bound term is
+    center[0], the coef term is center[1:]
 
-    The l1 epigraph is the collection of points (u,v): \|v\|_1 \leq u
+    The l1 epigraph is the collection of points $(u,v): \|v\|_1 \leq u$
     np.fabs(coef).sum() <= bound.
 
     """
-    
     norm = center[0]
     coef = center[1:]
     sorted_coefs = np.sort(np.fabs(coef))

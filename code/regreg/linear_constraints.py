@@ -107,7 +107,6 @@ class projection(linear_constraint):
     It is assumed (without checking) that the rows of basis
     are orthonormal, so that projecting *x* onto their span
     is simply np.dot(basis.T, np.dot(basis, x))
-    
     """
 
     def constraint(self, x):
@@ -129,14 +128,14 @@ class projection(linear_constraint):
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2  \; \text{ s.t.} \; x \in \text{row}(L)
 
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange 
-        and  self.basis is an orthonormal basis for :math:`\text{row}(L)`
+        where $p$=x.shape[0], :math:`\lambda` = self.lagrange and self.basis is
+        an orthonormal basis for :math:`\text{row}(L)`
 
         This is just projection onto :math:`\text{row}(L)`.
-
         """
         coefs = np.dot(self.basis, x)
         return np.dot(coefs, self.basis)
+
 
 class projection_complement(linear_constraint):
 
@@ -165,12 +164,12 @@ class projection_complement(linear_constraint):
             v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
             \|x-v\|^2_2  \; \text{ s.t.} \; Lx=0
 
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange 
-        and  self.basis is an orthonormal basis for the
-        orthogonal complement of :math:`\text{row}(L)`
+        where $p$ = x.shape[0], :math:`\lambda` = self.lagrange and self.basis
+        is an orthonormal basis for the orthogonal complement of
+        :math:`\text{row}(L)`
 
-        This is just projection onto the orthogonal complement of :math:`\text{row}(L)`
-
+        This is just projection onto the orthogonal complement of
+        :math:`\text{row}(L)`
         """
         coefs = np.dot(self.basis, x)
         return x - np.dot(coefs, self.basis)

@@ -10,11 +10,15 @@ from .affine import (linear_transform, identity as identity_transform,
 from .atoms import atom as unweighted_atom, _work_out_conjugate
 from .identity_quadratic import identity_quadratic
 
+from .objdoctemplates import objective_doc_templater
+from .doctemplates import (doc_template_user, doc_template_provider)
+
 try:
     from projl1_cython import projl1
 except:
     warnings.warn('Cython version of projl1 not available. Using slower python version')
     from projl1_python import projl1
+
 
 class atom(unweighted_atom):
 
@@ -22,6 +26,12 @@ class atom(unweighted_atom):
     A class that defines the API for support functions.
     """
     tol = 1.0e-05
+
+    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
+                 'constant':r' + \tau',
+                 'objective': '',
+                 'shape':'p',
+                 'var':r'x'}
 
     def __init__(self, primal_shape, weights, lagrange=None, bound=None, 
                  offset=None, 
@@ -137,13 +147,8 @@ class atom(unweighted_atom):
         return self._linear_transform
     linear_transform = property(form_transform)
 
-    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
 
-    
+@objective_doc_templater()
 class l1norm(atom):
 
     """
@@ -152,8 +157,7 @@ class l1norm(atom):
     prox_tol = 1.0e-10
 
     objective_template = r"""\|%(var)s\|_1"""
-    _doc_dict = copy(atom._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
+    objective_vars = {'var': r'x + \alpha'}
 
     def seminorm(self, x, lagrange=None, check_feasibility=False):
         lagrange = atom.seminorm(self, x, 
@@ -164,8 +168,9 @@ class l1norm(atom):
             check_zero = ~finite * (x != 0)
             if check_zero.sum():
                 return np.inf
-        return lagrange * np.fabs(x[finite] * self.weights[finite]).sum()                
+        return lagrange * np.fabs(x[finite] * self.weights[finite]).sum()
 
+    @doc_template_user
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
         inbox = self.seminorm(x, lagrange=1,
@@ -174,28 +179,28 @@ class l1norm(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
 
+    @doc_template_user
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
         return np.sign(x) * np.maximum(np.fabs(x)-lagrange * self.weights /lipschitz, 0)
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
 
+    @doc_template_user
     def bound_prox(self, x, lipschitz=1, bound=None):
         raise NotImplementedError
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
 
+
+@objective_doc_templater()
 class supnorm(atom):
 
-    """
+    r"""
     The :math:`\ell_{\infty}` norm
     """
 
     objective_template = r"""\|%(var)s\|_{\infty}"""
-    _doc_dict = copy(atom._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'\beta + \alpha'}
+    objective_vars = {'var': r'\beta + \alpha'}
 
-
+    @doc_template_user
     def seminorm(self, x, lagrange=None, check_feasibility=False):
         lagrange = atom.seminorm(self, x, 
                                  check_feasibility=check_feasibility, 
@@ -206,9 +211,8 @@ class supnorm(atom):
             if check_zero.sum():
                 return np.inf
         return lagrange * np.fabs(x[finite] * self.weights[finite]).max()
-            
-    seminorm.__doc__ = atom.seminorm.__doc__ % _doc_dict
 
+    @doc_template_user
     def constraint(self, x, bound=None):
         bound = atom.constraint(self, x, bound=bound)
         inbox = self.seminorm(x, lagrange=1,
@@ -217,17 +221,15 @@ class supnorm(atom):
             return 0
         else:
             return np.inf
-    constraint.__doc__ = atom.constraint.__doc__ % _doc_dict
 
+    @doc_template_user
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         raise NotImplementedError
-    
-    lagrange_prox.__doc__ = atom.lagrange_prox.__doc__ % _doc_dict
 
+    @doc_template_user
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         return np.clip(x, -bound/self.weights, bound/self.weights)
-    bound_prox.__doc__ = atom.bound_prox.__doc__ % _doc_dict
 
 
 conjugate_weighted_pairs = {}

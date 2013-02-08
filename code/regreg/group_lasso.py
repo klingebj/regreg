@@ -9,6 +9,9 @@ from .identity_quadratic import identity_quadratic
 from .atoms import _work_out_conjugate
 from .smooth import affine_smooth
 
+from .objdoctemplates import objective_doc_templater
+from .doctemplates import (doc_template_user, doc_template_provider)
+
 # Constants used below
 
 UNPENALIZED = -1
@@ -28,6 +31,7 @@ try:
 except ImportError:
     raise ImportError('need cython module group_lasso_cython')
 
+@objective_doc_templater()
 class group_lasso(nonsmooth):
 
     _doc_dict = {'linear':r' + \langle \eta, x \rangle',
@@ -140,18 +144,16 @@ class group_lasso(nonsmooth):
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
 
+    @doc_template_provider
     def constraint(self, x, bound=None):
-        """
-        Verify :math:`\cdot %(objective)s \leq \lambda`, where
-        :math:`\lambda` is bound,
-        :math:`\alpha` is self.offset (if any). 
+        r"""
+        Verify :math:`\cdot %(objective)s \leq \lambda`, where :math:`\lambda`
+        is bound, :math:`\alpha` is self.offset (if any).
 
-        If True, returns 0,
-        else returns np.inf.
+        If True, returns 0, else returns np.inf.
 
         The class atom's constraint just returns the appropriate bound
         parameter for use by the subclasses.
-
         """
         if bound is None:
             raise ValueError('bound must be suppled')
@@ -163,7 +165,7 @@ class group_lasso(nonsmooth):
         v = self.seminorm(x_offset, check_feasibility=check_feasibility)
         v += self.quadratic.objective(x, 'func')
         return v
-        
+
     def seminorm(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
         v = seminorm_group_lasso(x_offset,
@@ -215,6 +217,8 @@ class group_lasso(nonsmooth):
         else:
             return eta - offset
 
+
+@objective_doc_templater()
 class group_lasso_conjugate(group_lasso):
 
     _doc_dict = {'linear':r' + \langle \eta, x \rangle',
@@ -334,19 +338,8 @@ class group_lasso_conjugate(group_lasso):
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
 
+    @doc_template_user
     def constraint(self, x, bound=None):
-        """
-        Verify :math:`\cdot %(objective)s \leq \lambda`, where
-        :math:`\lambda` is bound,
-        :math:`\alpha` is self.offset (if any). 
-
-        If True, returns 0,
-        else returns np.inf.
-
-        The class atom's constraint just returns the appropriate bound
-        parameter for use by the subclasses.
-
-        """
         if bound is None:
             raise ValueError('bound must be suppled')
         x_offset = self.apply_offset(x)
@@ -358,7 +351,7 @@ class group_lasso_conjugate(group_lasso):
             v = self.constraint(x_offset, self.bound)
         v += self.quadratic.objective(x, 'func')
         return v
-        
+
     def seminorm(self, x, lagrange=1, check_feasibility=False):
         x_offset = self.apply_offset(x)
         v = seminorm_group_lasso_conjugate(x_offset,
@@ -389,7 +382,6 @@ class group_lasso_conjugate(group_lasso):
            \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
 
         """
-
         offset, totalq = (self.quadratic + proxq).recenter(self.offset)
         if totalq.coef == 0:
             raise ValueError('lipschitz + quadratic coef must be positive')

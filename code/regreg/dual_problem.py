@@ -15,22 +15,21 @@ from .cones import zero_constraint, zero as zero_nonsmooth, affine_cone
 from .identity_quadratic import identity_quadratic
 
 class dual_problem(composite):
-    """
+    r"""
     A class for specifying a problem of the form
 
     .. math::
 
-       \minimize_x f(x) + g(Dx)
+       \text{minimize}_{x} f(x) + g(Dx)
 
     which will be solved by a dual problem
 
     .. math::
 
-       \minimize_{u_i} f^*(-D^Tu) + g^*(u)
+       \text{minimize}_{u_i} f^*(-D^Tu) + g^*(u)
 
-    while the primal variable is stored in the computation
-    of the gradient of :math:`f^*`.
-
+    while the primal variable is stored in the computation of the gradient of
+    :math:`f^*`.
     """
 
     def __init__(self, f_conjugate, transform, atom):
@@ -87,14 +86,15 @@ class dual_problem(composite):
         return self.primal
 
 def stacked_dual(shape, *primary_atoms):
-    '''
-    Computes a dual of 
+    r'''
+    Computes a dual of
 
     .. math::
 
        \sum_i g_i(D_i\beta)
 
     under the substitutions :math:`v_i=D_i\beta`.
+
     That is, it returns the following dual function after minimizing
     over :math:`(v_i,\beta_i)`:
 
@@ -102,18 +102,15 @@ def stacked_dual(shape, *primary_atoms):
 
        -\sum_i g_i^*(u_i)
 
-    as well as the transform 
-    :math:`D\maps \mathbb{R}^p \prod_i \mathbb{R}^{m_i}` where
-    :math:`p` is the primal shape and :math:`m_i` are the corresponding
-    dual shapes.
+    as well as the transform :math:`D \mapsto \mathbb{R}^p \prod_i
+    \mathbb{R}^{m_i}` where :math:`p` is the primal shape and :math:`m_i` are
+    the corresponding dual shapes.
 
     Parameters
     ----------
-
     primary_atoms : [atoms]
         Objects that have dual attributes, which is a pair
         (ltransform, conjugate).
-
     '''
     if len(primary_atoms) == 0:
         primary_atoms = [zero_nonsmooth(shape)]
@@ -122,7 +119,7 @@ def stacked_dual(shape, *primary_atoms):
     transforms = [d[0] for d in duals]
     dual_atoms = [d[1] for d in duals]
 
-    if len(transforms) > 1:            
+    if len(transforms) > 1:
         transform = afvstack(transforms)
         separable_atom = separable(transform.dual_shape, dual_atoms,
                                    transform.dual_slices)

@@ -13,7 +13,7 @@ from .simple import simple_problem
 
 class admm_problem(object):
 
-    """
+    r"""
     A class for solving the generic problem
 
     .. math::
@@ -154,7 +154,7 @@ class admm_problem(object):
 
            
 class node_problem(composite):
-    """
+    r"""
     A class for storing and updating the node coefficients $z_i = D_i \beta_i$ for a single node
     """
 
