@@ -245,26 +245,6 @@ class group_lasso_conjugate(group_lasso):
                              initial=initial)
         del(self.lagrange)
         self.bound = bound
-#         primal_shape = np.asarray(penalty_structure).shape
-#         nonsmooth.__init__(self, primal_shape, offset,
-#                            quadratic, initial)
-
-#         self.weights = weights
-#         self.bound = bound
-#         self.penalty_structure = penalty_structure
-#         self._groups = -np.ones(self.primal_shape, np.int)
-#         groups = set(np.unique(self.penalty_structure)).difference( \
-#             set(reserved)
-#         self._weight_array = np.zeros(len(groups))
-
-#         self._l1_penalty = np.nonzero(self.penalty_structure == L1_PENALTY)[0]
-#         self._positive_part = np.nonzero(self.penalty_structure == POSITIVE_PART)[0]
-#         self._unpenalized = np.nonzero(self.penalty_structure == UNPENALIZED)[0]
-
-#         for idx, label in enumerate(groups):
-#             g = self.penalty_structure == label
-#             self._groups[g] = idx
-#             self._weight_array[idx] = self.weights.get(label, np.sqrt(g.sum()))
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
