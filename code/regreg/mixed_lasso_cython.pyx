@@ -2,7 +2,7 @@ import numpy as np, sys
 cimport numpy as np
 
 """
-Implements prox and dual of group LASSO, strong set, seminorm and dual seminorm.
+Implements prox and dual of group LASSO, strong set, seminorm and dual seminorm. The 
 """
 
 DTYPE_float = np.float
@@ -12,7 +12,7 @@ ctypedef np.int_t DTYPE_int_t
 
 #TODO: Add some documentation to this!
 
-def prox_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center, 
+def mixed_lasso_lagrange_prox(np.ndarray[DTYPE_float_t, ndim=1] prox_center, 
                      DTYPE_float_t lagrange, DTYPE_float_t lipschitz,
                      np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                      np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
@@ -48,7 +48,7 @@ def prox_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
 
     return prox_center - projection
 
-def project_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center, 
+def mixed_lasso_conjugate_bound_prox(np.ndarray[DTYPE_float_t, ndim=1] prox_center, 
                      DTYPE_float_t bound, 
                      np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                      np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
@@ -82,7 +82,7 @@ def project_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
 
     return projection
 
-def seminorm_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x, 
+def seminorm_mixed_lasso(np.ndarray[DTYPE_float_t, ndim=1] x, 
                          np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                          np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
                          np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
@@ -120,7 +120,7 @@ def seminorm_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
     return value
 
 
-def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x, 
+def strong_set_mixed_lasso(np.ndarray[DTYPE_float_t, ndim=1] x, 
                            DTYPE_float_t lagrange_new,
                            DTYPE_float_t lagrange_cur,
                            DTYPE_float_t slope_estimate,
@@ -133,7 +133,7 @@ def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
     
     cdef np.ndarray value = np.zeros_like(x)
     cdef np.ndarray norms = np.zeros_like(weights)
-    cdef np.ndarray group_value = np.zeros_like(weights)
+    cdef np.ndarray mixed_value = np.zeros_like(weights)
     cdef int i, j
     cdef int p = groups.shape[0]
     
@@ -147,15 +147,15 @@ def strong_set_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] x,
 
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
-        group_value[j] = norms[j] < weights[j] * (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
+        mixed_value[j] = norms[j] < weights[j] * (slope_estimate+1) * lagrange_new - slope_estimate*lagrange_cur
 
     for i in range(p):
         if groups[i] >= 0:
-            value[i] = group_value[groups[i]]
+            value[i] = mixed_value[groups[i]]
 
     return 1 - value
 
-def check_KKT_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] grad, 
+def check_KKT_mixed_lasso(np.ndarray[DTYPE_float_t, ndim=1] grad, 
                           np.ndarray[DTYPE_float_t, ndim=1] solution, 
                           DTYPE_float_t lagrange,
                           np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
@@ -257,7 +257,7 @@ def check_KKT_group_lasso(np.ndarray[DTYPE_float_t, ndim=1] grad,
 
     return failing
    
-def seminorm_group_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x, 
+def seminorm_mixed_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x, 
                                    np.ndarray[DTYPE_int_t, ndim=1] l1_penalty, 
                                    np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
                                    np.ndarray[DTYPE_int_t, ndim=1] positive_part, 
@@ -288,7 +288,7 @@ def seminorm_group_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x,
 
     for j in range(weights.shape[0]):
         norms[j] = np.sqrt(norms[j])
-        value = max(value, weights[j] * norms[j])
+        value = max(value, norms[j] / weights[j])
 
     if check_feasibility:
         xnn = x[nonnegative]
@@ -297,4 +297,92 @@ def seminorm_group_lasso_conjugate(np.ndarray[DTYPE_float_t, ndim=1] x,
                 value = np.inf
 
     return value
+
+def mixed_lasso_bound_prox(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
+                           DTYPE_float_t bound,
+                           np.ndarray[DTYPE_int_t, ndim=1] l1_penalty,
+                           np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
+                           np.ndarray[DTYPE_int_t, ndim=1] positive_part,
+                           np.ndarray[DTYPE_int_t, ndim=1] nonnegative,
+                           np.ndarray[DTYPE_int_t, ndim=1] groups, 
+                           np.ndarray[DTYPE_float_t, ndim=1] weights):
+
+    cdef int p = groups.shape[0]
+    cdef int stop, i, j
+    cdef float curV = 0.
+    cdef double nextV, slope, intercept, curX, nextX
+    
+    cdef np.ndarray norms = np.zeros_like(weights)
+    cdef np.ndarray factors = np.zeros_like(weights)
+    cdef np.ndarray projection = np.zeros_like(prox_center)
+    cdef int q = norms.shape[0]
+    
+    for i in range(p):
+        if groups[i] >= 0:
+            norms[groups[i]] = norms[groups[i]] + prox_center[i]**2
+
+    for j in range(q):
+        norms[j] = np.sqrt(norms[j])
+    
+    cdef np.ndarray[DTYPE_float_t, ndim=1] l1term = prox_center[l1_penalty]
+    l1term = l1term[l1term != 0]
+    
+    cdef np.ndarray[DTYPE_float_t, ndim=1] ppterm = prox_center[positive_part]
+    ppterm = ppterm[ppterm > 0]
+    
+    cdef np.ndarray[DTYPE_float_t, ndim=1] knots = np.hstack([norms / weights,
+                                                              l1term,
+                                                              ppterm])
+
+    cdef np.ndarray[DTYPE_float_t, ndim=1] fweights = np.ones_like(knots)
+    fweights[:q] = weights**2
+
+    cdef np.ndarray[DTYPE_int_t, ndim=1] knots_as = np.argsort(knots)
+    knots = knots[knots_as]
+    
+    stop = 0
+    curV = 0.
+    q = knots.shape[0]
+    curX = knots[q-1]
+
+    for j in range(q-1):
+        slope += fweights[knots_as[q-j-1]]
+        nextX = knots[q-j-2]
+        nextV = curV + slope * (curX - nextX)
+        stop = nextV > bound
+        if stop:
+            intercept = curV + curX * slope
+            break
+        curV, curX = nextV, nextX
+        curX = nextX
+        
+    f = '%s' % str((curV,slope,bound)) # BUG?, without printing or doing something to curV function
+                         # fails    
+    if stop:
+        cut = -(bound - intercept) / slope 
+    else:
+        slope += fweights[0]
+        nextX = 0
+        nextV = curV + slope * (curX - nextX)
+        intercept = curV + curX * slope
+        
+        cut = -(bound - intercept) / slope 
+        if cut < 0:
+            cut = 0
+    
+    f = '%s' % str((curV,slope,bound)) # BUG?, without printing or doing something to curV function
+
+    for j in range(weights.shape[0]):
+        factors[j] = min(1., cut * weights[j] / norms[j])
+    
+    for i in range(p):
+        if groups[i] >= 0:
+            projection[i] = prox_center[i] * factors[groups[i]]
+
+    projection[l1_penalty] = prox_center[l1_penalty] * np.minimum(1, bound / np.fabs(prox_center[l1_penalty]))
+    projection[unpenalized] = 0
+    projection[positive_part] = np.minimum(bound, prox_center[positive_part])
+    projection[nonnegative] = np.minimum(prox_center[nonnegative], 0)
+
+    return prox_center - projection
 

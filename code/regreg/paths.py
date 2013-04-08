@@ -11,7 +11,7 @@ from .quadratic import squared_error
 from .separable import separable_problem, separable
 from .simple import simple_problem
 from .identity_quadratic import identity_quadratic as iq
-from .group_lasso import group_lasso, strong_set as strong_set_gl, check_KKT
+from .mixed_lasso import mixed_lasso, strong_set as strong_set_ml, check_KKT
 
 # Constants used below
 

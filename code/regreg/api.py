@@ -43,4 +43,6 @@ from weighted_atoms import (l1norm as weighted_l1norm,
 
 from paths import lasso, nesta as nesta_path, UNPENALIZED, L1_PENALTY, POSITIVE_PART, NONNEGATIVE
 
+from mixed_lasso import mixed_lasso, mixed_lasso_conjugate
+
 from group_lasso import group_lasso, group_lasso_conjugate

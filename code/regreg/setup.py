@@ -17,8 +17,8 @@ def configuration(parent_package='',top_path=None):
     config.add_extension('projl1_cython',
                          sources = ["projl1_cython.c"],
                          )
-    config.add_extension('group_lasso_cython',
-                         sources = ["group_lasso_cython.c"],
+    config.add_extension('mixed_lasso_cython',
+                         sources = ["mixed_lasso_cython.c"],
                          )
     return config
 

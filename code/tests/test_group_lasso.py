@@ -1,107 +1,189 @@
-import numpy as np, regreg.api as rr
-import regreg.group_lasso as gl
+import numpy as np
+import itertools
+from copy import copy
 
-def test_group_lasso_prox():
-    prox_center = np.array([1,3,5,7,-9,3,4,6,7,8,9,11,13,4,-23,40], np.float)
-    l1_penalty = np.array([0,1])
-    unpenalized = np.array([2,3])
-    positive_part = np.array([4,5])
-    groups = np.array([-2,-2,-1,-1,-3,-3] + [0]*5 + [1]*5)
-    weights = np.array([1.,1.])
+from regreg.group_lasso import group_lasso, group_lasso_conjugate
+import regreg.api as rr
+import nose.tools as nt
 
-    lagrange = 1.
-    lipschitz = 0.5
+def ac(x,y, msg=None):
+    try:
+        v = np.linalg.norm(x-y) <= 1.0e-04 * max([1, np.linalg.norm(x), np.linalg.norm(y)])
+    except:
+        print 'check failed for msg: ', msg, x, y
+        stop
+        return False
+    if not (v or np.allclose(x,y)):
+        print 'msg: ', msg, np.linalg.norm(x-y) / max([1, np.linalg.norm(x), np.linalg.norm(y)]), x, y
+    nt.assert_true(v)
 
-    result = np.zeros_like(prox_center)
+@np.testing.dec.slow
+def test_proximal_maps():
+    bound = 0.14
+    lagrange = 0.13
+    shape = 20
 
-    result[unpenalized] = prox_center[unpenalized]
-    result[positive_part] = (prox_center[positive_part] - lagrange / lipschitz) * np.maximum(prox_center[positive_part] - lagrange / lipschitz, 0)
-    result[l1_penalty] = np.maximum(np.fabs(prox_center[l1_penalty]) - lagrange / lipschitz, 0) * np.sign(prox_center[l1_penalty])
+    groups = [0]*3 + [1]*4 + [2]*5 + [3]*8
 
-    result[6:11] = prox_center[6:11] / np.linalg.norm(prox_center[6:11]) * max(np.linalg.norm(prox_center[6:11]) - weights[0] * lagrange/lipschitz, 0)
-    result[11:] = prox_center[11:] / np.linalg.norm(prox_center[11:]) * max(np.linalg.norm(prox_center[11:]) - weights[1] * lagrange/lipschitz, 0)
+    Z = np.random.standard_normal(shape) * 4
+    W = 0.02 * np.random.standard_normal(shape)
+    U = 0.02 * np.random.standard_normal(shape)
+    linq = rr.identity_quadratic(0,0,W,0)
 
-    prox_result = gl.prox_group_lasso(prox_center, 1., 0.5, l1_penalty, unpenalized, positive_part, groups, weights)
+    for L, atom, q, offset, FISTA, coef_stop, weights in itertools.product([0.5,1,0.1], \
+                     [group_lasso, group_lasso_conjugate],
+                                              [None, linq],
+                                              [None, U],
+                                              [False, True],
+                                              [True, False],
+                                              [{}, {0:3}]):
 
-    np.testing.assert_allclose(result, prox_result)
+        p = atom(groups, lagrange=lagrange, quadratic=q,
+                   offset=offset, weights=weights)
+        d = p.conjugate 
+        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L, lipschitz=1./L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
+        # some arguments of the constructor
 
-def test_group_lasso_atom():
+        nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
+        nt.assert_raises(AttributeError, setattr, d, 'lagrange', 4.)
+        
+        nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
+        nt.assert_raises(AttributeError, setattr, d, 'lagrange', 4.)
 
+        for t in solveit(p, Z, W, U, linq, L, FISTA, coef_stop):
+            yield t
 
-    ps = np.array([0]*5 + [3]*3)
-    weights = {3:2., 0:2.3}
+        b = atom(groups, bound=bound, quadratic=q,
+                 offset=offset, weights=weights)
 
-    lagrange = 1.5
-    lipschitz = 0.2
-    p = gl.group_lasso(ps, lagrange, weights)
-    z = 30 * np.random.standard_normal(8)
-    q = rr.identity_quadratic(lipschitz, z, 0, 0)
-
-    x = p.solve(q)
-    a = gl.prox_group_lasso(z, lagrange, lipschitz, np.array([],np.int), np.array([],np.int), np.array([], np.int), np.array([0,0,0,0,0,1,1,1]), np.array([np.sqrt(5), 2]))
-
-    result = np.zeros_like(a)
-    result[:5] = z[:5] / np.linalg.norm(z[:5]) * max(np.linalg.norm(z[:5]) - weights[0] * lagrange/lipschitz, 0)
-    result[5:] = z[5:] / np.linalg.norm(z[5:]) * max(np.linalg.norm(z[5:]) - weights[3] * lagrange/lipschitz, 0)
-
-    lipschitz = 1.
-    q = rr.identity_quadratic(lipschitz, z, 0, 0)
-    x2 = p.solve(q)
-    pc = p.conjugate
-    a2 = pc.solve(q)
-
-    np.testing.assert_allclose(z-a2, x2)
-
-# penalty = rr.separable((100,), [rr.l2norm(idx[g].shape, lagrange=lagrange_g) for g in groups], groups)
-# problem = rr.simple_problem(loss, penalty)
-
-# from regreg.affine import tensor
-# print coefs[groups[0]]
-# penalty_block = rr.l1_l2((20,5), lagrange=0.0001)
-# Xr = X.reshape((120,5,20)).transpose([0,2,1]) * 1.
-# L = tensor(Xr, 1)
-# loss_block = rr.squared_error(L,Y*1., coef=1./n)
-# w = np.random.standard_normal(penalty_block.primal_shape)
-# def test_grad():
-#     w = np.random.standard_normal(penalty_block.primal_shape)
-#     g_block = loss_block.smooth_objective(w, 'grad')
-#     g = loss.smooth_objective(w.T.reshape(-1), 'grad')
-#     # print sorted(g_block.reshape(-1))[:5]
-#     # print sorted(g)[:5]
-#     np.testing.assert_allclose(g[groups[1]], g_block.reshape((20,5))[1])
-# print loss_block.primal_shape; test_grad()
-# problem_block = rr.simple_problem(loss_block, penalty_block); test_grad()
-# final_inv_step = lipschitz
-# #block_coefs_gg = rr.gengrad(problem_block, lipschitz)
-# block_coefs = problem_block.solve(tol=1.e-10, start_inv_step=final_inv_step);
-# final_inv_step = problem_block.final_inv_step
-# block_coefs = problem_block.solve(start_inv_step=final_inv_step, tol=1.e-14);
-# final_inv_step = problem_block.final_inv_step
-# block_coefs = problem_block.solve(start_inv_step=final_inv_step, coef_stop=True);
-
-# test_grad()
-# print problem_block.nonsmooth_objective(w), problem.nonsmooth_objective(w.T.reshape(-1)); test_grad()
-# print problem_block.nonsmooth_objective(block_coefs), problem.nonsmooth_objective(coefs), 'huh'
-# print problem_block.objective(block_coefs), problem.objective(coefs), 'huh1'
-# print problem_block.objective(coefs.reshape((5,20)).T), problem.objective(block_coefs.T.reshape(-1)), 'huh2'
-# print problem_block.objective(coefs.reshape((5,20)).T), problem.objective(block_coefs.T.reshape(-1)), 'huh3'
-# print problem_block.objective(block_coefs), problem.objective(block_coefs.T.reshape(-1)), 'huhblock'
-# print problem_block.objective(coefs.reshape((5,20)).T), problem.objective(coefs), 'huhcoefs'
-# print 'prox: 3', np.linalg.norm(penalty_block.lagrange_prox(w, lipschitz=3, lagrange=0.5)[0] - penalty.atoms[0].lagrange_prox(w.T.reshape(-1)[groups[0]], lagrange=0.5, lipschitz=3))
-# print 'prox: 1', np.linalg.norm(penalty_block.lagrange_prox(w, lipschitz=1, lagrange=0.5)[0] - penalty.atoms[0].lagrange_prox(w.T.reshape(-1)[groups[0]], lagrange=0.5, lipschitz=1))
-# print 'prox all', np.linalg.norm(penalty_block.proximal(rr.identity_quadratic(3, w, 0, 0)) -
-#                                  penalty.proximal(rr.identity_quadratic(3,w,0,0)).reshape((5,20)).T)
-# print 'indexing: ', w[0], w.T.reshape(-1)[groups[0]]; test_grad()
-# a=penalty.atoms[0]; v=w[0]; test_grad()
-# print 'atom:', a; test_grad()
-# print 'atom prox: ', a.lagrange_prox(w[0], lipschitz=1, lagrange=0.5); test_grad()
-# nn = np.linalg.norm(w[0]); test_grad()
+        for t in solveit(b, Z, W, U, linq, L, FISTA, coef_stop):
+            yield t
 
 
-# print 'by hand: ', ((nn-0.5)/nn)*w[0]; test_grad()
-# print block_coefs.T.reshape(-1)[groups[0]], coefs[groups[0]]
-# problem = rr.simple_problem(loss, penalty)
-# #coefs = problem.solve(); 
-# #coefs = problem.coefs.copy()
-# print sorted(block_coefs.reshape(-1))[:5], sorted(coefs)[:5], 'sorted'
-# print 'agreement: ', np.linalg.norm(coefs-block_coefs.T.reshape(-1)) / np.linalg.norm(coefs)
+    lagrange = 0.1
+
+def solveit(atom, Z, W, U, linq, L, FISTA, coef_stop):
+
+    p2 = copy(atom)
+    p2.quadratic = rr.identity_quadratic(L, Z, 0, 0)
+
+    d = atom.conjugate
+
+    q = rr.identity_quadratic(1, Z, 0, 0)
+    yield ac, Z-atom.proximal(q), d.proximal(q), 'testing duality of projections starting from atom %s ' % atom
+    q = rr.identity_quadratic(L, Z, 0, 0)
+
+    # use simple_problem.nonsmooth
+
+    p2 = copy(atom)
+    p2.quadratic = atom.quadratic + q
+    problem = rr.simple_problem.nonsmooth(p2)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-14, FISTA=FISTA, coef_stop=coef_stop)
+
+    yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with monotonicity %s ' % atom
+
+    # use the solve method
+
+    p2.coefs *= 0
+    p2.quadratic = atom.quadratic + q
+    soln = p2.solve()
+
+    yield ac, atom.proximal(q), soln, 'solving prox with solve method %s ' % atom
+
+    loss = rr.quadratic.shift(-Z, coef=L)
+    problem = rr.simple_problem(loss, atom)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-12, FISTA=FISTA, coef_stop=coef_stop)
+
+    yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity %s ' % atom
+
+    dproblem2 = rr.dual_problem(loss.conjugate, 
+                                rr.identity(loss.primal_shape),
+                                atom.conjugate)
+    dcoef2 = dproblem2.solve(coef_stop=coef_stop, tol=1.e-14)
+    yield ac, atom.proximal(q), dcoef2, 'solving prox with dual_problem with monotonicity %s ' % atom
+
+    dproblem = rr.dual_problem.fromprimal(loss, atom)
+    dcoef = dproblem.solve(coef_stop=coef_stop, tol=1.0e-14)
+    yield ac, atom.proximal(q), dcoef, 'solving prox with dual_problem.fromprimal with monotonicity %s ' % atom
+
+    # write the loss in terms of a quadratic for the smooth loss and a smooth function...
+
+    lossq = rr.quadratic.shift(-Z, coef=0.6*L)
+    lossq.quadratic = rr.identity_quadratic(0.4 * L, Z, 0, 0)
+    problem = rr.simple_problem(lossq, atom)
+
+    yield ac, atom.proximal(q), problem.solve(coef_stop=coef_stop, FISTA=FISTA, 
+                                              tol=1.0e-12), 'solving prox with simple_problem with monotonicity  but loss has identity_quadratic %s ' % atom
+
+    problem = rr.simple_problem.nonsmooth(p2)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-14, monotonicity_restart=False, coef_stop=coef_stop,
+               FISTA=FISTA)
+
+    yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with no monotonocity %s ' % atom
+
+    loss = rr.quadratic.shift(-Z, coef=L)
+    problem = rr.simple_problem(loss, atom)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-12, monotonicity_restart=False,
+               coef_stop=coef_stop, FISTA=FISTA)
+
+    yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem %s no monotonicity_restart' % atom
+
+    loss = rr.quadratic.shift(-Z, coef=L)
+    problem = rr.separable_problem.singleton(atom, loss)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-12, 
+               coef_stop=coef_stop, FISTA=FISTA)
+
+    yield ac, atom.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton %s ' % atom
+
+    loss = rr.quadratic.shift(-Z, coef=L)
+    problem = rr.container(loss, atom)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-12, 
+               coef_stop=coef_stop, FISTA=FISTA)
+
+    yield ac, atom.proximal(q), solver.composite.coefs, 'solving atom prox with container %s ' % atom
+
+    # write the loss in terms of a quadratic for the smooth loss and a smooth function...
+
+    lossq = rr.quadratic.shift(-Z, coef=0.6*L)
+    lossq.quadratic = rr.identity_quadratic(0.4 * L, Z, 0, 0)
+    problem = rr.container(lossq, atom)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-12, FISTA=FISTA, coef_stop=coef_stop)
+
+    yield (ac, atom.proximal(q), 
+           problem.solve(tol=1.e-12,FISTA=FISTA,coef_stop=coef_stop), 
+           'solving prox with container with monotonicity  but loss has identity_quadratic %s ' % atom)
+
+    loss = rr.quadratic.shift(-Z, coef=L)
+    problem = rr.simple_problem(loss, d)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-12, monotonicity_restart=False, 
+               coef_stop=coef_stop, FISTA=FISTA)
+    # ac(d.proximal(q), solver.composite.coefs, 'solving dual prox with simple_problem no monotonocity %s ' % atom)
+    yield (ac, d.proximal(q), problem.solve(tol=1.e-12,
+                                            FISTA=FISTA,
+                                            coef_stop=coef_stop,
+                                            monotonicity_restart=False), 
+           'solving dual prox with simple_problem no monotonocity %s ' % atom)
+
+    problem = rr.container(d, loss)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-12, 
+               coef_stop=coef_stop, FISTA=FISTA)
+    yield ac, d.proximal(q), solver.composite.coefs, 'solving dual prox with container %s ' % atom
+
+    loss = rr.quadratic.shift(-Z, coef=L)
+    problem = rr.separable_problem.singleton(d, loss)
+    solver = rr.FISTA(problem)
+    solver.fit(tol=1.0e-12, 
+               coef_stop=coef_stop, FISTA=FISTA)
+
+    yield ac, d.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton %s ' % atom
+
+
