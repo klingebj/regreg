@@ -10,11 +10,7 @@ from .identity_quadratic import identity_quadratic
 from .atoms import _work_out_conjugate
 from .smooth import affine_smooth
 
-try:
-    from projl1_cython import projl1_epigraph, projlinf_epigraph
-except:
-    warnings.warn('Cython version of projl1 not available. Using slower python version')
-    from projl1_python import projl1
+from .projl1_cython import projl1_epigraph
 
 class cone(nonsmooth):
 
@@ -527,8 +523,7 @@ class l1_epigraph_polar(cone):
         where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
 
         """
-        return -projlinf_epigraph(-x)
-
+        return projl1_epigraph(x) - x
 
 class linf_epigraph(cone):
 
@@ -563,7 +558,12 @@ class linf_epigraph(cone):
         where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
 
         """
-        return projlinf_epigraph(x)
+
+        # we just use the fact that the polar of the linf epigraph is
+        # is the negative of the l1 epigraph, so we project
+        # -center onto the l1-epigraph and add the result to center...
+
+        return x+projl1_epigraph(-x)
 
 
 class linf_epigraph_polar(cone):
@@ -582,7 +582,7 @@ class linf_epigraph_polar(cone):
         The non-negative constraint of x.
         """
         
-        incone = np.fabs(-x[1:]).max() / -x[0] <= 1 + self.tol
+        incone = np.fabs(-x[1:]).sum() / -x[0] <= 1 + self.tol
         if incone:
             return 0
         return np.inf

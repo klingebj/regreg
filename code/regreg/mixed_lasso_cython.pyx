@@ -1,6 +1,8 @@
 import numpy as np, sys
 cimport numpy as np
 
+from .piecewise_linear import find_solution_piecewise_linear
+
 """
 Implements prox and dual of group LASSO, strong set, seminorm and dual seminorm. The 
 """
@@ -9,8 +11,6 @@ DTYPE_float = np.float
 ctypedef np.float_t DTYPE_float_t
 DTYPE_int = np.int
 ctypedef np.int_t DTYPE_int_t
-
-#TODO: Add some documentation to this!
 
 def mixed_lasso_lagrange_prox(np.ndarray[DTYPE_float_t, ndim=1] prox_center, 
                      DTYPE_float_t lagrange, DTYPE_float_t lipschitz,
@@ -330,47 +330,15 @@ def mixed_lasso_bound_prox(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
     cdef np.ndarray[DTYPE_float_t, ndim=1] ppterm = prox_center[positive_part]
     ppterm = ppterm[ppterm > 0]
     
-    cdef np.ndarray[DTYPE_float_t, ndim=1] knots = np.hstack([norms / weights,
-                                                              l1term,
-                                                              ppterm])
+    cdef np.ndarray[DTYPE_float_t, ndim=1] fnorms = np.hstack([norms,
+                                                               l1term,
+                                                               ppterm])
+    cdef np.ndarray[DTYPE_float_t, ndim=1] fweights = np.ones_like(fnorms)
+    fweights[:q] = weights
 
-    cdef np.ndarray[DTYPE_float_t, ndim=1] fweights = np.ones_like(knots)
-    fweights[:q] = weights**2
-
-    cdef np.ndarray[DTYPE_int_t, ndim=1] knots_as = np.argsort(knots)
-    knots = knots[knots_as]
-    
-    stop = 0
-    curV = 0.
-    q = knots.shape[0]
-    curX = knots[q-1]
-
-    for j in range(q-1):
-        slope += fweights[knots_as[q-j-1]]
-        nextX = knots[q-j-2]
-        nextV = curV + slope * (curX - nextX)
-        stop = nextV > bound
-        if stop:
-            intercept = curV + curX * slope
-            break
-        curV, curX = nextV, nextX
-        curX = nextX
-        
-    f = '%s' % str((curV,slope,bound)) # BUG?, without printing or doing something to curV function
-                         # fails    
-    if stop:
-        cut = -(bound - intercept) / slope 
-    else:
-        slope += fweights[0]
-        nextX = 0
-        nextV = curV + slope * (curX - nextX)
-        intercept = curV + curX * slope
-        
-        cut = -(bound - intercept) / slope 
-        if cut < 0:
-            cut = 0
-    
-    f = '%s' % str((curV,slope,bound)) # BUG?, without printing or doing something to curV function
+    cdef double cut = find_solution_piecewise_linear(bound, 0,
+                                                     fnorms,
+                                                     fweights)
 
     for j in range(weights.shape[0]):
         factors[j] = min(1., cut * weights[j] / norms[j])
@@ -379,10 +347,74 @@ def mixed_lasso_bound_prox(np.ndarray[DTYPE_float_t, ndim=1] prox_center,
         if groups[i] >= 0:
             projection[i] = prox_center[i] * factors[groups[i]]
 
-    projection[l1_penalty] = prox_center[l1_penalty] * np.minimum(1, bound / np.fabs(prox_center[l1_penalty]))
+    projection[l1_penalty] = prox_center[l1_penalty] * np.minimum(1., cut / np.fabs(prox_center[l1_penalty]))
     projection[unpenalized] = 0
-    projection[positive_part] = np.minimum(bound, prox_center[positive_part])
+    projection[positive_part] = np.minimum(cut, prox_center[positive_part])
     projection[nonnegative] = np.minimum(prox_center[nonnegative], 0)
 
     return prox_center - projection
 
+def mixed_lasso_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center,
+                         np.ndarray[DTYPE_int_t, ndim=1] l1_penalty,
+                         np.ndarray[DTYPE_int_t, ndim=1] unpenalized,
+                         np.ndarray[DTYPE_int_t, ndim=1] positive_part,
+                         np.ndarray[DTYPE_int_t, ndim=1] nonnegative,
+                         np.ndarray[DTYPE_int_t, ndim=1] groups, 
+                         np.ndarray[DTYPE_float_t, ndim=1] weights):
+
+    cdef np.ndarray[DTYPE_float_t, ndim=1] x = center[1:]
+    cdef np.ndarray[DTYPE_float_t, ndim=1] result = np.zeros_like(center)
+    cdef DTYPE_float_t norm = center[0]
+
+    cdef int p = groups.shape[0]
+    cdef int stop, i, j
+    cdef float curV = 0.
+    cdef double nextV, slope, intercept, curX, nextX
+    
+    cdef np.ndarray norms = np.zeros_like(weights)
+    cdef np.ndarray factors = np.zeros_like(weights)
+    cdef np.ndarray projection = np.zeros_like(x)
+    cdef int q = norms.shape[0]
+    
+    for i in range(p):
+        if groups[i] >= 0:
+            norms[groups[i]] = norms[groups[i]] + x[i]**2
+
+    for j in range(q):
+        norms[j] = np.sqrt(norms[j])
+    
+    cdef np.ndarray[DTYPE_float_t, ndim=1] l1term = x[l1_penalty]
+    l1term = l1term[l1term != 0]
+    
+    cdef np.ndarray[DTYPE_float_t, ndim=1] ppterm = x[positive_part]
+    ppterm = ppterm[ppterm > 0]
+    
+    cdef np.ndarray[DTYPE_float_t, ndim=1] fnorms = np.hstack([norms,
+                                                               l1term,
+                                                               ppterm])
+    cdef np.ndarray[DTYPE_float_t, ndim=1] fweights = np.ones_like(fnorms)
+    fweights[:q] = weights
+
+    cdef double cut = find_solution_piecewise_linear(norm, 1,
+                                                     fnorms,
+                                                     fweights)
+
+    if cut < np.inf:
+        for j in range(weights.shape[0]):
+            factors[j] = min(1., cut * weights[j] / norms[j])
+
+        for i in range(p):
+            if groups[i] >= 0:
+                projection[i] = x[i] * factors[groups[i]]
+
+        projection[l1_penalty] = x[l1_penalty] * np.minimum(1., cut / np.fabs(x[l1_penalty]))
+        projection[unpenalized] = 0
+        projection[positive_part] = np.minimum(cut, x[positive_part])
+        projection[nonnegative] = np.minimum(x[nonnegative], 0)
+
+        result[1:] = x - projection
+        result[0] = norm + cut
+    else:
+        result[:] = center
+
+    return result

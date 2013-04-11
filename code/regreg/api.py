@@ -29,6 +29,9 @@ from admm import admm_problem
 from blocks import blockwise
 
 from block_norms import l1_l2, linf_l2, l1_l1, linf_linf
+from svd_norms import (nuclear_norm, operator_norm,
+                       nuclear_norm_epigraph,
+                       operator_norm_epigraph)
 
 from conjugate import conjugate
 from composite import (composite, nonsmooth as nonsmooth_composite,

@@ -8,25 +8,16 @@ from md5 import md5
 from copy import copy
 
 import numpy as np
-try:
-    from projl1_cython import projl1
-except ImportError:
-    from projl1_python import projl1
 
-from .atoms import atom, conjugate_seminorm_pairs
+from .atoms import atom, conjugate_seminorm_pairs, _work_out_conjugate
+from .cones import cone, conjugate_cone_pairs
+from .projl1_cython import projl1, projl1_epigraph
 
 from .objdoctemplates import objective_doc_templater
 from .doctemplates import (doc_template_user, doc_template_provider)
 
 
-@objective_doc_templater()
-class svd_atom(atom):
-
-    _doc_dict = {'linear':r' + \text{Tr}(\eta^T X)',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':r'p \times q',
-                 'var':r'X'}
+class svd_obj(object):
 
     def compute_and_store_svd(self, X):
         """
@@ -62,6 +53,15 @@ class svd_atom(atom):
     def set_SVD(self, UDV):
         self._U, self._D, self._V = UDV
     SVD = property(get_SVD, set_SVD)
+
+@objective_doc_templater()
+class svd_atom(atom, svd_obj):
+
+    _doc_dict = {'linear':r' + \text{Tr}(\eta^T X)',
+                 'constant':r' + \tau',
+                 'objective': '',
+                 'shape':r'p \times q',
+                 'var':r'X'}
 
     @doc_template_provider
     def lagrange_prox(self, X, lipschitz=1, lagrange=None):
@@ -239,10 +239,235 @@ class operator_norm(svd_atom):
         bound = svd_atom.bound_prox(self, X, lipschitz, bound)
         self.X = X
         U, D, V = self.SVD
-        self._D = U, np.maximum(D, bound), V
+        self._D = np.minimum(D, bound)
         # store the projected X -- or should we keep original?
         self._X = np.dot(U, D[:,np.newaxis] * V)
         return self.X
+
+#@objective_doc_templater()
+class svd_cone(cone, svd_obj):
+
+    def __repr__(self):
+        if self.quadratic.iszero:
+            return "%s(%s, offset=%s)" % \
+                (self.__class__.__name__,
+                 `self.matrix_shape`,
+                 str(self.offset))
+        else:
+            return "%s(%s, offset=%s, quadratic=%s)" % \
+                (self.__class__.__name__,
+                 `self.matrix_shape`,
+                 str(self.offset),
+                 str(self.quadratic))
+
+    def __init__(self, primal_shape,
+                 offset=None,
+                 quadratic=None,
+                 initial=None):
+
+        self.matrix_shape = primal_shape
+        primal_shape = np.product(primal_shape)+1
+        cone.__init__(self, primal_shape, offset=offset,
+                      quadratic=quadratic,
+                      initial=initial)
+
+    @property
+    def conjugate(self):
+        if self.quadratic.coef == 0:
+            offset, outq = _work_out_conjugate(self.offset, 
+                                               self.quadratic)
+            cls = conjugate_cone_pairs[self.__class__]
+            print self.matrix_shape, 'matrixshape'
+            atom = cls(self.matrix_shape,
+                       offset=offset,
+                       quadratic=outq)
+        else:
+            atom = smooth_conjugate(self)
+        self._conjugate = atom
+        self._conjugate._conjugate = self
+        return self._conjugate
+
+
+#@objective_doc_templater()
+class nuclear_norm_epigraph(svd_cone):
+
+    def constraint(self, normX):
+        """
+        The non-negative constraint of x.
+        """
+        norm = normX[0]
+        X = normX[1:].reshape(self.matrix_shape)
+        self.X = X
+        U, D, V = self.SVD
+
+        incone = np.fabs(D[1:]).sum() / norm <= 1 + self.tol
+        if incone:
+            return 0
+        return np.inf
+
+    def cone_prox(self, normX,  lipschitz=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
+
+        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
+
+        """
+        norm = normX[0]
+        X = normX[1:].reshape(self.matrix_shape)
+        self.X = X
+        U, D, V = self.SVD
+        newD = np.zeros(D.shape[0]+1)
+        newD[0] = norm
+        newD[1:] = D
+        newD = projl1_epigraph(newD)
+        result = np.zeros_like(normX)
+        result[0] = newD[0] 
+        self.X = np.dot(U, newD[1:,np.newaxis] * V)
+        result[1:] = self.X.reshape(-1)
+        return result
+
+#@objective_doc_templater()
+class nuclear_norm_epigraph_polar(svd_cone):
+    
+
+    def constraint(self, normX):
+        """
+        The non-negative constraint of x.
+        """
+        
+        norm = normX[0]
+        X = normX[1:].reshape(self.matrix_shape)
+        self.X = X
+        U, D, V = self.SVD
+
+        incone = D.max() / -norm <= 1 + self.tol
+        if incone:
+            return 0
+        return np.inf
+
+
+    def cone_prox(self, normX,  lipschitz=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
+
+        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
+
+        """
+        norm = normX[0]
+        X = normX[1:].reshape(self.matrix_shape)
+        self.X = X
+        U, D, V = self.SVD
+        newD = np.zeros(D.shape[0]+1)
+        newD[0] = norm
+        newD[1:] = D
+        newD = projl1_epigraph(newD) - newD
+        result = np.zeros_like(normX)
+        result[0] = newD[0]
+        self.X = np.dot(U, newD[1:,np.newaxis] * V)
+        result[1:] = self.X.reshape(-1)
+        return result
+
+#@objective_doc_templater()
+class operator_norm_epigraph(svd_cone):
+    
+    def constraint(self, normX):
+        """
+        The non-negative constraint of x.
+        """
+
+        norm = normX[0]
+        X = normX[1:].reshape(self.matrix_shape)
+        self.X = X
+        U, D, V = self.SVD
+
+        incone = D.max() / norm <= 1 + self.tol
+        if incone:
+            return 0
+        return np.inf
+
+
+    def cone_prox(self, normX,  lipschitz=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
+
+        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
+
+        """
+        norm = normX[0]
+        X = normX[1:].reshape(self.matrix_shape)
+        self.X = X
+        U, D, V = self.SVD
+        newD = np.zeros(D.shape[0]+1)
+        newD[0] = norm
+        newD[1:] = D
+        newD = newD + projl1_epigraph(-newD)
+        result = np.zeros_like(normX)
+        result[0] = newD[0]
+        self.X = np.dot(U, newD[1:,np.newaxis] * V)
+        result[1:] = self.X.reshape(-1)
+        return result
+
+#@objective_doc_templater()
+class operator_norm_epigraph_polar(svd_cone):
+    
+    def constraint(self, normX):
+        """
+        The non-negative constraint of x.
+        """
+
+        norm = normX[0]
+        X = normX[1:].reshape(self.matrix_shape)
+        self.X = X
+        U, D, V = self.SVD
+
+        incone = D.sum() / -norm <= 1 + self.tol
+        if incone:
+            return 0
+        return np.inf
+
+
+    def cone_prox(self, normX,  lipschitz=1):
+        r"""
+        Return (unique) minimizer
+
+        .. math::
+
+            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
+            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
+
+        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
+
+        """
+        norm = normX[0]
+        X = normX[1:].reshape(self.matrix_shape)
+        self.X = X
+        U, D, V = self.SVD
+        newD = np.zeros(D.shape[0]+1)
+        newD[0] = norm
+        newD[1:] = D
+        newD = -projl1_epigraph(-newD)
+        result = np.zeros_like(normX)
+        result[0] = newD[0]
+        self.X = np.dot(U, newD[1:,np.newaxis] * V)
+        result[1:] = self.X.reshape(-1)
+        return result
+
+
 
 conjugate_svd_pairs = {}
 conjugate_svd_pairs[nuclear_norm] = operator_norm
@@ -250,3 +475,8 @@ conjugate_svd_pairs[operator_norm] = nuclear_norm
 
 conjugate_seminorm_pairs[nuclear_norm] = operator_norm
 conjugate_seminorm_pairs[operator_norm] = nuclear_norm
+
+conjugate_cone_pairs[nuclear_norm_epigraph] = nuclear_norm_epigraph_polar
+conjugate_cone_pairs[nuclear_norm_epigraph_polar] = nuclear_norm_epigraph
+conjugate_cone_pairs[operator_norm_epigraph] = operator_norm_epigraph_polar
+conjugate_cone_pairs[operator_norm_epigraph_polar] = operator_norm_epigraph

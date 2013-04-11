@@ -20,6 +20,9 @@ def configuration(parent_package='',top_path=None):
     config.add_extension('mixed_lasso_cython',
                          sources = ["mixed_lasso_cython.c"],
                          )
+    config.add_extension('piecewise_linear',
+                         sources = ["piecewise_linear.c"],
+                         )
     return config
 
 if __name__ == '__main__':

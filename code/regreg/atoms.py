@@ -12,12 +12,8 @@ from .smooth import affine_smooth
 from .objdoctemplates import objective_doc_templater
 from .doctemplates import (doc_template_user, doc_template_provider)
 
-try:
-    from .projl1_cython import projl1
-except:
-    warnings.warn('Cython version of projl1 not available. Using slower python version')
-    from .projl1_python import projl1
-
+from .projl1_cython import projl1
+from .piecewise_linear import find_solution_piecewise_linear_c
 
 @objective_doc_templater()
 class atom(nonsmooth):
@@ -412,8 +408,11 @@ class l1norm(atom):
     def bound_prox(self, x, lipschitz=1, bound=None):
         bound = atom.bound_prox(self, x, lipschitz, bound)
         x = np.asarray(x, np.float)
-        return projl1(x, self.bound)
-
+        fx = np.fabs(x)
+        cut = find_solution_piecewise_linear_c(bound, 0, fx)
+        if cut < np.inf:
+            return np.sign(x) * (fx - cut) * (fx > cut)
+        return x
 
 @objective_doc_templater()
 class supnorm(atom):
@@ -445,7 +444,11 @@ class supnorm(atom):
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
         x = np.asarray(x, np.float)
-        d = projl1(x, lagrange/lipschitz)
+        cut = find_solution_piecewise_linear_c(lagrange / lipschitz, 0, fx)
+        if cut < np.inf:
+            d = np.sign(x) * (fx - cut) * (fx > cut)
+        else:
+            d = x
         return x - d
 
     @doc_template_user
