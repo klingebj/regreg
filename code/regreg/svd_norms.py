@@ -177,7 +177,7 @@ class nuclear_norm(svd_atom):
         bound = svd_atom.bound_prox(self, X, lipschitz, bound)
         self.X = X
         U, D, V = self.SVD
-        D_projected = projl1(D, self.bound)
+        D_projected = projl1(D, bound)
         keepD = D_projected > 0
         # store the projected X -- or should we keep original?
         self.SVD = U[:,keepD], D_projected[keepD], V[keepD]

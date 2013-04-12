@@ -24,9 +24,9 @@ def projl1(np.ndarray[DTYPE_float_t, ndim=1]  x,
     cdef double cut = find_solution_piecewise_linear_c(bound, 0, np.fabs(x))
 
     if cut < np.inf:
-        return x
-    else:
         return soft_threshold(x,cut)
+    else:
+        return x
 
 cdef soft_threshold(np.ndarray[DTYPE_float_t, ndim=1] x,
                     DTYPE_float_t lagrange):
