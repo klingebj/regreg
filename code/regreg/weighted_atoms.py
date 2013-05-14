@@ -7,7 +7,8 @@ from .composite import composite, nonsmooth, smooth_conjugate
 from .affine import (linear_transform, identity as identity_transform, 
                      affine_transform, selector)
 
-from .atoms import atom as unweighted_atom, _work_out_conjugate
+from .atoms import _work_out_conjugate
+from .seminorms import seminorm as unweighted_seminorm
 from .identity_quadratic import identity_quadratic
 
 from .objdoctemplates import objective_doc_templater
@@ -20,7 +21,7 @@ except:
     from projl1_python import projl1
 
 
-class atom(unweighted_atom):
+class seminorm(unweighted_seminorm):
 
     """
     A class that defines the API for support functions.
@@ -149,7 +150,7 @@ class atom(unweighted_atom):
 
 
 @objective_doc_templater()
-class l1norm(atom):
+class l1norm(seminorm):
 
     """
     The l1 norm
@@ -191,7 +192,7 @@ class l1norm(atom):
 
 
 @objective_doc_templater()
-class supnorm(atom):
+class supnorm(seminorm):
 
     r"""
     The :math:`\ell_{\infty}` norm

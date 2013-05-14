@@ -9,7 +9,8 @@ from copy import copy
 
 import numpy as np
 
-from .atoms import atom, conjugate_seminorm_pairs, _work_out_conjugate
+from .atoms import atom, _work_out_conjugate
+from .seminorms import conjugate_seminorm_pairs, seminorm
 from .cones import cone, conjugate_cone_pairs
 from .projl1_cython import projl1, projl1_epigraph
 
@@ -38,7 +39,7 @@ class svd_obj(object):
     X = property(getX, setX)
 
     def get_conjugate(self):
-        atom.get_conjugate(self)
+        seminorm.get_conjugate(self)
         # share the SVD with the conjugate
         if hasattr(self, "_X"):
             for attr in ['_X', '_U' ,'_D', '_V']:
@@ -55,7 +56,7 @@ class svd_obj(object):
     SVD = property(get_SVD, set_SVD)
 
 @objective_doc_templater()
-class svd_atom(atom, svd_obj):
+class svd_atom(seminorm, svd_obj):
 
     _doc_dict = {'linear':r' + \text{Tr}(\eta^T X)',
                  'constant':r' + \tau',
@@ -140,7 +141,7 @@ class nuclear_norm(svd_atom):
                  lagrange=None):
         # This will compute an svd of X
         # if the md5 hash of X doesn't match.
-        lagrange = atom.seminorm(self, X, lagrange=lagrange,
+        lagrange = seminorm.seminorm(self, X, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
         self.X = X
         _, D, _ = self.SVD
@@ -150,7 +151,7 @@ class nuclear_norm(svd_atom):
     def constraint(self, X, bound=None):
         # This will compute an svd of X
         # if the md5 hash of X doesn't match.
-        bound = atom.constraint(self, X, bound=bound)
+        bound = seminorm.constraint(self, X, bound=bound)
         self.X = X
         _, D, _ = self.SVD
         inbox = np.sum(D) <= bound * (1 + self.tol)
@@ -202,7 +203,7 @@ class operator_norm(svd_atom):
     def seminorm(self, X, lagrange=None, check_feasibility=False):
         # This will compute an svd of X
         # if the md5 hash of X doesn't match.
-        lagrange = atom.seminorm(self, X, lagrange=lagrange,
+        lagrange = seminorm.seminorm(self, X, lagrange=lagrange,
                                  check_feasibility=check_feasibility)
         self.X = X
         _, D, _ = self.SVD
@@ -212,7 +213,7 @@ class operator_norm(svd_atom):
     def constraint(self, X, bound=None):
         # This will compute an svd of X
         # if the md5 hash of X doesn't match.
-        bound = atom.constraint(self, X, bound=bound)
+        bound = seminorm.constraint(self, X, bound=bound)
         self.X = X
         _, D, _ = self.SVD
         inbox = np.max(D) <= self.bound * (1 + self.tol)
@@ -278,12 +279,12 @@ class svd_cone(cone, svd_obj):
                                                self.quadratic)
             cls = conjugate_cone_pairs[self.__class__]
             print self.matrix_shape, 'matrixshape'
-            atom = cls(self.matrix_shape,
+            new_atom = cls(self.matrix_shape,
                        offset=offset,
                        quadratic=outq)
         else:
-            atom = smooth_conjugate(self)
-        self._conjugate = atom
+            new_atom = smooth_conjugate(self)
+        self._conjugate = new_atom
         self._conjugate._conjugate = self
         return self._conjugate
 

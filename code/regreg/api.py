@@ -2,9 +2,10 @@
 A collection of commonly used RegReg functions and objects
 """
 
-from atoms import (l1norm, l2norm, supnorm, 
-                   positive_part, constrained_max, affine_atom as linear_atom,
+from seminorms import (l1norm, l2norm, supnorm, 
+                   positive_part, constrained_max,
                    constrained_positive_part, max_positive_part)
+from atoms import affine_atom as linear_atom
 from cones import (nonnegative, nonpositive,
                    zero, zero_constraint, 
                    l1_epigraph, l1_epigraph_polar,

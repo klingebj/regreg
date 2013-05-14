@@ -5,7 +5,7 @@ problems.
 
 """
 import numpy as np
-from atoms import atom, conjugate_seminorm_pairs
+from seminorms import atom, conjugate_seminorm_pairs
 import warnings
 from affine import linear_transform, composition, affine_sum, power_L
 from smooth import smooth_atom

@@ -5,7 +5,7 @@ import numpy as np
 import scipy.sparse
 
 from .affine import power_L, normalize, selector, identity, adjoint
-from .atoms import l1norm, constrained_positive_part
+from .seminorms import l1norm, constrained_positive_part
 from .smooth import logistic_loss, sum as smooth_sum, affine_smooth
 from .quadratic import squared_error
 from .separable import separable_problem, separable
