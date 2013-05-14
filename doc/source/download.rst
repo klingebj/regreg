@@ -13,10 +13,11 @@ RegReg depends on the following Python tools
 
 * `SciPy <http://www.scipy.org>`_
 
+* `Cython <http://www.cython.org>`_
+
 You can clone the RegReg github repo using::
 
-
-     git clone git://github.com/klingebj/regreg.git
+     git clone git://github.com/jonathan-taylor/regreg.git
 
 Then installation is a simple call to python::
 
