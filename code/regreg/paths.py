@@ -5,13 +5,13 @@ import numpy as np
 import scipy.sparse
 
 from .affine import power_L, normalize, selector, identity, adjoint
-from .seminorms import l1norm, constrained_positive_part
+from .atoms.seminorms import l1norm, constrained_positive_part
 from .smooth import logistic_loss, sum as smooth_sum, affine_smooth
-from .quadratic import squared_error
-from .separable import separable_problem, separable
-from .simple import simple_problem
+from .smooth.quadratic import squared_error
+from .problems.separable import separable_problem, separable
+from .problems.simple import simple_problem
 from .identity_quadratic import identity_quadratic as iq
-from .mixed_lasso import mixed_lasso, strong_set as strong_set_ml, check_KKT
+from .atoms.mixed_lasso import mixed_lasso, strong_set as strong_set_ml, check_KKT
 
 # Constants used below
 
@@ -57,8 +57,10 @@ class lasso(object):
                 self._X1 = np.hstack([np.ones((X.shape[0], 1)), X])
             if self.scale or self.center:
                 self._Xn = normalize(self._X1, center=self.center, scale=self.scale, intercept_column=0)
+                which_0 = self._Xn.col_stds == 0
             else:
                 self._Xn = self._X1
+                which_0 = np.zeros(self._Xn.shape)
 
         else:
             self.penalty_structure = np.ones(p) * L1_PENALTY
@@ -136,7 +138,7 @@ class lasso(object):
         if not hasattr(self, "_lagrange_max"):
             null_soln = self.null_solution
             null_grad = self.loss.smooth_objective(null_soln, 'grad')
-            self.penalty = group_lasso(self.penalty_structure, 1., weights=self.group_weights)
+            self.penalty = mixed_lasso(self.penalty_structure, 1., weights=self.group_weights)
             conj = self.penalty.conjugate
             self._lagrange_max = conj.seminorm(null_grad)
 
@@ -206,7 +208,7 @@ class lasso(object):
         if grad is None:
             grad = self.grad()
 
-        return strong_set_gl(self.penalty, lagrange_cur, lagrange_new, grad, slope_estimate)
+        return strong_set_ml(self.penalty, lagrange_cur, lagrange_new, grad, slope_estimate)
 
     def slice_columns(self, columns):
         if self.scale or self.center:
@@ -232,7 +234,7 @@ class lasso(object):
         restricted_penalty_structure = self.penalty_structure[candidate_set]
         rps = restricted_penalty_structure # shorthand
 
-        sliced_penalty = group_lasso(rps, lagrange, weights=self.group_weights)
+        sliced_penalty = mixed_lasso(rps, lagrange, weights=self.group_weights)
         problem_sliced = simple_problem(loss, sliced_penalty)
         candidate_selector = selector(candidate_set, self.shape[1])
         return problem_sliced, candidate_selector, restricted_penalty_structure
@@ -409,6 +411,7 @@ class nesta(lasso):
                  **lasso_keywords):
         self.atom_factory = atom_factory 
         self.epsilon_values = epsilon
+        self.epsilon = self.epsilon_values[0]
         lasso.__init__(self, loss_factory, X, **lasso_keywords)
 
     def construct_loss(self, candidate_set, lagrange):

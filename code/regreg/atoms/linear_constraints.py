@@ -3,10 +3,10 @@ from scipy import sparse
 from copy import copy
 import warnings
 
-from .composite import composite, nonsmooth
+from ..problems.composite import composite, nonsmooth
 from .cones import cone, affine_cone
-from .identity_quadratic import identity_quadratic
-from .atoms import _work_out_conjugate
+from ..identity_quadratic import identity_quadratic
+from ..atoms import _work_out_conjugate
 
 try:
     from projl1_cython import projl1
@@ -29,13 +29,13 @@ class linear_constraint(cone):
     tol = 1.0e-05
 
     #XXX should basis by a linear operator instead?
-    def __init__(self, primal_shape, basis,
+    def __init__(self, shape, basis,
                  offset=None,
                  initial=None, 
                  quadratic=None):
 
         cone.__init__(self,
-                      primal_shape,
+                      shape,
                       offset=offset,
                       initial=initial,
                       quadratic=quadratic)
@@ -44,12 +44,12 @@ class linear_constraint(cone):
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
-            return (self.primal_shape == other.primal_shape
+            return (self.shape == other.shape
                     and np.allclose(other.basis, self.basis))
         return False
 
     def __copy__(self):
-        return self.__class__(copy(self.primal_shape),
+        return self.__class__(copy(self.shape),
                               self.basis.copy(),
                               offset=copy(self.offset),
                               quadratic=self.quadratic)
@@ -58,14 +58,14 @@ class linear_constraint(cone):
         if self.quadratic.iszero:
             return "%s(%s, %s, offset=%s)" % \
                 (self.__class__.__name__,
-                 `self.basis`,
-                 `self.primal_shape`, 
+                 repr(self.basis),
+                 repr(self.shape), 
                  str(self.offset))
         else:
             return "%s(%s, %s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
-                 `self.basis`,
-                 `self.primal_shape`, 
+                 repr(self.basis),
+                 repr(self.shape), 
                  str(self.offset),
                  self.quadratic)
 
@@ -76,7 +76,7 @@ class linear_constraint(cone):
             offset, outq = _work_out_conjugate(self.offset, self.quadratic)
 
             cls = conjugate_cone_pairs[self.__class__]
-            atom = cls(self.primal_shape, 
+            atom = cls(self.shape, 
                        self.basis,
                        offset=offset,
                        quadratic=outq)

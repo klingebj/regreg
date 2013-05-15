@@ -1,5 +1,5 @@
 import numpy as np
-import regreg.svd_norms as S
+import regreg.atoms.svd_norms as S
 import regreg.api as rr
 import nose.tools as nt
 import itertools

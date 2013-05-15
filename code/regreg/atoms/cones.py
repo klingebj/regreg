@@ -4,34 +4,34 @@ import warnings
 from scipy import sparse
 import numpy as np
 
-from .composite import composite, nonsmooth, smooth_conjugate
-from .affine import linear_transform, identity as identity_transform
-from .identity_quadratic import identity_quadratic
-from .atoms import _work_out_conjugate
-from .smooth import affine_smooth
+from ..problems.composite import nonsmooth, smooth_conjugate
+from ..affine import linear_transform, identity as identity_transform
+from ..identity_quadratic import identity_quadratic
+from ..smooth import affine_smooth
+from ..atoms import _work_out_conjugate, atom
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
 
 from .projl1_cython import projl1_epigraph
 
-class cone(nonsmooth):
+#TODO use doctemplaters
 
-    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
+@objective_doc_templater()
+class cone(atom):
 
     """
     A class that defines the API for cone constraints.
     """
+
     tol = 1.0e-05
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
-            return self.primal_shape == other.primal_shape
+            return self.shape == other.shape
         return False
 
     def __copy__(self):
-        return self.__class__(copy(self.primal_shape),
+        return self.__class__(copy(self.shape),
                               offset=copy(self.offset),
                               initial=self.coefs,
                               quadratic=self.quadratic)
@@ -40,12 +40,12 @@ class cone(nonsmooth):
         if self.quadratic.iszero:
             return "%s(%s, offset=%s)" % \
                 (self.__class__.__name__,
-                 `self.primal_shape`, 
+                 `self.shape`, 
                  str(self.offset))
         else:
             return "%s(%s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
-                 `self.primal_shape`, 
+                 `self.shape`, 
                  str(self.offset),
                  str(self.quadratic))
 
@@ -55,7 +55,7 @@ class cone(nonsmooth):
             offset, outq = _work_out_conjugate(self.offset, 
                                                self.quadratic)
             cls = conjugate_cone_pairs[self.__class__]
-            atom = cls(self.primal_shape, 
+            atom = cls(self.shape, 
                        offset=offset,
                        quadratic=outq)
         else:
@@ -71,9 +71,10 @@ class cone(nonsmooth):
     @property
     def linear_transform(self):
         if not hasattr(self, "_linear_transform"):
-            self._linear_transform = identity_transform(self.primal_shape)
+            self._linear_transform = identity_transform(self.shape)
         return self._linear_transform
     
+    @doc_template_provider
     def constraint(self, x):
         """
         Abstract method. Evaluate the constraint on the dual norm of x.
@@ -93,6 +94,7 @@ class cone(nonsmooth):
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
 
+    @doc_template_provider
     def nonsmooth_objective(self, x, check_feasibility=False):
         if self.offset is not None:
             x_offset = x + self.offset
@@ -105,6 +107,7 @@ class cone(nonsmooth):
         v += self.quadratic.objective(x, 'func')
         return v
 
+    @doc_template_provider
     def proximal(self, proxq, prox_control=None):
         r"""
         The proximal operator. If the atom is in
@@ -146,6 +149,7 @@ class cone(nonsmooth):
         else:
             return eta - offset
 
+    @doc_template_provider
     def cone_prox(self, x, lipschitz=1):
         r"""
         Return (unique) minimizer
@@ -216,8 +220,7 @@ class affine_cone(object):
         else:
             ltransform = atransform
         self.linear_transform = ltransform
-        self.primal_shape = self.linear_transform.primal_shape
-        self.dual_shape = self.linear_transform.dual_shape
+        self.shape = self.linear_transform.dual_shape
 
     def __repr__(self):
         return "affine_cone(%s, %s)" % (`self.cone`,

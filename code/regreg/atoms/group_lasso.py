@@ -3,31 +3,30 @@ import warnings
 
 import numpy as np
 
-from .composite import composite, nonsmooth, smooth_conjugate
-from .affine import linear_transform, identity as identity_transform, selector
-from .identity_quadratic import identity_quadratic
-from .atoms import _work_out_conjugate, atom #, conjugate_seminorm_pairs
-from .smooth import affine_smooth
-from .cones import cone# , conjugate_cone_pairs
+from ..problems.composite import composite, nonsmooth, smooth_conjugate
+from ..affine import linear_transform, identity as identity_transform, selector
+from ..identity_quadratic import identity_quadratic
+from ..atoms import _work_out_conjugate
+from ..smooth import affine_smooth
 
-from .objdoctemplates import objective_doc_templater
-from .doctemplates import (doc_template_user, doc_template_provider)
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
 
+from .seminorms import seminorm, conjugate_seminorm_pairs
+from .cones import cone
 from .mixed_lasso_cython import (mixed_lasso_bound_prox,
                                  mixed_lasso_epigraph)
 
-#@objective_doc_templater()
-class group_lasso(atom):
-
-    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
+@objective_doc_templater()
+class group_lasso(seminorm):
 
     """
-    A class that defines the API for cone constraints.
+    The group lasso seminorm.
     """
+
+    objective_template = r"""\sum_g \|%(var)s_g\|_2"""
+    objective_vars = {'var': r'x + \alpha'}
+
     tol = 1.0e-05
 
     def __init__(self, groups,
@@ -38,8 +37,8 @@ class group_lasso(atom):
                  quadratic=None,
                  initial=None):
 
-        primal_shape = np.asarray(groups).shape
-        atom.__init__(self, primal_shape, offset=offset,
+        shape = np.asarray(groups).shape
+        seminorm.__init__(self, shape, offset=offset,
                       quadratic=quadratic,
                       initial=initial,
                       lagrange=lagrange,
@@ -47,7 +46,7 @@ class group_lasso(atom):
 
         self.weights = weights
         self.groups = groups
-        self._groups = np.zeros(primal_shape, np.int)
+        self._groups = np.zeros(shape, np.int)
 
         sg = sorted(np.unique(groups))
         self._weight_array = np.ones(len(sg))
@@ -58,7 +57,7 @@ class group_lasso(atom):
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
-            return (self.primal_shape == other.primal_shape and 
+            return (self.shape == other.shape and 
                     np.all(self.groups == other.groups)
                     and np.all(self.weights == other.weights)
                     and self.lagrange == other.lagrange)
@@ -133,51 +132,21 @@ class group_lasso(atom):
         self._conjugate._conjugate = self
         return self._conjugate
 
-    @property
-    def dual(self):
-        return self.linear_transform, self.conjugate
-
-    @property
-    def linear_transform(self):
-        if not hasattr(self, "_linear_transform"):
-            self._linear_transform = identity_transform(self.primal_shape)
-        return self._linear_transform
-    
-    def latexify(self, var='x', idx=''):
-        d = {}
-        if self.offset is None:
-            d['var'] = var
-        else:
-            d['var'] = var + r'+\alpha_{%s}' % str(idx)
-
-        obj = self.objective_template % d
-
-        if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
-        return obj
-
-    @doc_template_provider
+    @doc_template_user
     def constraint(self, x, bound=None):
-        r"""
-        Verify :math:`\cdot %(objective)s \leq \lambda`, where :math:`\lambda`
-        is bound, :math:`\alpha` is self.offset (if any).
-
-        If True, returns 0, else returns np.inf.
-
-        The class atom's constraint just returns the appropriate bound
-        parameter for use by the subclasses.
-        """
         if bound is None:
             raise ValueError('bound must be suppled')
         x_offset = self.apply_offset(x)
         return self.seminorm(x_offset) <= bound
 
+    @doc_template_user
     def nonsmooth_objective(self, x, check_feasibility=False):
         x_offset = self.apply_offset(x)
         v = self.seminorm(x_offset, check_feasibility=check_feasibility)
         v += self.quadratic.objective(x, 'func')
         return v
 
+    @doc_template_user
     def seminorm(self, x, lagrange=1., check_feasibility=False):
         x_offset = self.apply_offset(x)
         value = 0
@@ -189,25 +158,7 @@ class group_lasso(atom):
 
     @doc_template_user
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
-        r"""
-        The proximal operator. If the atom is in
-        Lagrange mode, this has the form
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v+\alpha) + \langle v, \eta \rangle
-
-        where :math:`\alpha` is the offset of self.affine_transform and
-        :math:`\eta` is self.linear_term.
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
-
-        """
-        lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, x, lipschitz, lagrange)
         result = np.zeros_like(x)
         lf = self.lagrange / lipschitz
         ngroups = self._weight_array.shape[0]
@@ -221,25 +172,7 @@ class group_lasso(atom):
 
     @doc_template_user
     def bound_prox(self, x,  lipschitz=1, bound=None):
-        r"""
-        The proximal operator. If the atom is in
-        Lagrange mode, this has the form
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v+\alpha) + \langle v, \eta \rangle
-
-        where :math:`\alpha` is the offset of self.affine_transform and
-        :math:`\eta` is self.linear_term.
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
-
-        """
-        bound = atom.bound_prox(self, x, lipschitz, bound)
+        bound = seminorm.bound_prox(self, x, lipschitz, bound)
         x = np.asarray(x, np.float)
 
         return mixed_lasso_bound_prox(x, float(bound),
@@ -250,18 +183,16 @@ class group_lasso(atom):
                                       self._groups,
                                       self._weight_array)
 
-#@objective_doc_templater()
-class group_lasso_conjugate(group_lasso):
-
-    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
+@objective_doc_templater()
+class group_lasso_dual(group_lasso):
 
     """
-    Conjugate of the group lasso seminorm (in bound form only for now).
+    The dual of the group lasso seminorm.
     """
+
+    objective_template = r"""\max_g \|%(var)s_g\|_2"""
+    objective_vars = {'var': r'x + \alpha'}
+
     tol = 1.0e-05
 
     def __init__(self, groups,
@@ -272,8 +203,8 @@ class group_lasso_conjugate(group_lasso):
                  quadratic=None,
                  initial=None):
 
-        primal_shape = np.asarray(groups).shape
-        atom.__init__(self, primal_shape, offset=offset,
+        shape = np.asarray(groups).shape
+        seminorm.__init__(self, shape, offset=offset,
                       quadratic=quadratic,
                       initial=initial,
                       lagrange=lagrange,
@@ -281,7 +212,7 @@ class group_lasso_conjugate(group_lasso):
 
         self.weights = weights
         self.groups = groups
-        self._groups = np.zeros(primal_shape, np.int)
+        self._groups = np.zeros(shape, np.int)
 
         sg = sorted(np.unique(groups))
         self._weight_array = np.ones(len(sg))
@@ -292,7 +223,7 @@ class group_lasso_conjugate(group_lasso):
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
-            return (self.primal_shape == other.primal_shape and 
+            return (self.shape == other.shape and 
                     np.all(self.groups == other.groups)
                     and np.all(self.weights == other.weights)
                     and self.bound == other.bound)
@@ -363,25 +294,7 @@ class group_lasso_conjugate(group_lasso):
 
     @doc_template_user
     def bound_prox(self, x, lipschitz=1, bound=None):
-        r"""
-        The proximal operator. If the atom is in
-        Bound mode, this has the form
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v+\alpha) + \langle v, \eta \rangle
-
-        where :math:`\alpha` is the offset of self.affine_transform and
-        :math:`\eta` is self.linear_term.
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
-
-        """
-        bound = atom.bound_prox(self, x, lipschitz, bound)
+        bound = seminorm.bound_prox(self, x, lipschitz, bound)
         result = np.zeros_like(x)
         ngroups = self._weight_array.shape[0]
         for i in range(ngroups):
@@ -394,25 +307,7 @@ class group_lasso_conjugate(group_lasso):
 
     @doc_template_user
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
-        r"""
-        The proximal operator. If the atom is in
-        Lagrange mode, this has the form
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v+\alpha) + \langle v, \eta \rangle
-
-        where :math:`\alpha` is the offset of self.affine_transform and
-        :math:`\eta` is self.linear_term.
-
-        .. math::
-
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \langle v, \eta \rangle \text{s.t.} \   h(v+\alpha) \leq \lambda
-
-        """
-        lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, x, lipschitz, lagrange)
         r = mixed_lasso_bound_prox(x, lagrange / lipschitz,
                                    np.array([], np.int),
                                    np.array([], np.int),
@@ -423,20 +318,24 @@ class group_lasso_conjugate(group_lasso):
         return x - r
 
 # the conjugate method needs to be slightly modified
+@objective_doc_templater()
 class group_lasso_cone(cone):
     
+    """
+    A superclass for the group LASSO and group LASSO dual epigraph cones.
+    """
     def __repr__(self):
         if self.quadratic.iszero:
             return "%s(%s, weights=%s, offset=%s)" % \
                 (self.__class__.__name__,
-                 `self.groups`,
-                 `self.weights`,
+                 repr(self.groups),
+                 repr(self.weights),
                  str(self.offset))
         else:
             return "%s(%s, weights=%s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
-                 `self.groups`,
-                 `self.weights`,
+                 repr(self.groups),
+                 repr(self.weights),
                  str(self.offset),
                  str(self.quadratic))
 
@@ -446,13 +345,13 @@ class group_lasso_cone(cone):
             offset, outq = _work_out_conjugate(self.offset, 
                                                self.quadratic)
             cls = conjugate_cone_pairs[self.__class__]
-            atom = cls(self.groups,
+            new_atom = cls(self.groups,
                        self.weights,
                        offset=offset,
                        quadratic=outq)
         else:
-            atom = smooth_conjugate(self)
-        self._conjugate = atom
+            new_atom = smooth_conjugate(self)
+        self._conjugate = new_atom
         self._conjugate._conjugate = self
         return self._conjugate
 
@@ -464,15 +363,15 @@ class group_lasso_cone(cone):
     def groups(self):
         return self.snorm.groups
 
+@objective_doc_templater()
 class group_lasso_epigraph(group_lasso_cone):
 
     """
-    The group LASSO epigraph constraint.
+    The epigraph of the group lasso seminorm.
     """
 
-    objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_{G,2})})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
+    objective_template = r"""1_{\{(%(var)s: \sum_g \|%(var)s[1:]_g\|_2 \leq %(var)s[0]\}}"""
+    objective_vars = {'var': r'x + \alpha'}
 
     def __init__(self, groups,
                  weights={},
@@ -481,8 +380,8 @@ class group_lasso_epigraph(group_lasso_cone):
                  initial=None):
 
         groups = np.asarray(groups)
-        primal_shape = groups.shape[0]+1
-        cone.__init__(self, primal_shape, offset=offset,
+        shape = groups.shape[0]+1
+        cone.__init__(self, shape, offset=offset,
                       quadratic=quadratic,
                       initial=initial)
         self.snorm = group_lasso(groups,
@@ -493,28 +392,15 @@ class group_lasso_epigraph(group_lasso_cone):
                  quadratic=None,
                  initial=None)
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         incone = self.snorm.seminorm(x[1:], lagrange=1) <= 1 + self.tol
         if incone:
             return 0
         return np.inf
 
+    @doc_template_user
     def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_{G,2})
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
-
         return mixed_lasso_epigraph(x,
                                     np.array([], np.int),
                                     np.array([], np.int),
@@ -523,16 +409,15 @@ class group_lasso_epigraph(group_lasso_cone):
                                     self.snorm._groups,
                                     self.snorm._weight_array)
 
-#@objective_doc_templater()
+@objective_doc_templater()
 class group_lasso_epigraph_polar(group_lasso_cone):
 
     """
-    The group LASSO epigraph constraint.
+    The polar of the epigraph of the group lasso seminorm.
     """
 
-    objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_{G,2})})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
+    objective_template = r"""1_{\{(%(var)s: \max_g \|%(var)s[1:]_g\|_2 \leq -%(var)s[0]\}}"""
+    objective_vars = {'var': r'x + \alpha'}
 
     def __init__(self, groups,
                  weights={},
@@ -543,8 +428,8 @@ class group_lasso_epigraph_polar(group_lasso_cone):
                  initial=None):
 
         groups = np.asarray(groups)
-        primal_shape = groups.shape[0]+1
-        cone.__init__(self, primal_shape, offset=offset,
+        shape = groups.shape[0]+1
+        cone.__init__(self, shape, offset=offset,
                       quadratic=quadratic,
                       initial=initial)
         self.snorm = group_lasso(groups,
@@ -555,27 +440,15 @@ class group_lasso_epigraph_polar(group_lasso_cone):
                  quadratic=None,
                  initial=None)
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         incone = self.snorm.seminorm(x[1:], lagrange=1) <= 1 + self.tol
         if incone:
             return 0
         return np.inf
 
+    @doc_template_user
     def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-           FIX
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
-
         return mixed_lasso_epigraph(x,
                                     np.array([], np.int),
                                     np.array([], np.int),
@@ -585,16 +458,15 @@ class group_lasso_epigraph_polar(group_lasso_cone):
                                     self.snorm._weight_array) - x
 
 
-#@objective_doc_templater()
-class group_lasso_conjugate_epigraph(group_lasso_cone):
+@objective_doc_templater()
+class group_lasso_dual_epigraph(group_lasso_cone):
 
     """
     The group LASSO conjugate epigraph constraint.
     """
 
-    objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_{G,2,*})})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
+    objective_template = r"""1_{\{(%(var)s: \max_g \|%(var)s[1:]_g\|_2 \leq %(var)s[0]\}}"""
+    objective_vars = {'var': r'x + \alpha'}
 
     def __init__(self, groups,
                  weights={},
@@ -605,11 +477,11 @@ class group_lasso_conjugate_epigraph(group_lasso_cone):
                  initial=None):
 
         groups = np.asarray(groups)
-        primal_shape = groups.shape[0]+1
-        cone.__init__(self, primal_shape, offset=offset,
+        shape = groups.shape[0]+1
+        cone.__init__(self, shape, offset=offset,
                       quadratic=quadratic,
                       initial=initial)
-        self.snorm = group_lasso_conjugate(groups,
+        self.snorm = group_lasso_dual(groups,
                  weights=weights,
                  offset=offset,
                  lagrange=1,
@@ -617,28 +489,15 @@ class group_lasso_conjugate_epigraph(group_lasso_cone):
                  quadratic=None,
                  initial=None)
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         incone = self.snorm.seminorm(x[1:], lagrange=1) <= 1 + self.tol
         if incone:
             return 0
         return np.inf
 
+    @doc_template_user
     def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_{G,2,*})
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
-
         return x + mixed_lasso_epigraph(-x,
                                          np.array([], np.int),
                                          np.array([], np.int),
@@ -647,16 +506,15 @@ class group_lasso_conjugate_epigraph(group_lasso_cone):
                                          self.snorm._groups,
                                          self.snorm._weight_array)
 
-#@objective_doc_templater()
-class group_lasso_conjugate_epigraph_polar(group_lasso_cone):
+@objective_doc_templater()
+class group_lasso_dual_epigraph_polar(group_lasso_cone):
 
     """
-    The group LASSO conjugate epigraph constraint.
+    The polar of the group LASSO dual epigraph constraint.
     """
 
-    objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_{G,2,*})})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
+    objective_template = r"""1_{\{(%(var)s: \sum_g \|%(var)s[1:]_g\|_2 \leq -%(var)s[0]\}}"""
+    objective_vars = {'var': r'x + \alpha'}
 
     def __init__(self, groups,
                  weights={},
@@ -667,11 +525,11 @@ class group_lasso_conjugate_epigraph_polar(group_lasso_cone):
                  initial=None):
 
         groups = np.asarray(groups)
-        primal_shape = groups.shape[0]+1
-        cone.__init__(self, primal_shape, offset=offset,
+        shape = groups.shape[0]+1
+        cone.__init__(self, shape, offset=offset,
                       quadratic=quadratic,
                       initial=initial)
-        self.snorm = group_lasso_conjugate(groups,
+        self.snorm = group_lasso_dual(groups,
                  weights=weights,
                  offset=offset,
                  lagrange=1,
@@ -679,27 +537,15 @@ class group_lasso_conjugate_epigraph_polar(group_lasso_cone):
                  quadratic=None,
                  initial=None)
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         incone = self.snorm.seminorm(x[1:], lagrange=1) <= 1 + self.tol
         if incone:
             return 0
         return np.inf
 
+    @doc_template_user
     def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_{G,2,*})
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
         return - mixed_lasso_epigraph(-x,
                                        np.array([], np.int),
                                        np.array([], np.int),
@@ -709,11 +555,11 @@ class group_lasso_conjugate_epigraph_polar(group_lasso_cone):
                                        self.snorm._weight_array)
 
 conjugate_seminorm_pairs = {}
-conjugate_seminorm_pairs[group_lasso_conjugate] = group_lasso
-conjugate_seminorm_pairs[group_lasso] = group_lasso_conjugate
+conjugate_seminorm_pairs[group_lasso_dual] = group_lasso
+conjugate_seminorm_pairs[group_lasso] = group_lasso_dual
 
 conjugate_cone_pairs = {}
 conjugate_cone_pairs[group_lasso_epigraph] = group_lasso_epigraph_polar
-conjugate_cone_pairs[group_lasso_conjugate_epigraph_polar] = group_lasso_conjugate_epigraph
+conjugate_cone_pairs[group_lasso_dual_epigraph_polar] = group_lasso_dual_epigraph
 
-conjugate_cone_pairs[group_lasso_conjugate_epigraph] = group_lasso_conjugate_epigraph_polar
+conjugate_cone_pairs[group_lasso_dual_epigraph] = group_lasso_dual_epigraph_polar

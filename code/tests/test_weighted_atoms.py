@@ -3,7 +3,7 @@ import regreg.api as rr
 import itertools
 from numpy import testing as npt
 
-import regreg.weighted_atoms as WA
+import regreg.atoms.weighted_atoms as WA
 
 from test_seminorms import solveit
 

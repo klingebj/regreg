@@ -1,5 +1,5 @@
 import numpy as np
-import regreg.block_norms as B
+import regreg.atoms.block_norms as B
 import regreg.api as rr
 import nose.tools as nt
 import itertools

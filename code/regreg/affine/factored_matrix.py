@@ -5,18 +5,8 @@ problems.
 
 """
 import numpy as np
-from seminorms import atom, conjugate_seminorm_pairs
 import warnings
-from affine import linear_transform, composition, affine_sum, power_L
-from smooth import smooth_atom
-from composite import composite
-from algorithms import FISTA
-
-try:
-    from projl1_cython import projl1
-except:
-    warnings.warn('Cython version of projl1 not available. Using slower python version')
-    from projl1_python import projl1
+from ..affine import linear_transform, composition, affine_sum, power_L
 
 class factored_matrix(object):
 

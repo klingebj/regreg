@@ -3,9 +3,9 @@ from scipy import sparse
 import warnings
 import inspect
 
-from .composite import smooth as smooth_composite
-from .affine import affine_transform, linear_transform
-from .identity_quadratic import identity_quadratic
+from ..problems.composite import smooth as smooth_composite
+from ..affine import affine_transform, linear_transform
+from ..identity_quadratic import identity_quadratic
 
 class smooth_atom(smooth_composite):
 
@@ -18,16 +18,16 @@ class smooth_atom(smooth_composite):
                  'shape':'p',
                  'var':r'x'}
 
-    def __init__(self, primal_shape, coef=1, offset=None,
+    def __init__(self, shape, coef=1, offset=None,
                  quadratic=None, initial=None):
-        smooth_composite.__init__(self, primal_shape,
+        smooth_composite.__init__(self, shape,
                                   offset=offset,
                                   quadratic=quadratic,
                                   initial=initial)
         self.coef = coef
         if coef < 0:
             raise ValueError('coefs must be nonnegative to ensure convexity (assuming all atoms are indeed convex)')
-        self.coefs = np.zeros(self.primal_shape)
+        self.coefs = np.zeros(self.shape)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         raise NotImplementedError
@@ -45,7 +45,7 @@ class smooth_atom(smooth_composite):
         if not acceptable_init_args(cls, kws):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
         
-        atom = cls(l.primal_shape, coef=coef, offset=offset, quadratic=quadratic, **kws)
+        atom = cls(l.dual_shape, coef=coef, offset=offset, quadratic=quadratic, **kws)
         
         return affine_smooth(atom, l)
 
@@ -60,7 +60,7 @@ class smooth_atom(smooth_composite):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
 
         atransform = affine_transform(linear_operator, None, diag=diag)
-        atom = cls(atransform.primal_shape, coef=coef, quadratic=quadratic, offset=offset, **kws)
+        atom = cls(atransform.dual_shape, coef=coef, quadratic=quadratic, offset=offset, **kws)
         
         return affine_smooth(atom, atransform)
 
@@ -98,7 +98,7 @@ def acceptable_init_args(cls, proposed_keywords):
     Returns True/False
     """
     args = inspect.getargspec(cls.__init__).args
-    forbidden = ['self', 'primal_shape', 'coef', 'quadratic', 'initial', 'offset']
+    forbidden = ['self', 'shape', 'coef', 'quadratic', 'initial', 'offset']
     for kw in proposed_keywords.keys():
         if not kw in args:
             return False
@@ -118,8 +118,8 @@ class affine_smooth(smooth_atom):
         if not isinstance(atransform, affine_transform):
             atransform = linear_transform(atransform, diag=diag)
         self.affine_transform = atransform
-        self.primal_shape = atransform.primal_shape
-        self.coefs = np.zeros(self.primal_shape)
+        self.shape = atransform.primal_shape
+        self.coefs = np.zeros(self.shape)
 
     def latexify(self, var='x', idx=''):
         obj = self.sm_atom.latexify(var='D_{%s}%s' % (idx, var), idx=idx)
@@ -140,22 +140,17 @@ class affine_smooth(smooth_atom):
             v, g = self.sm_atom.smooth_objective(eta, mode='both')
             if self.store_grad:
                 self.grad = g
-            g = self.affine_transform.adjoint_map(g).reshape(self.primal_shape)
+            g = self.affine_transform.adjoint_map(g).reshape(self.shape)
             return v, g
         elif mode == 'grad':
             g = self.sm_atom.smooth_objective(eta, mode='grad')
             if self.store_grad:
                 self.grad = g
-            g = self.affine_transform.adjoint_map(g).reshape(self.primal_shape)
+            g = self.affine_transform.adjoint_map(g).reshape(self.shape)
             return g 
         elif mode == 'func':
             v = self.sm_atom.smooth_objective(eta, mode='func')
             return v 
-
-#     @property
-#     def composite(self):
-#         initial = np.zeros(self.primal_shape)
-#         return smooth_composite(self.smooth_objective, initial)
 
     @property
     def dual(self):
@@ -191,13 +186,13 @@ class logistic_deviance(smooth_atom):
     objective_template = r"""\ell^{L}\left(%(var)s\right)"""
     #TODO: Make init more standard, replace np.dot with shape friendly alternatives in case successes.shape is (n,1)
 
-    def __init__(self, primal_shape, successes, 
+    def __init__(self, shape, successes, 
                  trials=None, coef=1., offset=None,
                  quadratic=None,
                  initial=None):
 
         smooth_atom.__init__(self,
-                             primal_shape,
+                             shape,
                              offset=offset,
                              quadratic=quadratic,
                              initial=initial,
@@ -286,12 +281,12 @@ class poisson_deviance(smooth_atom):
 
     objective_template = r"""\ell^{P}\left(%(var)s\right)"""
 
-    def __init__(self, primal_shape, counts, coef=1., offset=None,
+    def __init__(self, shape, counts, coef=1., offset=None,
                  quadratic=None,
                  initial=None):
 
         smooth_atom.__init__(self,
-                             primal_shape,
+                             shape,
                              offset=offset,
                              quadratic=quadratic,
                              initial=initial,
@@ -349,11 +344,12 @@ class multinomial_deviance(smooth_atom):
 
     objective_template = r"""\ell^{M}\left(%(var)s\right)"""
 
-    def __init__(self, primal_shape, counts, coef=1., offset=None,
+    def __init__(self, shape, counts, coef=1., offset=None,
+                 initial=None,
                  quadratic=None):
 
         smooth_atom.__init__(self,
-                             primal_shape,
+                             shape,
                              offset=offset,
                              quadratic=quadratic,
                              initial=initial,
@@ -376,7 +372,7 @@ class multinomial_deviance(smooth_atom):
 
         self.trials = np.sum(self.counts, axis=1)
 
-        if primal_shape[1] != self.J - 1:
+        if shape[1] != self.J - 1:
             raise ValueError("Primal shape is incorrect - should only have coefficients for first J-1 categories")
 
         saturated = self.counts / (1. * self.trials[:,np.newaxis])

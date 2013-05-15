@@ -3,13 +3,13 @@ import warnings
 
 import numpy as np
 
-from .identity_quadratic import identity_quadratic
-from .composite import nonsmooth
-from .affine import (linear_transform, identity as identity_transform, 
+from ..identity_quadratic import identity_quadratic
+from ..problems.composite import nonsmooth
+from ..affine import (linear_transform, identity as identity_transform, 
                     affine_transform)
-from .smooth import affine_smooth
-from .objdoctemplates import objective_doc_templater
-from .doctemplates import (doc_template_user, doc_template_provider)
+from ..smooth import affine_smooth
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
 
 
 @objective_doc_templater()
@@ -87,7 +87,7 @@ class atom(nonsmooth):
 
         """
         if not hasattr(self, "_linear_transform"):
-            self._linear_transform = identity_transform(self.primal_shape)
+            self._linear_transform = identity_transform(self.shape)
         return self._linear_transform
 
     @doc_template_provider
@@ -168,7 +168,7 @@ class affine_atom(object):
     @property
     def dual(self):
         tmpatom = copy(self.atom)
-        tmpatom.primal_shape = tmpatom.dual_shape = self.dual_shape
+        tmpatom.shape = self.dual_shape
         return self.linear_transform, tmpatom.conjugate
 
     def nonsmooth_objective(self, arg, check_feasibility=False):

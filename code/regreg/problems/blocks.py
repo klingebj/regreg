@@ -1,5 +1,8 @@
 import numpy as np
-import container, smooth, algorithms
+
+import container
+from ..algorithms import FISTA
+from ..smooth import quadratic
 from composite import composite
 import pylab
 
@@ -58,9 +61,9 @@ class Block(object):
         else:
             initial = initial.copy()
         if self.linear_transform.linear_operator is not None:
-            self.loss = smooth.quadratic.affine(self.linear_transform.linear_operator.T, -response, coef=0.5, diag=self.linear_transform.diagD)
+            self.loss = quadratic.affine(self.linear_transform.linear_operator.T, -response, coef=0.5, diag=self.linear_transform.diagD)
         else:
-            self.loss = smooth.quadratic.shift(-response, coef=0.5)
+            self.loss = quadratic.shift(-response, coef=0.5)
 
         prox = self.dual_atom.proximal
         nonsmooth = self.dual_atom.nonsmooth_objective
@@ -74,7 +77,7 @@ class Block(object):
 
     def fit(self, *solver_args, **solver_kw):
         if not hasattr(self, '_solver'):
-            self._solver = algorithms.FISTA(self.composite)
+            self._solver = FISTA(self.composite)
         self._solver.fit(*solver_args, **solver_kw)
         return self.composite.coefs
 
@@ -134,8 +137,8 @@ def test1():
     from scipy import sparse
 
     from regreg.algorithms import FISTA
-    from regreg.atoms import l1norm
-    from regreg.container import container
+    from regreg.atoms.seminorms import l1norm
+    from regreg.problems.container import container
     from regreg.smooth import quadratic
 
     Y = np.random.standard_normal(500); Y[100:150] += 7; Y[250:300] += 14
@@ -171,8 +174,8 @@ def test2():
     from scipy import sparse
 
     from regreg.algorithms import FISTA
-    from regreg.atoms import l1norm
-    from regreg.container import container
+    from regreg.atoms.seminorms import l1norm
+    from regreg.problems.container import container
     from regreg.smooth import quadratic
 
     n1, n2 = l1norm(1), l1norm(1)

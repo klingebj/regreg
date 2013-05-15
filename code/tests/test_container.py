@@ -95,7 +95,7 @@ def test_quadratic_for_smooth():
     loss6.quadratic = lq + atom.quadratic
     atomcp = copy(atom)
     atomcp.quadratic = rr.identity_quadratic(0,0,0,0)
-    problem6 = rr.dual_problem(loss6.conjugate, rr.identity(loss6.primal_shape), atomcp.conjugate)
+    problem6 = rr.dual_problem(loss6.conjugate, rr.identity(loss6.shape), atomcp.conjugate)
     problem6.lipschitz = L + atom.quadratic.coef
     dsoln2 = problem6.solve(coef_stop=True, tol=1.e-10, 
                             max_its=100)
@@ -173,7 +173,7 @@ def test_quadratic_for_smooth2():
     loss6.quadratic = lq + atom.quadratic
     atomcp = copy(atom)
     atomcp.quadratic = rr.identity_quadratic(0,0,0,0)
-    problem6 = rr.dual_problem(loss6.conjugate, rr.identity(loss6.primal_shape), atomcp.conjugate)
+    problem6 = rr.dual_problem(loss6.conjugate, rr.identity(loss6.shape), atomcp.conjugate)
     problem6.lipschitz = L + atom.quadratic.coef
     dsoln2 = problem6.solve(coef_stop=True, tol=1.e-10, 
                             max_its=100)

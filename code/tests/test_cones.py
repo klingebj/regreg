@@ -1,5 +1,5 @@
 import numpy as np
-import regreg.cones as C
+import regreg.atoms.cones as C
 import regreg.api as rr
 import nose.tools as nt
 import itertools
@@ -17,7 +17,7 @@ def test_proximal_maps():
 
     for L, atom, q, offset, FISTA, coef_stop in itertools.product( 
         [0.5,1,0.1], 
-        [C.l2_epigraph, C.l2_epigraph_polar],#sorted(C.conjugate_cone_pairs.keys()),
+        sorted(C.conjugate_cone_pairs.keys()),
         [None, linq],
         [None, U],
         [False, True],

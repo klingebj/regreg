@@ -2,17 +2,17 @@ import numpy as np
 from scipy import sparse
 from warnings import warn
 
-from .algorithms import FISTA
-from .composite import (composite, nonsmooth as nonsmooth_composite,
+from ..algorithms import FISTA
+from ..problems.composite import (composite, nonsmooth as nonsmooth_composite,
                         smooth as smooth_composite)
-from .affine import (vstack as afvstack, identity as afidentity, power_L,
+from ..affine import (vstack as afvstack, identity as afidentity, power_L,
                      selector as afselector,
                      scalar_multiply, adjoint)
-from .separable import separable
-from .smooth import smooth_atom, affine_smooth
-from .atoms import affine_atom as nonsmooth_affine_atom
-from .cones import zero_constraint, zero as zero_nonsmooth, affine_cone
-from .identity_quadratic import identity_quadratic
+from ..problems.separable import separable
+from ..smooth import smooth_atom, affine_smooth
+from ..atoms import affine_atom as nonsmooth_affine_atom
+from ..atoms.cones import zero_constraint, zero as zero_nonsmooth, affine_cone
+from ..identity_quadratic import identity_quadratic
 
 class dual_problem(composite):
     r"""
@@ -43,7 +43,7 @@ class dual_problem(composite):
 
         # the dual problem has f^*(-D^Tu) as objective
         self.affine_fc = affine_smooth(self.f_conjugate, scalar_multiply(adjoint(self.transform), -1))
-        self.coefs = np.zeros(self.affine_fc.primal_shape)
+        self.coefs = np.zeros(self.affine_fc.shape)
 
     # the quadratic is delegated to 
     @property
@@ -52,7 +52,7 @@ class dual_problem(composite):
 
     @staticmethod
     def fromprimal(f, *g):
-        transform, separable_dual_atom = stacked_dual(f.primal_shape, *g)
+        transform, separable_dual_atom = stacked_dual(f.shape, *g)
         return dual_problem(f.conjugate, transform, separable_dual_atom)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):

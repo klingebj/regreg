@@ -5,8 +5,8 @@ from copy import copy
 
 # local imports
 
-from .identity_quadratic import identity_quadratic as sq
-from .algorithms import FISTA
+from ..identity_quadratic import identity_quadratic as sq
+from ..algorithms import FISTA
 
 class composite(object):
     """
@@ -20,18 +20,17 @@ class composite(object):
                  'linear':'',
                  'constant':''}
 
-    def __init__(self, primal_shape, offset=None,
+    def __init__(self, shape, offset=None,
                  quadratic=None, initial=None):
 
         self.offset = offset
         if offset is not None:
             self.offset = array(offset)
 
-        if type(primal_shape) == type(1):
-            self.primal_shape = (primal_shape,)
+        if type(shape) == type(1):
+            self.shape = (shape,)
         else:
-            self.primal_shape = primal_shape
-        self.dual_shape = self.primal_shape
+            self.shape = shape
 
         if quadratic is not None:
             self.quadratic = quadratic
@@ -39,7 +38,7 @@ class composite(object):
             self.quadratic = sq(0,0,0,0)
 
         if initial is None:
-            self.coefs = zeros(self.primal_shape)
+            self.coefs = zeros(self.shape)
         else:
             self.coefs = initial.copy()
 
@@ -55,6 +54,9 @@ class composite(object):
         if not self.quadratic.iszero:
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
+
+    def _repr_latex_(self):
+        return self.latexify('x')
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         return self.quadratic.objective(x, 'func')
@@ -177,13 +179,13 @@ class smooth(composite):
     """
 
 #     def __init__(self, smooth_objective, 
-#                  primal_shape, offset=None,
+#                  shape, offset=None,
 #                  quadratic=None, initial=None):
 #         """
 #         Create a new smooth class from a smooth_objective function.
 #         """
 #         self._smooth_objective = smooth_objective
-#         composite.__init__(self, primal_shape,
+#         composite.__init__(self, shape,
 #                            offset=offset,
 #                            quadratic=quadratic,
 #                            initial=initial)
@@ -207,7 +209,6 @@ class smooth(composite):
             return self.objective(self.coefs), self.coefs
         else:
             return self.coefs
-
 
 class smooth_conjugate(smooth):
 
@@ -233,7 +234,7 @@ class smooth_conjugate(smooth):
         if self.total_quadratic.coef in [0,None]:
             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
 
-        self.primal_shape = atom.primal_shape
+        self.shape = atom.shape
 
     # A smooth conjugate is the conjugate of some $f$ with an identity quadratic added to it, or
     # $$
@@ -299,7 +300,7 @@ class smooth_conjugate(smooth):
                 sq_ = self.smoothing_quadratic
                 newq = sq_ + q.conjugate
                 new_smooth = smooth_conjugate(self.atom, quadratic=newq)
-                output = smooth(self.atom.primal_shape,
+                output = smooth(self.atom.shape,
                                 offset=None,
                                 quadratic=sq(1./r, q.linear_term, 0, 0),
                                 initial=None)

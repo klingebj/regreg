@@ -9,13 +9,13 @@ from copy import copy
 
 import numpy as np
 
-from .atoms import atom, _work_out_conjugate
+from ..atoms import atom, _work_out_conjugate
 from .seminorms import conjugate_seminorm_pairs, seminorm
 from .cones import cone, conjugate_cone_pairs
 from .projl1_cython import projl1, projl1_epigraph
 
-from .objdoctemplates import objective_doc_templater
-from .doctemplates import (doc_template_user, doc_template_provider)
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
 
 
 class svd_obj(object):

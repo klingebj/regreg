@@ -8,10 +8,10 @@ a sequence of slicing objects.
 
 import numpy as np
 
-from .affine import selector
-from .atoms import atom
-from .simple import simple_problem
-from .cones import zero
+from ..affine import selector
+from ..atoms import atom
+from ..problems.simple import simple_problem
+from ..atoms.cones import zero
 
 def has_overlap(shape, groups):
     """
@@ -57,7 +57,7 @@ class separable(atom):
                  initial=None):
         if test_for_overlap and has_overlap(shape, groups):
             raise ValueError('groups are not separable')
-        self.primal_shape = self.dual_shape = shape
+        self.shape = shape
         self.groups = groups
         self.atoms = atoms
         self.zero_atom = zero(shape)
@@ -93,15 +93,15 @@ class separable(atom):
 
     @property
     def conjugate(self):
-        penalty = separable(self.primal_shape,
+        penalty = separable(self.shape,
                             [atom.conjugate for atom in self.atoms],
                             self.groups)
         return penalty
 
     def __repr__(self):
-        return "separable(%s, %s, %s)" % (`self.primal_shape`,
-                                          `self.atoms`,
-                                          `self.groups`)
+        return "separable(%s, %s, %s)" % (repr(self.shape),
+                                          repr(self.atoms),
+                                          repr(self.groups))
 
     @property
     def selectors(self):
@@ -115,13 +115,13 @@ class separable_problem(simple_problem):
         
     @staticmethod
     def singleton(atom, smooth_f):
-        return separable_problem(smooth_f, atom.primal_shape, [atom], [slice(None)], False)
+        return separable_problem(smooth_f, atom.shape, [atom], [slice(None)], False)
 
     @staticmethod
     def fromatom(separable_atom, smooth_f):
-        return separable_problem(smooth_f, separable_atom.primal_shape, 
+        return separable_problem(smooth_f, separable_atom.shape, 
                                  separable_atom.atoms,
                                  separable_atom.groups, False)
     @property
     def selectors(self):
-        return [selector(group, self.nonsmooth_atom.primal_shape) for group in self.nonsmooth_atom.groups]
+        return [selector(group, self.nonsmooth_atom.shape) for group in self.nonsmooth_atom.groups]

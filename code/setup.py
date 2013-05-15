@@ -21,9 +21,9 @@ def configuration(parent_package='',top_path=None):
 
 if __name__ == '__main__':
 
-    cython_extension("regreg/projl1_cython.pyx")
-    cython_extension("regreg/mixed_lasso_cython.pyx")
-    cython_extension("regreg/piecewise_linear.pyx")
+    cython_extension("regreg/atoms/projl1_cython.pyx")
+    cython_extension("regreg/atoms/mixed_lasso_cython.pyx")
+    cython_extension("regreg/atoms/piecewise_linear.pyx")
     
     from numpy.distutils.core import setup
 

@@ -5,13 +5,13 @@ a smooth function and a single penalty.
 """
 import numpy as np
 
-from .composite import composite
-from .affine import identity, scalar_multiply, astransform, adjoint
-from .atoms import atom
-from .cones import zero as zero_cone
-from .smooth import zero as zero_smooth, sum as smooth_sum, affine_smooth
-from .identity_quadratic import identity_quadratic
-from .algorithms import FISTA
+from ..problems.composite import composite
+from ..affine import identity, scalar_multiply, astransform, adjoint
+from ..atoms import atom
+from ..atoms.cones import zero as zero_cone
+from ..smooth import zero as zero_smooth, sum as smooth_sum, affine_smooth
+from ..identity_quadratic import identity_quadratic
+from ..algorithms import FISTA
 
 class simple_problem(composite):
     
@@ -45,7 +45,7 @@ class simple_problem(composite):
 
         The proximal function is (almost) a nullop.
         """
-        proximal_atom = zero_cone(smooth_atom.primal_shape)
+        proximal_atom = zero_cone(smooth_atom.shape)
         return simple_problem(smooth_atom, proximal_atom)
 
     @staticmethod
@@ -56,7 +56,7 @@ class simple_problem(composite):
 
         The proximal function is (almost) a nullop.
         """
-        smooth_atom = zero_smooth(proximal_atom.primal_shape)
+        smooth_atom = zero_smooth(proximal_atom.shape)
         return simple_problem(smooth_atom, proximal_atom)
 
     def solve(self, quadratic=None, return_optimum=False, **fit_args):
@@ -146,7 +146,7 @@ def nesta(smooth_atom, proximal_atom, conjugate_atom, epsilon=None,
         epsilon = 2.**(-np.arange(20))
 
     transform, conjugate = conjugate_atom.dual
-    dual_coef = np.zeros(conjugate_atom.dual_shape)
+    dual_coef = np.zeros(transform.dual_shape)
     for eps in epsilon:
         smoothed = conjugate_atom.smoothed(identity_quadratic(eps, dual_coef, 0, 0))
         if smooth_atom is not None:
@@ -258,7 +258,7 @@ def tfocs(primal_atom, transform, dual_proximal_atom, epsilon=None,
     else:
         dual_sq = identity_quadratic(0,0,0,0)
         
-    primal_coef = np.zeros(conjugate_atom.primal_shape)
+    primal_coef = np.zeros(conjugate_atom.shape)
     for eps in epsilon:
         smoothed = conjugate_atom.smoothed(identity_quadratic(eps, primal_coef, 0, 0))
         final_smooth = affine_smooth(smoothed, scalar_multiply(adjoint(transform), -1))
