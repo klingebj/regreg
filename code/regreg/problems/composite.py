@@ -8,17 +8,17 @@ from copy import copy
 from ..identity_quadratic import identity_quadratic as sq
 from ..algorithms import FISTA
 
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
+
+@objective_doc_templater()
 class composite(object):
     """
     A generic way to specify a problem in composite form.
     """
 
-    objective_template = r'''f(%(var)s)'''
-    _doc_dict = {'objective': '',
-                 'shape':'p',
-                 'var':r'x',
-                 'linear':'',
-                 'constant':''}
+    objective_template = r"""f(%(var)s)"""
+    objective_vars = {'var': r'x'}
 
     def __init__(self, shape, offset=None,
                  quadratic=None, initial=None):
@@ -70,19 +70,22 @@ class composite(object):
     def objective(self, x, check_feasibility=False):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
+    @doc_template_provider
     def proximal_optimum(self, quadratic):
         r"""
         Returns
 
         .. math::
 
-           \inf_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v)
+           \inf_{x \in \mathbb{R}^p} Q(x)
+            + h(x)
 
-        where $p$ = ``x.shape[0]`` and $h(v)$ = ``self.seminorm(v)``.
+        where $p$ = ``x.shape[0]``, $Q(x)=$ `self.quadratic` and
 
-        Here, h represents the nonsmooth part and the quadratic
-        part of the composite object.
+        .. math::
+        
+            h(%(var)s) = %(ns_objective)s
+
         """
         argmin = self.proximal(quadratic)
         if self.quadratic is None:
@@ -103,14 +106,23 @@ class composite(object):
             return self.proximal(quadratic, prox_control=prox_control)
 
     def apply_offset(self, x):
+        """
+        If self.offset is not None, return x+self.offset, else return x.
+        """
         if self.offset is not None:
             return x + self.offset
         return x
 
     def set_quadratic(self, quadratic):
+        """
+        Set the quadratic part of the composite.
+        """
         self._quadratic = quadratic
 
     def get_quadratic(self):
+        """
+        Get the quadratic part of the composite.
+        """
         if not hasattr(self, "_quadratic"):
             self._quadratic = sq(None, None, None, None)
         return self._quadratic
