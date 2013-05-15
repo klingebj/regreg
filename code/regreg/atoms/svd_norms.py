@@ -95,7 +95,7 @@ class svd_atom(seminorm, svd_obj):
         return lagrange
 
     @doc_template_provider
-    def bound_prox(self, X, lipschitz=1, bound=None):
+    def bound_prox(self, X, bound=None):
         r"""
         Return unique minimizer
 
@@ -103,7 +103,7 @@ class svd_atom(seminorm, svd_obj):
 
            %(var)s^{\lambda}(U) \in 
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
-           \frac{L}{2}
+           \frac{1}{2}
            \|U-%(var)s\|^2_F %(linear)s %(constant)s \ 
            \text{s.t.} \   %(objective)s \leq \lambda
 
@@ -174,8 +174,8 @@ class nuclear_norm(svd_atom):
         return self.X
 
     @doc_template_user
-    def bound_prox(self, X, lipschitz=1, bound=None):
-        bound = svd_atom.bound_prox(self, X, lipschitz, bound)
+    def bound_prox(self, X, bound=None):
+        bound = svd_atom.bound_prox(self, X, bound)
         self.X = X
         U, D, V = self.SVD
         D_projected = projl1(D, bound)
@@ -236,8 +236,8 @@ class operator_norm(svd_atom):
         return self.X
 
     @doc_template_user
-    def bound_prox(self, X, lipschitz=1, bound=None):
-        bound = svd_atom.bound_prox(self, X, lipschitz, bound)
+    def bound_prox(self, X, bound=None):
+        bound = svd_atom.bound_prox(self, X, bound)
         self.X = X
         U, D, V = self.SVD
         self._D = np.minimum(D, bound)

@@ -171,8 +171,8 @@ class group_lasso(seminorm):
         return result
 
     @doc_template_user
-    def bound_prox(self, x,  lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, x, lipschitz, bound)
+    def bound_prox(self, x, bound=None):
+        bound = seminorm.bound_prox(self, x, bound)
         x = np.asarray(x, np.float)
 
         return mixed_lasso_bound_prox(x, float(bound),
@@ -293,8 +293,8 @@ class group_lasso_dual(group_lasso):
         return value * lagrange
 
     @doc_template_user
-    def bound_prox(self, x, lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, x, lipschitz, bound)
+    def bound_prox(self, x, bound=None):
+        bound = seminorm.bound_prox(self, x, bound)
         result = np.zeros_like(x)
         ngroups = self._weight_array.shape[0]
         for i in range(ngroups):

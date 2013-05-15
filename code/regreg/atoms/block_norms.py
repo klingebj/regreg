@@ -78,7 +78,7 @@ class block_sum(seminorms.seminorm):
                                            lagrange=lagrange)
         return v
 
-    def bound_prox(self, x, lipschitz=1, bound=None):
+    def bound_prox(self, x, bound=None):
         x = x.reshape(self.shape)
         warnings.warn('bound_prox of block_sum requires a little thought -- should be like l1prox')
         return 0 * x
@@ -155,13 +155,13 @@ class block_max(block_sum):
         warnings.warn('lagrange_prox of block_max requires a little thought -- should be like l1prox')
         return 0 * x
 
-    def bound_prox(self, x, lipschitz=1, bound=None):
+    def bound_prox(self, x, bound=None):
         x = x.reshape(self.shape)
-        bound = seminorms.seminorm.bound_prox(self, x, lipschitz=lipschitz, 
+        bound = seminorms.seminorm.bound_prox(self, x,
                                       bound=bound)
         v = np.empty(x.shape)
         for i in xrange(self.shape[0]):
-            v[i] = self.atom.bound_prox(x[i], lipschitz=lipschitz,
+            v[i] = self.atom.bound_prox(x[i], 
                                         bound=bound)
         return v
 
@@ -200,10 +200,10 @@ class linf_l2(block_max):
         norm_max = np.sqrt((x**2).sum(1)).max()
         return lagrange * norm_max
 
-    def bound_prox(self, x, lipschitz=1, bound=None):
+    def bound_prox(self, x, bound=None):
         x = x.reshape(self.shape)
         norm = np.sqrt((x**2).sum(1))
-        bound = seminorms.seminorm.bound_prox(self, x, lipschitz=lipschitz, 
+        bound = seminorms.seminorm.bound_prox(self, x,
                                       bound=bound)
         v = x.copy()
         v[norm >= bound] *= bound / norm[norm >= bound][:,np.newaxis]
@@ -276,9 +276,9 @@ class linf_linf(linf_l2):
         return lagrange * norm_max
 
 
-    def bound_prox(self, x, lipschitz=1, bound=None):
+    def bound_prox(self, x, bound=None):
         x = x.reshape(self.shape)
-        bound = seminorms.seminorm.bound_prox(self, x, lipschitz=lipschitz, 
+        bound = seminorms.seminorm.bound_prox(self, x,
                                       bound=bound)
         # print 'bound', bound
         return np.clip(x, -bound, bound)

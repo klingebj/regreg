@@ -233,7 +233,7 @@ class seminorm(atom):
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
            \|x-v\|^2_2 + \lambda h(%(var)s+\alpha) + \langle v, \eta \rangle
 
-        where :math:`\alpha` is the offset of self.linear_transform and
+        where :math:`\alpha` is the offset of self.linear_transform,
         :math:`\eta` is self.linear_term and 
 
         .. math::
@@ -264,7 +264,6 @@ class seminorm(atom):
 
         if self.bound is not None:
             eta = self.bound_prox(prox_arg, 
-                                  lipschitz=totalq.coef, 
                                   bound=self.bound)
         else:
             eta = self.lagrange_prox(prox_arg, 
@@ -288,7 +287,8 @@ class seminorm(atom):
            \frac{L}{2}
            \|u-%(var)s\|^2_2 + \lambda %(objective)s 
 
-        Above, :math:`\lambda` is the Lagrange parameter.
+        Above, :math:`\lambda` is the Lagrange parameter and :math:`L`
+        is the Lipschitz parameter.
 
         If the argument `lagrange` is None and the atom is in lagrange mode,
         ``self.lagrange`` is used as the lagrange parameter, else an exception
@@ -306,7 +306,7 @@ class seminorm(atom):
         return lagrange
 
     @doc_template_provider
-    def bound_prox(self, arg, lipschitz=1, bound=None):
+    def bound_prox(self, arg, bound=None):
         r"""
         Return unique minimizer
 
@@ -314,11 +314,11 @@ class seminorm(atom):
 
            %(var)s^{\delta}(u) =
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
-           \frac{L}{2}
+           \frac{1}{2}
            \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
            \text{s.t.} \   %(objective)s \leq \delta
 
-        where :math:`\delta` is the bound parameter.
+        where :math:`\delta` is the bound parameter. 
 
         If the argument `bound` is None and the atom is in bound mode,
         ``self.bound`` is used as the bound parameter, else an exception is
@@ -423,8 +423,8 @@ class l1norm(seminorm):
         return np.sign(arg) * np.maximum(np.fabs(arg)-lagrange/lipschitz, 0)
 
     @doc_template_user
-    def bound_prox(self, arg, lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         arg = np.asarray(arg, np.float)
         absarg = np.fabs(arg)
         cut = find_solution_piecewise_linear_c(bound, 0, absarg)
@@ -471,8 +471,8 @@ class supnorm(seminorm):
         return arg - d
 
     @doc_template_user
-    def bound_prox(self, arg, lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         return np.clip(arg, -bound, bound)
 
 
@@ -514,8 +514,8 @@ class l2norm(seminorm):
         return arg - proj
 
     @doc_template_user
-    def bound_prox(self, arg,  lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         n = np.linalg.norm(arg)
         if n <= bound:
             return arg
@@ -579,8 +579,8 @@ class positive_part(seminorm):
         return v.reshape(arg.shape)
 
     @doc_template_user
-    def bound_prox(self, arg,  lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         arg = np.asarray(arg)
         v = x.copy().astype(np.float)
         v = np.atleast_1d(v)
@@ -634,8 +634,8 @@ class constrained_max(seminorm):
         return arg - v.reshape(arg.shape)
 
     @doc_template_user
-    def bound_prox(self, arg,  lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         return np.clip(arg, 0, bound)
 
 
@@ -682,8 +682,8 @@ class constrained_positive_part(seminorm):
         return v.reshape(arg.shape)
 
     @doc_template_user
-    def bound_prox(self, arg,  lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         arg = np.asarray(arg)
         v = np.zeros(arg.shape, np.float)
         v = np.atleast_1d(v)
@@ -720,8 +720,8 @@ class max_positive_part(seminorm):
         return 0
 
     @doc_template_user
-    def bound_prox(self, arg, lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         return np.clip(arg, -np.inf, bound)
 
     @doc_template_user

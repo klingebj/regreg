@@ -39,7 +39,7 @@ def test_proximal_maps():
         p = atom(shape, lagrange=lagrange, quadratic=q,
                    offset=offset)
         d = p.conjugate 
-        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L, lipschitz=1./L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
+        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
         # some arguments of the constructor
 
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
@@ -69,7 +69,7 @@ def test_proximal_maps():
         p = atom(shape, lagrange=lagrange, quadratic=q,
                    offset=offset)
         d = p.conjugate 
-        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L, lipschitz=1./L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
+        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
         # some arguments of the constructor
 
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)

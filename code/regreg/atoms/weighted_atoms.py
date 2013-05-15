@@ -180,7 +180,7 @@ class l1norm(seminorm):
         return np.sign(x) * np.maximum(np.fabs(x)-lagrange * self.weights /lipschitz, 0)
 
     @doc_template_user
-    def bound_prox(self, x, lipschitz=1, bound=None):
+    def bound_prox(self, x, bound=None):
         raise NotImplementedError
 
 
@@ -221,8 +221,8 @@ class supnorm(seminorm):
         raise NotImplementedError
 
     @doc_template_user
-    def bound_prox(self, x, lipschitz=1, bound=None):
-        bound = seminorm.bound_prox(self, x, lipschitz, bound)
+    def bound_prox(self, x, bound=None):
+        bound = seminorm.bound_prox(self, x, bound)
         return np.clip(x, -bound/self.weights, bound/self.weights)
 
 
