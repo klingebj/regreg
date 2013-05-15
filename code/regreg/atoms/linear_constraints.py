@@ -90,7 +90,7 @@ class linear_constraint(cone):
     def linear(cls, linear_operator, basis, diag=False,
                linear_term=None, offset=None):
         l = linear_transform(linear_operator, diag=diag)
-        cone = cls(l.primal_shape, basis,
+        cone = cls(l.input_shape, basis,
                    linear_term=linear_term, offset=offset)
         return affine_cone(cone, l)
 

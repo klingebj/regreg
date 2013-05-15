@@ -43,7 +43,7 @@ class container(composite):
             self.nonsmooth_atoms = [zero_nonsmooth(self.smooth_atoms[0].shape)]
 
         self.transform, self.atom = stacked_dual(self.smooth_atoms[0].shape, *self.nonsmooth_atoms)
-        self.coefs = np.zeros(self.transform.primal_shape)
+        self.coefs = np.zeros(self.transform.input_shape)
 
         # add up all the smooth_atom quadratics
         # to be added to nonsmoooth_objective
@@ -111,7 +111,7 @@ class container(composite):
                 prox_defaults.update(prox_control)
             prox_control = prox_defaults
 
-            primal_objective = zero_nonsmooth(transform.primal_shape)
+            primal_objective = zero_nonsmooth(transform.input_shape)
             primal_objective.quadratic = proxq + self.smoothq + self.quadratic
             dual_objective = primal_objective.conjugate
             dualp = dual_problem(dual_objective,

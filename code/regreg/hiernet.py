@@ -37,10 +37,10 @@ class heirnet(lasso):
 
         which_0 = self._Xn.col_stds == 0
         if np.any(which_0):
-            self._selector = selector(~which_0, self._Xn.primal_shape)
+            self._selector = selector(~which_0, self._Xn.input_shape)
             self._Xn = self._Xn.slice_columns(~which_0)
         else:
-            self._selector = identity(self._Xn.primal_shape)
+            self._selector = identity(self._Xn.input_shape)
 
         # the penalty parameters
         self.alpha = alpha
@@ -73,7 +73,7 @@ class heirnet(lasso):
     @property
     def null_solution(self):
         if not hasattr(self, "_null_soln"):
-            n, p = self.Xn.dual_shape[0], self.Xn.primal_shape[0]
+            n, p = self.Xn.output_shape[0], self.Xn.input_shape[0]
             self._null_soln = np.zeros(p)
             if self.intercept:
                 null_design = np.ones((n,1))
@@ -104,12 +104,12 @@ class heirnet(lasso):
 
     @property
     def problem(self):
-        p = self.Xn.primal_shape[0]
+        p = self.Xn.input_shape[0]
         if not hasattr(self, "_problem"):
             if self.intercept:
                 linear_slice = slice(1, p)
                 linear_penalty = constrained_positive_part(p-1, lagrange=self.lagrange_max)
-                self._problem = separable_problem(self.loss, self.Xn.primal_shape, [linear_penalty], [linear_slice])
+                self._problem = separable_problem(self.loss, self.Xn.input_shape, [linear_penalty], [linear_slice])
                 self._problem.coefs[:] = self.null_solution
             else:
                 penalty = constrained_positive_part(p, lagrange=self.lagrange_max)
@@ -148,7 +148,7 @@ class heirnet(lasso):
     @property
     def penalized(self):
         if not hasattr(self, '_penalized'):
-            p = self.Xn.primal_shape[0]
+            p = self.Xn.input_shape[0]
             if self.intercept:
                 self._penalized = selector(slice(1,p), (p,))
             else:
@@ -185,13 +185,13 @@ class heirnet(lasso):
         loss = self.loss_factory(Xslice)
         if self.intercept:
             Xslice.intercept_column = 0
-            linear_slice = slice(1, Xslice.primal_shape[0])
-            linear_penalty = constrained_positive_part(Xslice.primal_shape[0]-1, lagrange=lagrange)
-            problem_sliced = separable_problem(loss, Xslice.primal_shape, [linear_penalty], [linear_slice])
+            linear_slice = slice(1, Xslice.input_shape[0])
+            linear_penalty = constrained_positive_part(Xslice.input_shape[0]-1, lagrange=lagrange)
+            problem_sliced = separable_problem(loss, Xslice.input_shape, [linear_penalty], [linear_slice])
         else:
-            penalty = constrained_positive_part(Xslice.primal_shape[0], lagrange=lagrange)
+            penalty = constrained_positive_part(Xslice.input_shape[0], lagrange=lagrange)
             problem_sliced = simple_problem(loss, penalty)
-        candidate_selector = selector(candidate_set, self.Xn.primal_shape)
+        candidate_selector = selector(candidate_set, self.Xn.input_shape)
         return problem_sliced, candidate_selector
 
     def check_KKT(self, tol=1.0e-02):
@@ -237,7 +237,7 @@ class heirnet(lasso):
         if self.Xn.scale:
             scalings = np.asarray(self.Xn.col_stds).reshape(-1)
         else:
-            scalings = np.ones(self.Xn.primal_shape)
+            scalings = np.ones(self.Xn.input_shape)
         scalings = self.nonzero.adjoint_map(scalings)
 
         # take a guess at the inverse step size
@@ -251,7 +251,7 @@ class heirnet(lasso):
         self.strong = self.strong_set(lseq[0], lseq[1])
         grad_solution = self.grad().copy()
 
-        p = self.Xn.primal_shape[0]
+        p = self.Xn.input_shape[0]
 
         rescaled_solutions = scipy.sparse.csr_matrix(self.nonzero.adjoint_map(self.solution) / scalings)
 

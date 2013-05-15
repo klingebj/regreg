@@ -36,7 +36,7 @@ class AffineError(Exception):
 
 class affine_transform(object):
     
-    def __init__(self, linear_operator, affine_offset, diag=False, primal_shape=None):
+    def __init__(self, linear_operator, affine_offset, diag=False, input_shape=None):
         """ Create affine transform
 
         Parameters
@@ -73,8 +73,8 @@ class affine_transform(object):
             self.sparseD = False
             self.affineD = False
             self.diagD = False
-            self.primal_shape = affine_offset.shape
-            self.dual_shape = affine_offset.shape
+            self.input_shape = affine_offset.shape
+            self.output_shape = affine_offset.shape
         else:
             self.noneD = False
             self.sparseD = sparse.isspmatrix(self.linear_operator)
@@ -91,32 +91,32 @@ class affine_transform(object):
                                  'affine_map',
                                  'affine_offset',
                                  'adjoint_map',
-                                 'primal_shape',
-                                 'dual_shape']]):
-                self.primal_shape = self.linear_operator.primal_shape
-                self.dual_shape = self.linear_operator.dual_shape
+                                 'input_shape',
+                                 'output_shape']]):
+                self.input_shape = self.linear_operator.input_shape
+                self.output_shape = self.linear_operator.output_shape
                 self.affineD = True
                 self.diagD = False
             elif linear_operator.ndim == 1 and not diag:
                 self.linear_operator = self.linear_operator.reshape((1,-1))
                 self.diagD = False
                 self.affineD = False
-                self.primal_shape = (self.linear_operator.shape[1],)
-                self.dual_shape = (1,)
+                self.input_shape = (self.linear_operator.shape[1],)
+                self.output_shape = (1,)
             elif linear_operator.ndim == 1 and diag:
                 self.diagD = True
                 self.affineD = False
-                self.primal_shape = (linear_operator.shape[0],)
-                self.dual_shape = (linear_operator.shape[0],)
-            elif not primal_shape is None and (len(primal_shape) == 2):
+                self.input_shape = (linear_operator.shape[0],)
+                self.output_shape = (linear_operator.shape[0],)
+            elif not input_shape is None and (len(input_shape) == 2):
                 #Primal shape is a matrix
-                self.primal_shape = primal_shape
-                self.dual_shape = (linear_operator.shape[0],primal_shape[1])
+                self.input_shape = input_shape
+                self.output_shape = (linear_operator.shape[0],input_shape[1])
                 self.diagD = False
                 self.affineD = False
             else:
-                self.primal_shape = (linear_operator.shape[1],)
-                self.dual_shape = (linear_operator.shape[0],)
+                self.input_shape = (linear_operator.shape[1],)
+                self.output_shape = (linear_operator.shape[0],)
                 self.diagD = False
                 self.affineD = False
 
@@ -263,10 +263,10 @@ class affine_transform(object):
 class linear_transform(affine_transform):
     """ A linear transform is an affine transform with no affine offset
     """
-    def __init__(self, linear_operator, diag=False, primal_shape=None):
+    def __init__(self, linear_operator, diag=False, input_shape=None):
         if linear_operator is None:
             raise AffineError('linear_operator cannot be None')
-        affine_transform.__init__(self, linear_operator, None, diag=diag, primal_shape=primal_shape)
+        affine_transform.__init__(self, linear_operator, None, diag=diag, input_shape=input_shape)
 
 
 class selector(linear_transform):
@@ -306,8 +306,8 @@ class selector(linear_transform):
             affine_transform = identity(test[index_obj].shape)
         self.affine_transform = affine_transform
         self.affine_offset = self.affine_transform.affine_offset
-        self.primal_shape = initial_shape
-        self.dual_shape = self.affine_transform.dual_shape
+        self.input_shape = initial_shape
+        self.output_shape = self.affine_transform.output_shape
 
     def linear_map(self, x, copy=False):
         x_indexed = x[self.index_obj]
@@ -334,14 +334,14 @@ class reshape(linear_transform):
 
     """
 
-    def __init__(self, primal_shape, dual_shape):
-        self.primal_shape = primal_shape
-        self.dual_shape = dual_shape
+    def __init__(self, input_shape, output_shape):
+        self.input_shape = input_shape
+        self.output_shape = output_shape
 
     def linear_map(self, x, copy=False):
         if copy:
             x = x.copy()
-        return x.reshape(self.dual_shape)
+        return x.reshape(self.output_shape)
 
     def affine_map(self, x, copy=False):
         return self.linear_map(x, copy)
@@ -354,16 +354,16 @@ class reshape(linear_transform):
     def adjoint_map(self, u, copy=True):
         if copy:
             u = u.copy()
-        return u.reshape(self.dual_shape)
+        return u.reshape(self.output_shape)
 
 def tensor(T, first_primal_index):
-    primal_shape = T.shape[first_primal_index:]
-    dual_shape = T.shape[:first_primal_index]
+    input_shape = T.shape[first_primal_index:]
+    output_shape = T.shape[:first_primal_index]
 
-    Tm = T.reshape((np.product(dual_shape),
-                    np.product(primal_shape)))
-    reshape_primal = reshape(primal_shape, Tm.shape[1])
-    reshape_dual = reshape(Tm.shape[0], dual_shape)
+    Tm = T.reshape((np.product(output_shape),
+                    np.product(input_shape)))
+    reshape_primal = reshape(input_shape, Tm.shape[1])
+    reshape_dual = reshape(Tm.shape[0], output_shape)
     return composition(reshape_dual, Tm, reshape_primal)
 
 class normalize(object):
@@ -405,8 +405,8 @@ class normalize(object):
         '''
         n, p = M.shape
         self.value = value
-        self.dual_shape = (n,)
-        self.primal_shape = (p,)
+        self.output_shape = (n,)
+        self.input_shape = (p,)
 
         self.sparseM = sparse.isspmatrix(M)
         self.intercept_column = intercept_column
@@ -516,7 +516,7 @@ class normalize(object):
         return x
 
     def adjoint_map(self, u):
-        v = np.empty(self.primal_shape)
+        v = np.empty(self.input_shape)
         if self.center:
             if u.ndim == 1:
                 u_mean = u.mean()
@@ -596,8 +596,8 @@ class normalize(object):
         except TypeError: # sparse matrix is of wrong format
             new_obj.M = self.M.tolil()[:,index_obj].tocsc()
 
-        new_obj.primal_shape = (new_obj.M.shape[1],)
-        new_obj.dual_shape = (self.M.shape[0],)
+        new_obj.input_shape = (new_obj.M.shape[1],)
+        new_obj.output_shape = (self.M.shape[0],)
         new_obj.scale = self.scale
         new_obj.center = self.center
         if self.scale:
@@ -613,8 +613,8 @@ class normalize(object):
 
 class identity(object):
 
-    def __init__(self, primal_shape):
-        self.primal_shape = self.dual_shape = primal_shape
+    def __init__(self, input_shape):
+        self.input_shape = self.output_shape = input_shape
         self.affine_offset = None
         self.linear_operator = None
 
@@ -644,45 +644,45 @@ class vstack(object):
     """
 
     def __init__(self, transforms):
-        self.primal_shape = -1
-        self.dual_shapes = []
+        self.input_shape = -1
+        self.output_shapes = []
         self.transforms = []
         self.dual_slices = []
         total_dual = 0
         for transform in transforms:
             transform = astransform(transform)
-            if self.primal_shape == -1:
-                self.primal_shape = transform.primal_shape
+            if self.input_shape == -1:
+                self.input_shape = transform.input_shape
             else:
-                if transform.primal_shape != self.primal_shape:
+                if transform.input_shape != self.input_shape:
                     raise ValueError("primal dimensions don't agree")
             self.transforms.append(transform)
-            self.dual_shapes.append(transform.dual_shape)
-            increment = np.product(transform.dual_shape)
+            self.output_shapes.append(transform.output_shape)
+            increment = np.product(transform.output_shape)
             self.dual_slices.append(slice(total_dual, total_dual + increment))
             total_dual += increment
 
-        self.dual_shape = (total_dual,)
+        self.output_shape = (total_dual,)
         self.group_dtype = np.dtype([('group_%d' % i, np.float, shape) 
-                                     for i, shape in enumerate(self.dual_shapes)])
+                                     for i, shape in enumerate(self.output_shapes)])
         self.dual_groups = self.group_dtype.names 
 
         # figure out the affine offset
-        self.affine_offset = np.empty(self.dual_shape)
-        x = np.zeros(self.primal_shape)
+        self.affine_offset = np.empty(self.output_shape)
+        x = np.zeros(self.input_shape)
         for g, t in zip(self.dual_slices, self.transforms):
             self.affine_offset[g] = t.affine_map(x)
         if np.all(np.equal(self.affine_offset, 0)):
             self.affine_offset = None
             
     def linear_map(self, x, copy=False):
-        result = np.empty(self.dual_shape)
+        result = np.empty(self.output_shape)
         for g, t in zip(self.dual_slices, self.transforms):
             result[g] = t.linear_map(x)
         return result
 
     def affine_map(self, x, copy=False):
-        result = np.empty(self.dual_shape)
+        result = np.empty(self.output_shape)
         for g, t in zip(self.dual_slices, self.transforms):
             result[g] = t.linear_map(x)
         if self.affine_offset is not None:
@@ -697,9 +697,9 @@ class vstack(object):
             return x
 
     def adjoint_map(self, u, copy=False):
-        result = np.zeros(self.primal_shape)
+        result = np.zeros(self.input_shape)
         for g, t, s in zip(self.dual_slices, self.transforms,
-                           self.dual_shapes):
+                           self.output_shapes):
             result += t.adjoint_map(u[g].reshape(s))
         return result
 
@@ -711,48 +711,48 @@ class hstack(object):
     """
 
     def __init__(self, transforms):
-        self.dual_shape = -1
-        self.primal_shapes = []
+        self.output_shape = -1
+        self.input_shapes = []
         self.transforms = []
         self.primal_slices = []
         total_primal = 0
         for transform in transforms:
             transform = astransform(transform)
-            if self.dual_shape == -1:
-                self.dual_shape = transform.dual_shape
+            if self.output_shape == -1:
+                self.output_shape = transform.output_shape
             else:
-                if transform.dual_shape != self.dual_shape:
+                if transform.output_shape != self.output_shape:
                     raise ValueError("dual dimensions don't agree")
             self.transforms.append(transform)
-            self.primal_shapes.append(transform.primal_shape)
-            increment = np.product(transform.primal_shape)
+            self.input_shapes.append(transform.input_shape)
+            increment = np.product(transform.input_shape)
             self.primal_slices.append(slice(total_primal, total_primal + increment))
             total_primal += increment
 
-        self.primal_shape = (total_primal,)
+        self.input_shape = (total_primal,)
         self.group_dtype = np.dtype([('group_%d' % i, np.float, shape) 
-                                     for i, shape in enumerate(self.primal_shapes)])
+                                     for i, shape in enumerate(self.input_shapes)])
         self.primal_groups = self.group_dtype.names 
 
         # figure out the affine offset
-        self.affine_offset = np.zeros(self.dual_shape)
-        for g, s, t in zip(self.primal_slices, self.primal_shapes,
+        self.affine_offset = np.zeros(self.output_shape)
+        for g, s, t in zip(self.primal_slices, self.input_shapes,
                            self.transforms):
             self.affine_offset += t.affine_map(np.zeros(s))
         if np.all(np.equal(self.affine_offset, 0)):
             self.affine_offset = None
 
     def linear_map(self, x, copy=False):
-        result = np.zeros(self.dual_shape)
+        result = np.zeros(self.output_shape)
         for g, t, s in zip(self.primal_slices, self.transforms,
-                           self.primal_shapes):
+                           self.input_shapes):
             result += t.linear_map(x[g].reshape(s))
         return result
 
     def affine_map(self, x, copy=False):
-        result = np.zeros(self.dual_shape)
+        result = np.zeros(self.output_shape)
         for g, t, s in zip(self.primal_slices, self.transforms,
-                        self.primal_shapes):
+                        self.input_shapes):
             result += t.linear_map(x[g].reshape(s))
         if self.affine_offset is not None:
             return result + self.affine_offset
@@ -766,12 +766,12 @@ class hstack(object):
             return x
 
     def adjoint_map(self, u, copy=False):
-        result = np.empty(self.primal_shape)
+        result = np.empty(self.input_shape)
         #XXX this reshaping will fail for shapes that aren't
         # 1D, would have to view as self.group_dtype to
         # take advantange of different shapes
         for g, t, s in zip(self.primal_slices, self.transforms,
-                           self.primal_shapes):
+                           self.input_shapes):
             result[g] = t.adjoint_map(u).reshape(-1)
         return result
 
@@ -784,7 +784,7 @@ def power_L(transform, max_its=500,tol=1e-8, debug=False):
     """
 
     transform = astransform(transform)
-    v = np.random.standard_normal(transform.primal_shape)
+    v = np.random.standard_normal(transform.input_shape)
     old_norm = 0.
     norm = 1.
     itercount = 0
@@ -817,8 +817,8 @@ class adjoint(object):
     def __init__(self, transform):
         self.transform = astransform(transform)
         self.affine_offset = None
-        self.primal_shape = self.transform.dual_shape
-        self.dual_shape = self.transform.primal_shape
+        self.input_shape = self.transform.output_shape
+        self.output_shape = self.transform.input_shape
 
     def linear_map(self, x, copy=False):
         return self.transform.adjoint_map(x, copy)
@@ -836,7 +836,7 @@ class tensorize(object):
 
     """
     Given an affine_transform, return a linear_transform
-    that expects q copies of something with transform's primal_shape.
+    that expects q copies of something with transform's input_shape.
 
     This class effectively makes explicit that a transform
     may expect a matrix rather than a single vector.
@@ -845,8 +845,8 @@ class tensorize(object):
     def __init__(self, transform, q):
         self.transform = astransform(transform)
         self.affine_offset = self.transform.affine_offset
-        self.primal_shape = self.transform.primal_shape + (q,)
-        self.dual_shape = self.transform.dual_shape + (q,)
+        self.input_shape = self.transform.input_shape + (q,)
+        self.output_shape = self.transform.output_shape + (q,)
 
     def linear_map(self, x):
         return self.transform.linear_map(x)
@@ -871,10 +871,10 @@ class residual(object):
 
     def __init__(self, transform):
         self.transform = astransform(transform)
-        self.primal_shape = self.transform.primal_shape
-        self.dual_shape = self.transform.dual_shape
+        self.input_shape = self.transform.input_shape
+        self.output_shape = self.transform.output_shape
         self.affine_offset = None
-        if not self.primal_shape == self.dual_shape:
+        if not self.input_shape == self.output_shape:
             raise ValueError('dual and primal shapes should be the same to compute residual')
 
     def linear_map(self, x):
@@ -894,11 +894,11 @@ class composition(object):
 
     def __init__(self, *transforms):
         self.transforms = [astransform(t) for t in transforms]
-        self.primal_shape = self.transforms[-1].primal_shape
-        self.dual_shape = self.transforms[0].dual_shape
+        self.input_shape = self.transforms[-1].input_shape
+        self.output_shape = self.transforms[0].output_shape
 
         # compute the affine_offset
-        affine_offset = self.affine_map(np.zeros(self.primal_shape))
+        affine_offset = self.affine_map(np.zeros(self.input_shape))
         if not np.allclose(affine_offset, 0): 
             self.affine_offset = None
         else:
@@ -942,11 +942,11 @@ class affine_sum(object):
             if not len(self.transforms) == len(weights):
                 raise ValueError("Must specify a weight for each transform")
             self.weights = weights
-        self.primal_shape = transforms[0].primal_shape
-        self.dual_shape = transforms[0].dual_shape
+        self.input_shape = transforms[0].input_shape
+        self.output_shape = transforms[0].output_shape
 
         # compute the affine_offset
-        affine_offset = self.affine_map(np.zeros(self.primal_shape))
+        affine_offset = self.affine_map(np.zeros(self.input_shape))
         if np.allclose(affine_offset, 0): 
             self.affine_offset = None
         else:
@@ -978,7 +978,7 @@ class affine_sum(object):
 class scalar_multiply(object):
 
     def __init__(self, atransform, scalar):
-        self.primal_shape, self.dual_shape = (atransform.primal_shape, atransform.dual_shape)
+        self.input_shape, self.output_shape = (atransform.input_shape, atransform.output_shape)
         self.scalar = scalar
         self.affine_offset = None
         self._atransform = atransform
@@ -1014,9 +1014,9 @@ class posneg(affine_transform):
         self.linear_transform = astransform(linear_transform)
         # where to store output so we don't recreate arrays 
         self.affine_offset = None
-        self.primal_shape = (2,) + self.linear_transform.primal_shape
-        self._adjoint_output = np.zeros(self.primal_shape)
-        self.dual_shape = self.linear_transform.dual_shape
+        self.input_shape = (2,) + self.linear_transform.input_shape
+        self._adjoint_output = np.zeros(self.input_shape)
+        self.output_shape = self.linear_transform.output_shape
 
     def linear_map(self, x):
         X = self.linear_transform.linear_map

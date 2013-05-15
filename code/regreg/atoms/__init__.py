@@ -155,8 +155,8 @@ class affine_atom(object):
         else:
             ltransform = atransform
         self.linear_transform = ltransform
-        self.primal_shape = self.linear_transform.primal_shape
-        self.dual_shape = self.linear_transform.dual_shape
+        self.input_shape = self.linear_transform.input_shape
+        self.output_shape = self.linear_transform.output_shape
 
     def latexify(self, var='x', idx=''):
         return self.atom.latexify(var='D_{%s}%s' % (idx, var), idx=idx)
@@ -168,7 +168,7 @@ class affine_atom(object):
     @property
     def dual(self):
         tmpatom = copy(self.atom)
-        tmpatom.shape = self.dual_shape
+        tmpatom.shape = self.output_shape
         return self.linear_transform, tmpatom.conjugate
 
     def nonsmooth_objective(self, arg, check_feasibility=False):

@@ -64,8 +64,8 @@ class trend_filter(affine_transform):
         self.linear_transform = difference_transform(knots, order=order, sorted=True,
                                                      transform=True)
         self.affine_offset = None
-        self.primal_shape = self.linear_transform.primal_shape
-        self.dual_shape = self.linear_transform.dual_shape
+        self.input_shape = self.linear_transform.input_shape
+        self.output_shape = self.linear_transform.output_shape
 
     def linear_map(self, x):
         return self.linear_transform.linear_map(x)
@@ -99,8 +99,8 @@ class trend_filter_inverse(affine_transform):
                                           transform=True)
 
         self.affine_offset = None
-        self.dual_shape = dtransform.primal_shape
-        self.primal_shape = dtransform.dual_shape
+        self.output_shape = dtransform.input_shape
+        self.input_shape = dtransform.output_shape
 
     def linear_map(self, x):
         if x.ndim == 1:

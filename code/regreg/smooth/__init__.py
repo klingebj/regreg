@@ -45,7 +45,7 @@ class smooth_atom(smooth_composite):
         if not acceptable_init_args(cls, kws):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
         
-        atom = cls(l.dual_shape, coef=coef, offset=offset, quadratic=quadratic, **kws)
+        atom = cls(l.output_shape, coef=coef, offset=offset, quadratic=quadratic, **kws)
         
         return affine_smooth(atom, l)
 
@@ -60,7 +60,7 @@ class smooth_atom(smooth_composite):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
 
         atransform = affine_transform(linear_operator, None, diag=diag)
-        atom = cls(atransform.dual_shape, coef=coef, quadratic=quadratic, offset=offset, **kws)
+        atom = cls(atransform.output_shape, coef=coef, quadratic=quadratic, offset=offset, **kws)
         
         return affine_smooth(atom, atransform)
 
@@ -118,7 +118,7 @@ class affine_smooth(smooth_atom):
         if not isinstance(atransform, affine_transform):
             atransform = linear_transform(atransform, diag=diag)
         self.affine_transform = atransform
-        self.shape = atransform.primal_shape
+        self.shape = atransform.input_shape
         self.coefs = np.zeros(self.shape)
 
     def latexify(self, var='x', idx=''):

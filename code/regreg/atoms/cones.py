@@ -40,12 +40,12 @@ class cone(atom):
         if self.quadratic.iszero:
             return "%s(%s, offset=%s)" % \
                 (self.__class__.__name__,
-                 `self.shape`, 
+                 repr(self.shape), 
                  str(self.offset))
         else:
             return "%s(%s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
-                 `self.shape`, 
+                 repr(self.shape), 
                  str(self.offset),
                  str(self.quadratic))
 
@@ -175,7 +175,7 @@ class cone(atom):
             l = linear_transform(linear_operator, diag=diag)
         else:
             l = linear_operator
-        cone = cls(l.dual_shape, 
+        cone = cls(l.output_shape, 
                    offset=offset,
                    quadratic=quadratic)
         return affine_cone(cone, l)
@@ -187,7 +187,7 @@ class cone(atom):
             l = linear_transform(linear_operator, diag=diag)
         else:
             l = linear_operator
-        cone = cls(l.dual_shape, 
+        cone = cls(l.output_shape, 
                    offset=offset,
                    quadratic=quadratic)
         return affine_cone(cone, l)
@@ -220,7 +220,7 @@ class affine_cone(object):
         else:
             ltransform = atransform
         self.linear_transform = ltransform
-        self.shape = self.linear_transform.dual_shape
+        self.shape = self.linear_transform.output_shape
 
     def __repr__(self):
         return "affine_cone(%s, %s)" % (`self.cone`,

@@ -146,7 +146,7 @@ def nesta(smooth_atom, proximal_atom, conjugate_atom, epsilon=None,
         epsilon = 2.**(-np.arange(20))
 
     transform, conjugate = conjugate_atom.dual
-    dual_coef = np.zeros(transform.dual_shape)
+    dual_coef = np.zeros(transform.output_shape)
     for eps in epsilon:
         smoothed = conjugate_atom.smoothed(identity_quadratic(eps, dual_coef, 0, 0))
         if smooth_atom is not None:

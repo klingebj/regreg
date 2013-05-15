@@ -261,14 +261,14 @@ class svd_cone(cone, svd_obj):
                  str(self.offset),
                  str(self.quadratic))
 
-    def __init__(self, primal_shape,
+    def __init__(self, input_shape,
                  offset=None,
                  quadratic=None,
                  initial=None):
 
-        self.matrix_shape = primal_shape
-        primal_shape = np.product(primal_shape)+1
-        cone.__init__(self, primal_shape, offset=offset,
+        self.matrix_shape = input_shape
+        input_shape = np.product(input_shape)+1
+        cone.__init__(self, input_shape, offset=offset,
                       quadratic=quadratic,
                       initial=initial)
 

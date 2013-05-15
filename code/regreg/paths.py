@@ -75,14 +75,14 @@ class lasso(object):
                 which_0 = np.zeros(self._Xn.shape)
 
         if np.any(which_0):
-            self._selector = selector(~which_0, self._Xn.primal_shape)
+            self._selector = selector(~which_0, self._Xn.input_shape)
             if self.scale or self.center:
                 self._Xn = self._Xn.slice_columns(~which_0)
             else:
                 self._Xn = self._Xn[:,~which_0]
         else:
             if self.scale or self.center:
-                self._selector = identity(self._Xn.primal_shape)
+                self._selector = identity(self._Xn.input_shape)
             else:
                 self._selector = identity(self._Xn.shape)
 
@@ -99,7 +99,7 @@ class lasso(object):
     @property
     def shape(self):
         if self.scale or self.center:
-            return self.Xn.dual_shape[0], self.Xn.primal_shape[0]
+            return self.Xn.output_shape[0], self.Xn.input_shape[0]
         else:
             return self.Xn.shape
 
@@ -421,7 +421,7 @@ class nesta(lasso):
         dual_term = self.get_dual_term(lagrange)
         if dual_term is None:
             nesta_loss = atom.smoothed(iq(self.epsilon, 0, 0, 0))
-            nesta_loss.smooth_objective(np.zeros(Xslice.primal_shape), mode='grad')
+            nesta_loss.smooth_objective(np.zeros(Xslice.input_shape), mode='grad')
             self.dual_term = nesta_loss.grad
         else:
             self.dual_term = dual_term

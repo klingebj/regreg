@@ -126,8 +126,8 @@ class cholesky(object):
     '''
 
     def __init__(self, Q, cholesky=None, banded=False):
-        self.prial_shape = Q.shape[0]
-        self.dual_shape = Q.shape[0]
+        self.input_shape = Q.shape[0]
+        self.output_shape = Q.shape[0]
         self.affine_offset = None
         self._Q = Q
         self.banded = banded
