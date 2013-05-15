@@ -64,7 +64,7 @@ htmlonly:
 	@echo "Build finished. The HTML pages are in build/html."
 
 api:
-	-mkdir -p api/generated
+	-mkdir -p source/api/generated
 	python ../tools/build_modref_templates.py
 	@echo "Build API docs finished."
 

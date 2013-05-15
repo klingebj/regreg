@@ -33,3 +33,10 @@ Thanks
 Jonathan Taylor and Brad Klingenberg were funded by NSF in writing their
 portion of the software. As such, this material is based upon work supported by the National Science Foundation under Grant No. 0906801.
 Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and do not necessarily reflect the views of the National Science Foundation.
+
+.. We need the following toctree directive to include the documentation
+.. in the document heirarchy - see http://sphinx.pocoo.org/concepts.html
+.. toctree::
+   :hidden:
+
+   documentation

@@ -12,7 +12,7 @@ from apigen import ApiDocWriter
 #*****************************************************************************
 if __name__ == '__main__':
     package = 'regreg'
-    outdir = os.path.join('api','generated')
+    outdir = os.path.join('source','api','generated')
     docwriter = ApiDocWriter(package)
     docwriter.package_skip_patterns += [r'\.fixes$',
                                         r'\.externals$',
