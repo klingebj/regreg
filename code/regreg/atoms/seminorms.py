@@ -52,7 +52,7 @@ class seminorm(atom):
         is True, and seminorm is unbounded, will return ``np.inf``
         if appropriate.
 
-        The class atom's seminorm just returns the appropriate lagrange
+        The class seminorm's seminorm just returns the appropriate lagrange
         parameter for use by the subclasses.
         """
         if lagrange is None:
@@ -65,12 +65,12 @@ class seminorm(atom):
     @doc_template_provider
     def constraint(self, arg, bound=None):
         r"""
-        Verify :math:`\cdot %(objective)s \leq \lambda`, where :math:`\lambda`
-        is bound, :math:`\alpha` is self.offset (if any).
+        Verify :math:`%(objective)s \leq \delta`, where :math:`\delta`
+        is bound.
 
         If True, returns 0, else returns np.inf.
 
-        The class atom's constraint just returns the appropriate bound
+        The class seminorm's constraint just returns the appropriate bound
         parameter for use by the subclasses.
         """
         if bound is None:
@@ -286,12 +286,9 @@ class seminorm(atom):
            %(var)s^{\lambda}(u) =
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
            \frac{L}{2}
-           \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
-            + \lambda   %(objective)s 
+           \|u-%(var)s\|^2_2 + \lambda %(objective)s 
 
-        Above, :math:`\lambda` is the Lagrange parameter 
-        :math:`\eta` is self.linear_term (if any)
-        and :math:`\tau` is self.constant_term.
+        Above, :math:`\lambda` is the Lagrange parameter.
 
         If the argument `lagrange` is None and the atom is in lagrange mode,
         ``self.lagrange`` is used as the lagrange parameter, else an exception
@@ -315,15 +312,13 @@ class seminorm(atom):
 
         .. math::
 
-           %(var)s^{\lambda}(u) \in
+           %(var)s^{\delta}(u) =
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
            \frac{L}{2}
            \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
-           \text{s.t.} \   %(objective)s \leq \lambda
+           \text{s.t.} \   %(objective)s \leq \delta
 
-        Above, :math:`\lambda` is the bound parameter
-        :math:`\eta` is self.linear_term (if any) and
-        :math:`\tau` is self.constant_term (if any).
+        where :math:`\delta` is the bound parameter.
 
         If the argument `bound` is None and the atom is in bound mode,
         ``self.bound`` is used as the bound parameter, else an exception is
@@ -488,7 +483,7 @@ class l2norm(seminorm):
     The l2 norm
     """
 
-    objective_template = r"""\|%(var)s\|_1"""
+    objective_template = r"""\|%(var)s\|_2"""
     objective_vars = {'var': r'x'}
 
 

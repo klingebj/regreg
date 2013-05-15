@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import sparse
-import affine
+from ..affine import affine_transform
 
 def formD_smaller(m, n):
     """
@@ -208,7 +208,7 @@ def formD(m, n):
 
     return D1 + D2 + D3 + D4 + D5 + D6 + D7 + D8
 
-class image2d_differences(affine.affine_transform):
+class image2d_differences(affine_transform):
 
     def __init__(self, image_shape, affine_offset=None):
         self.image_shape = image_shape

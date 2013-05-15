@@ -132,17 +132,6 @@ class composite(object):
         smoothed_atom = conjugate_atom.conjugate
         return smoothed_atom
 
-    def get_lipschitz(self):
-        if hasattr(self, '_lipschitz'):
-            return self._lipschitz + self.quadratic.coef
-        return self.quadratic.coef
-
-    def set_lipschitz(self, value):
-        if value < 0:
-            raise ValueError('Lipschitz constant must be non-negative')
-        self._lipschitz = value
-    lipschitz = property(get_lipschitz, set_lipschitz)
-
     def solve(self, quadratic=None, return_optimum=False, **fit_args):
         raise NotImplementedError('subclasses must implement their own solve methods')
 
@@ -178,17 +167,16 @@ class smooth(composite):
     is a null-op.
     """
 
-#     def __init__(self, smooth_objective, 
-#                  shape, offset=None,
-#                  quadratic=None, initial=None):
-#         """
-#         Create a new smooth class from a smooth_objective function.
-#         """
-#         self._smooth_objective = smooth_objective
-#         composite.__init__(self, shape,
-#                            offset=offset,
-#                            quadratic=quadratic,
-#                            initial=initial)
+    def get_lipschitz(self):
+        if hasattr(self, '_lipschitz'):
+            return self._lipschitz + self.quadratic.coef
+        return self.quadratic.coef
+
+    def set_lipschitz(self, value):
+        if value < 0:
+            raise ValueError('Lipschitz constant must be non-negative')
+        self._lipschitz = value
+    lipschitz = property(get_lipschitz, set_lipschitz)
 
     def smooth_objective(self, x, mode='func', check_feasibility=False):
         return self._smooth_objective(x, mode=mode, check_feasibility=check_feasibility)

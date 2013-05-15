@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse
 
-from .affine import astransform, affine_transform
+from ..affine import astransform, affine_transform
 
 
 def difference_transform(X, order=1, sorted=False,
