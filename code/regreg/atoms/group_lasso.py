@@ -25,7 +25,6 @@ class group_lasso(seminorm):
     """
 
     objective_template = r"""\sum_g \|%(var)s_g\|_2"""
-    objective_vars = {'var': r'x + \alpha'}
 
     tol = 1.0e-05
 
@@ -191,7 +190,6 @@ class group_lasso_dual(group_lasso):
     """
 
     objective_template = r"""\max_g \|%(var)s_g\|_2"""
-    objective_vars = {'var': r'x + \alpha'}
 
     tol = 1.0e-05
 
@@ -371,7 +369,6 @@ class group_lasso_epigraph(group_lasso_cone):
     """
 
     objective_template = r"""1_{\{(%(var)s: \sum_g \|%(var)s[1:]_g\|_2 \leq %(var)s[0]\}}"""
-    objective_vars = {'var': r'x + \alpha'}
 
     def __init__(self, groups,
                  weights={},
@@ -417,7 +414,6 @@ class group_lasso_epigraph_polar(group_lasso_cone):
     """
 
     objective_template = r"""1_{\{(%(var)s: \max_g \|%(var)s[1:]_g\|_2 \leq -%(var)s[0]\}}"""
-    objective_vars = {'var': r'x + \alpha'}
 
     def __init__(self, groups,
                  weights={},
@@ -466,7 +462,6 @@ class group_lasso_dual_epigraph(group_lasso_cone):
     """
 
     objective_template = r"""1_{\{(%(var)s: \max_g \|%(var)s[1:]_g\|_2 \leq %(var)s[0]\}}"""
-    objective_vars = {'var': r'x + \alpha'}
 
     def __init__(self, groups,
                  weights={},
@@ -514,7 +509,6 @@ class group_lasso_dual_epigraph_polar(group_lasso_cone):
     """
 
     objective_template = r"""1_{\{(%(var)s: \sum_g \|%(var)s[1:]_g\|_2 \leq -%(var)s[0]\}}"""
-    objective_vars = {'var': r'x + \alpha'}
 
     def __init__(self, groups,
                  weights={},

@@ -18,6 +18,8 @@ class seminorm(atom):
     An atom that can be in lagrange or bound form.
     """
 
+    objective_vars = {'var': r'x', 'shape':'p'}
+
     def __init__(self, shape, lagrange=None, bound=None,
                  offset=None, quadratic=None, initial=None):
 
@@ -315,7 +317,7 @@ class seminorm(atom):
            %(var)s^{\delta}(u) =
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
            \frac{1}{2}
-           \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
+           \|u-%(var)s\|^2_2 
            \text{s.t.} \   %(objective)s \leq \delta
 
         where :math:`\delta` is the bound parameter. 
@@ -399,7 +401,6 @@ class l1norm(seminorm):
     prox_tol = 1.0e-10
 
     objective_template = r"""\|%(var)s\|_1"""
-    objective_vars = {'var': r'x'}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
@@ -440,7 +441,6 @@ class supnorm(seminorm):
     """
 
     objective_template = r"""\|%(var)s\|_{\infty}"""
-    objective_vars = {'var': r'x'}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
@@ -484,8 +484,6 @@ class l2norm(seminorm):
     """
 
     objective_template = r"""\|%(var)s\|_2"""
-    objective_vars = {'var': r'x'}
-
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
@@ -549,8 +547,6 @@ class positive_part(seminorm):
     """
 
     objective_template = r"""\sum_{i=1}^{%(shape)s} %(var)s_i^+"""
-    objective_vars = {'var': r'x',
-                      'shape': seminorm._doc_dict['shape']}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
@@ -598,8 +594,6 @@ class constrained_max(seminorm):
 
     objective_template = (r"""\|%(var)s\|_{\infty} + \sum_{i=1}^{%(shape)s} """
                           + r"""\delta_{[0,+\infty)}(%(var)s_i)) """)
-    objective_vars = {'var': r'x',
-                      'shape': seminorm._doc_dict['shape']}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
@@ -648,8 +642,6 @@ class constrained_positive_part(seminorm):
 
     objective_template = (r"""\|%(var)s\|_{1} + \sum_{i=1}^{%(shape)s} """
                           + r"""\delta_{[0,+\infty]}(%(var)s_i)""")
-    objective_vars = {'var': r'x',
-                      'shape': seminorm._doc_dict['shape']}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
@@ -701,8 +693,6 @@ class max_positive_part(seminorm):
     """
 
     objective_template = r"""\|%(var)s^+\|_{\infty}"""
-    objective_vars = {'var': r'x',
-                      'shape': seminorm._doc_dict['shape']}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):

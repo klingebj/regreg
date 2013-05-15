@@ -77,7 +77,11 @@ class cone(atom):
     @doc_template_provider
     def constraint(self, x):
         """
-        Abstract method. Evaluate the constraint on the dual norm of x.
+        The constraint
+
+        .. math::
+
+           %(objective)s
         """
         raise NotImplementedError
 
@@ -143,27 +147,29 @@ class cone(atom):
             print 'proxarg: ', prox_arg
             print 'totalq: ', totalq
 
-        eta = self.cone_prox(prox_arg, lipschitz=totalq.coef)
+        eta = self.cone_prox(prox_arg)
         if offset is None:
             return eta
         else:
             return eta - offset
 
     @doc_template_provider
-    def cone_prox(self, x, lipschitz=1):
+    def cone_prox(self, x):
         r"""
         Return (unique) minimizer
 
         .. math::
 
-           v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v)
+           %(var)s^{\lambda}(u) = \text{argmin}_{%(var)s \in \mathbb{R}^p} \frac{1}{2}
+           \|%(var)s-u\|^2_2 + h(%(var)s)
 
-        where *p*=x.shape[0] and :math:`h(v)` is the support function of self
-        (with a Lagrange multiplier of 1 in front) and :math:`\lambda` is the
-        Lagrange parameter.  If the argument is None and the atom is in Lagrange
-        mode, this parameter is used for the proximal operator, else an
-        exception is raised.
+        where $p$=x.shape[0] and :math:`h(%(var)s)` is `self`, a cone constraint.
+        For this instance,
+
+        .. math::
+
+            h(%(var)s) = %(objective)s
+
         """
         raise NotImplementedError
 
@@ -263,38 +269,17 @@ class nonnegative(cone):
     """
 
     objective_template = r"""I^{\infty}(%(var)s \succeq 0)"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         tol_lim = np.fabs(x).max() * self.tol
         incone = np.all(np.greater_equal(x, -tol_lim))
         if incone:
             return 0
         return np.inf
 
-
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v_i \geq 0.
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-        This is just a element-wise
-        np.maximum(x, 0)
-
-        .. math::
-
-            v^{\lambda}(x)_i = \max(x_i, 0)
-
-        """
+    @doc_template_user
+    def cone_prox(self, x):
         return np.maximum(x, 0)
 
 
@@ -306,37 +291,17 @@ class nonpositive(nonnegative):
     """
 
     objective_template = r"""I^{\infty}(%(var)s \preceq 0)"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-positive constraint of x.
-        """
         tol_lim = np.fabs(x).max() * self.tol
         incone = np.all(np.less_equal(x, tol_lim))
         if incone:
             return 0
         return np.inf
 
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return unique minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v_i \leq 0.
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-        This is just a element-wise
-        np.maximum(x, 0)
-
-        .. math::
-
-            v^{\lambda}(x)_i = \min(x_i, 0)
-
-        """
+    @doc_template_user
+    def cone_prox(self, x):
         return np.minimum(x, 0)
 
 
@@ -346,14 +311,13 @@ class zero(cone):
     """
 
     objective_template = r"""{\cal Z}(%(var)s)"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
-
+    @doc_template_user
     def constraint(self, x):
         return 0.
 
-    def cone_prox(self, x, lipschitz=1):
+    @doc_template_user
+    def cone_prox(self, x):
         return x
 
 class zero_constraint(cone):
@@ -362,15 +326,15 @@ class zero_constraint(cone):
     """
 
     objective_template = r"""I^{\infty}(%(var)s = 0)"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
         if not np.linalg.norm(x) <= self.tol:
             return np.inf
         return 0.
 
-    def cone_prox(self, x, lipschitz=1):
+    @doc_template_user
+    def cone_prox(self, x):
         return np.zeros(np.asarray(x).shape)
 
 class l2_epigraph(cone):
@@ -380,13 +344,9 @@ class l2_epigraph(cone):
     """
 
     objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_2)})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         
         incone = np.linalg.norm(x[1:]) / x[0] <= 1 + self.tol
         if incone:
@@ -394,18 +354,8 @@ class l2_epigraph(cone):
         return np.inf
 
 
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_2)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
+    @doc_template_user
+    def cone_prox(self, x):
         norm = x[0]
         coef = x[1:]
         norm_coef = np.linalg.norm(coef)
@@ -423,31 +373,17 @@ class l2_epigraph_polar(cone):
     """
 
     objective_template = r"""I^{\infty}(-%(var)s \in \mathbf{epi}(\ell_2)})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         incone = np.linalg.norm(x[1:]) / -x[0] <= 1 + self.tol
         if incone:
             return 0
         return np.inf
 
 
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  -v \in \mathbf{epi}(\ell_2)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
+    @doc_template_user
+    def cone_prox(self, x):
         norm = -x[0]
         coef = -x[1:]
         norm_coef = np.linalg.norm(coef)
@@ -465,31 +401,17 @@ class l1_epigraph(cone):
     """
 
     objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_1)})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         incone = np.fabs(x[1:]).sum() / x[0] <= 1 + self.tol
         if incone:
             return 0
         return np.inf
 
 
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
+    @doc_template_user
+    def cone_prox(self, x):
         return projl1_epigraph(x)
 
 class l1_epigraph_polar(cone):
@@ -500,13 +422,9 @@ class l1_epigraph_polar(cone):
     """
 
     objective_template = r"""I^{\infty}(%(var)s  \in -\mathbf{epi}(\ell_{\inf})})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         
         incone = np.fabs(-x[1:]).max() / -x[0] <= 1 + self.tol
         if incone:
@@ -514,34 +432,20 @@ class l1_epigraph_polar(cone):
         return np.inf
 
 
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  -v \in \mathbf{epi}(\ell_{\inf})
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
+    @doc_template_user
+    def cone_prox(self, x):
         return projl1_epigraph(x) - x
 
 class linf_epigraph(cone):
 
     """
-    The l1_epigraph constraint.
+    The $\ell_{\nfty}$ epigraph constraint.
     """
 
     objective_template = r"""I^{\infty}(%(var)s \in \mathbf{epi}(\ell_1)})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
 
         incone = np.fabs(x[1:]).max() / x[0] <= 1 + self.tol
         if incone:
@@ -549,18 +453,8 @@ class linf_epigraph(cone):
         return np.inf
 
 
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
+    @doc_template_user
+    def cone_prox(self, x):
 
         # we just use the fact that the polar of the linf epigraph is
         # is the negative of the l1 epigraph, so we project
@@ -577,13 +471,9 @@ class linf_epigraph_polar(cone):
     """
 
     objective_template = r"""I^{\infty}(%(var)s \in -\mathbf{epi}(\ell_1)})"""
-    _doc_dict = copy(cone._doc_dict)
-    _doc_dict['objective'] = objective_template % {'var': r'x + \alpha'}
 
+    @doc_template_user
     def constraint(self, x):
-        """
-        The non-negative constraint of x.
-        """
         
         incone = np.fabs(-x[1:]).sum() / -x[0] <= 1 + self.tol
         if incone:
@@ -591,18 +481,8 @@ class linf_epigraph_polar(cone):
         return np.inf
 
 
-    def cone_prox(self, x,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  -v \in \mathbf{epi}(\ell_{\inf})
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
+    @doc_template_user
+    def cone_prox(self, x):
         return -projl1_epigraph(-x)
 
 
