@@ -18,24 +18,10 @@ class atom(nonsmooth):
     """
     A class that defines the API for support functions.
     """
+
+    objective_vars = nonsmooth.objective_vars.copy()
+
     tol = 1.0e-05
-
-    def latexify(self, var='x', idx=''):
-        template = {}
-        if self.offset is None or np.all(self.offset == 0):
-            template['var'] = var
-        else:
-            template['var'] = var + r'+\alpha_{%s}' % str(idx)
-
-        obj = self.objective_template % template
-        if self.lagrange is not None:
-            obj = r'\lambda_{%s} %s' % (idx, obj)
-        else:
-            obj = r'I^{\infty}(%s \leq \epsilon_{%s})' % (obj, idx)
-
-        if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var, idx=idx), obj])
-        return obj
 
     def get_conjugate(self):
         """
@@ -140,6 +126,8 @@ class affine_atom(object):
 
     """
 
+    objective_vars = {'linear':'X'}
+
     def __init__(self, atom_obj, atransform):
         self.atom = copy(atom_obj)
         # if the affine transform has an offset, put it into
@@ -158,8 +146,13 @@ class affine_atom(object):
         self.input_shape = self.linear_transform.input_shape
         self.output_shape = self.linear_transform.output_shape
 
-    def latexify(self, var='x', idx=''):
-        return self.atom.latexify(var='D_{%s}%s' % (idx, var), idx=idx)
+    def latexify(self, var=None, idx=''):
+        template_dict = self.atom.objective_vars.copy()
+        template_dict['linear'] = self.objective_vars['linear']
+        if var is not None:
+            template_dict['var'] = var
+        template_dict['idx'] = idx
+        return self.atom.latexify(var='%(linear)s_{%(idx)s}%(var)s' % template_dict, idx=idx)
 
     def __repr__(self):
         return "affine_atom(%s, %s)" % (repr(self.atom),

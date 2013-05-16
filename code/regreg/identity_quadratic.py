@@ -67,7 +67,7 @@ class identity_quadratic(object):
 
         if offset is not None:
             cpq = copy(self)
-            cpq.center += offset 
+            cpq.center -= offset 
             cpq = cpq.collapsed()
             return offset, cpq
         else:

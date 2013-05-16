@@ -59,6 +59,20 @@ class simple_problem(composite):
         smooth_atom = zero_smooth(proximal_atom.shape)
         return simple_problem(smooth_atom, proximal_atom)
 
+    def latexify(self, var=None):
+        template_dict = self.objective_vars.copy()
+        template_dict['prox'] =  self.proximal_atom.latexify(var=var,idx='2')
+        template_dict['smooth'] = self.smooth_atom.latexify(var=var,idx='1')
+        result = r'''
+        \begin{aligned}
+        \text{minimize}_{%(var)s} & f(%(var)s) + g(%(var)s) \\
+        f(%(var)s) &= %(smooth)s \\
+        g(%(var)s) &= %(prox)s \\
+        \end{aligned}
+        ''' % template_dict
+        result = '\n'.join([s.strip() for s in result.split('\n')])
+        return result
+
     def solve(self, quadratic=None, return_optimum=False, **fit_args):
         if quadratic is not None:
             oldq, self.quadratic = self.quadratic, self.quadratic + quadratic

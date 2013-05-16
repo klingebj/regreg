@@ -11,6 +11,7 @@ from ..problems.composite import smooth_conjugate
 from ..atoms.cones import zero
 from ..identity_quadratic import identity_quadratic
 
+
 class quadratic(smooth_atom):
     """
     The square of the l2 norm
@@ -18,10 +19,11 @@ class quadratic(smooth_atom):
     Q: array
        positive definite matrix 
 
-
     """
 
-    objective_template = r"""\ell^{Q}\left(%(var)s\right)"""
+    objective_vars = smooth_atom.objective_vars.copy()
+    objective_vars['Q'] = 'Q'
+    objective_template = r"""%(coef)s \cdot %(var)s^T %(Q)s %(var)s"""
 
     def __init__(self, shape, coef=1., Q=None, Qdiag=False,
                  offset=None,
@@ -33,7 +35,7 @@ class quadratic(smooth_atom):
                              offset=offset,
                              quadratic=quadratic,
                              initial=initial)
-
+        
         self.Q = Q
         if self.Q is not None:
             self.Q_transform = affine_transform(Q, None, Qdiag)
@@ -152,11 +154,14 @@ class cholesky(object):
         return self.linear_map(x)
 
 def squared_error(X, Y, coef=1):
-    # the affine method gets rid of the need for the squaredloss class
-    # as previously written squared loss had a factor of 2
+    """
+    
+    """
+    atom = quadratic.affine(X, -Y, coef=coef)
 
-    #return quadratic.affine(-linear_operator, offset, coef=coef/2., initial=np.zeros(linear_operator.shape[1]))
-    return quadratic.affine(X, -Y, coef=coef)
+    atom.sm_atom.objective_vars['offset'] = 'Y'
+    atom.sm_atom.objective_template = r"""%(coef)s\left\|%(var)s\right\|^2_2"""
+    return atom
 
 def signal_approximator(signal, coef=1):
     return quadratic.shift(-signal, coef=coef)

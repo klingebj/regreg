@@ -99,17 +99,9 @@ class block_sum(seminorms.seminorm):
     def conjugate(self):
 
         if self.quadratic.coef == 0:
-            if self.offset is not None:
-                if self.quadratic.linear_term is not None:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
-                else:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
-            else:
-                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
-            if self.quadratic.linear_term is not None:
-                offset = -self.quadratic.linear_term
-            else:
-                offset = None
+
+            offset, outq = _work_out_conjugate(self.offset, 
+                                               self.quadratic)
 
             cls = conjugate_block_pairs[self.__class__]
             conj_atom = self.atom.conjugate
@@ -213,17 +205,8 @@ class linf_l2(block_max):
     def conjugate(self):
 
         if self.quadratic.coef == 0:
-            if self.offset is not None:
-                if self.quadratic.linear_term is not None:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
-                else:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
-            else:
-                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
-            if self.quadratic.linear_term is not None:
-                offset = -self.quadratic.linear_term
-            else:
-                offset = None
+            offset, outq = _work_out_conjugate(self.offset, 
+                                               self.quadratic)
 
             cls = conjugate_block_pairs[self.__class__]
             conj_atom = self.atom.conjugate
@@ -316,17 +299,8 @@ class l1_l2(block_sum):
     def conjugate(self):
 
         if self.quadratic.coef == 0:
-            if self.offset is not None:
-                if self.quadratic.linear_term is not None:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term + (self.offset * self.quadratic.linear_term).sum())
-                else:
-                    outq = identity_quadratic(0, None, -self.offset, -self.quadratic.constant_term)
-            else:
-                outq = identity_quadratic(0, 0, 0, -self.quadratic.constant_term)
-            if self.quadratic.linear_term is not None:
-                offset = -self.quadratic.linear_term
-            else:
-                offset = None
+            offset, outq = _work_out_conjugate(self.offset, 
+                                               self.quadratic)
 
             cls = conjugate_block_pairs[self.__class__]
             conj_atom = self.atom.conjugate

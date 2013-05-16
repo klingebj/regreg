@@ -1,5 +1,5 @@
 from numpy.linalg import norm
-from numpy import zeros, array
+from numpy import zeros, array, any as npany
 import new
 from copy import copy
 
@@ -18,7 +18,7 @@ class composite(object):
     """
 
     objective_template = r"""f(%(var)s)"""
-    objective_vars = {'var': r'x'}
+    objective_vars = {'var': r'\beta', 'shape':'p', 'offset':r'\alpha'}
 
     def __init__(self, shape, offset=None,
                  quadratic=None, initial=None):
@@ -42,17 +42,19 @@ class composite(object):
         else:
             self.coefs = initial.copy()
 
-    def latexify(self, var='x', idx=''):
-        d = {}
-        if self.offset is None:
-            d['var'] = var
-        else:
-            d['var'] = var + r'+\alpha_{%s}' % str(idx)
+    def latexify(self, var=None, idx=''):
+        template_dict = self.objective_vars.copy()
+        template_dict['idx'] = idx
+        if var is not None:
+            template_dict['var'] = var
+        if hasattr(self, 'offset') and self.offset is not None and npany(self.offset != 0):
+            template_dict['var'] = var + (r' - %(offset)s_{%(idx)s}' % template_dict)
 
-        obj = self.objective_template % d
+        obj = self.objective_template % template_dict
+        template_dict['obj'] = obj
 
         if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
+            return ' + '.join([obj, self.quadratic.latexify(var=var, idx=idx)])
         return obj
 
     def _repr_latex_(self):
@@ -107,10 +109,10 @@ class composite(object):
 
     def apply_offset(self, x):
         """
-        If self.offset is not None, return x+self.offset, else return x.
+        If self.offset is not None, return x-self.offset, else return x.
         """
         if self.offset is not None:
-            return x + self.offset
+            return x - self.offset
         return x
 
     def set_quadratic(self, quadratic):
@@ -178,6 +180,9 @@ class smooth(composite):
     nonsmooth_objective and the proximal
     is a null-op.
     """
+
+    objective_vars = composite.objective_vars.copy()
+    objective_vars['coef'] = 'C'
 
     def get_lipschitz(self):
         if hasattr(self, '_lipschitz'):

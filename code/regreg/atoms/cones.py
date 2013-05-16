@@ -100,10 +100,7 @@ class cone(atom):
 
     @doc_template_provider
     def nonsmooth_objective(self, x, check_feasibility=False):
-        if self.offset is not None:
-            x_offset = x + self.offset
-        else:
-            x_offset = x
+        x_offset = self.apply_offset(x)
         if check_feasibility:
             v = self.constraint(x_offset)
         else:

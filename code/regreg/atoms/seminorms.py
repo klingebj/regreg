@@ -18,7 +18,26 @@ class seminorm(atom):
     An atom that can be in lagrange or bound form.
     """
 
-    objective_vars = {'var': r'x', 'shape':'p'}
+    objective_vars = {'var': r'\beta', 'shape':'p', 'linear':'D', 'offset':r'\alpha'}
+
+    def latexify(self, var=None, idx=''):
+        template_dict = self.objective_vars.copy()
+        template_dict['idx'] = idx
+        if var is not None:
+            template_dict['var'] = var
+        if self.offset is not None and np.any(self.offset == 0):
+            template_dict['var'] = (r'%(offset)s_{%(idx)s}' % template_dict) + var
+
+        obj = self.objective_template % template_dict
+        template_dict['obj'] = obj
+        if self.lagrange is not None:
+            obj = r'\lambda_{%(idx)s} %(obj)s' % template_dict
+        else:
+            obj = r'I^{\infty}(%(obj)s \leq \delta_{%(idx)s})' % template_dict
+
+        if not self.quadratic.iszero:
+            return ' + '.join([self.quadratic.latexify(var=var, idx=idx), obj])
+        return obj
 
     def __init__(self, shape, lagrange=None, bound=None,
                  offset=None, quadratic=None, initial=None):

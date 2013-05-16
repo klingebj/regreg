@@ -14,9 +14,10 @@ class smooth_atom(smooth_composite):
     """
 
     objective_template = r'''f(%(var)s)'''
-    _doc_dict = {'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
+    objective_vars = {'var':r'\beta',
+                      'shape':'p',
+                      'coef':'C',
+                      'offset':r'\alpha+'}
 
     def __init__(self, shape, coef=1, offset=None,
                  quadratic=None, initial=None):
@@ -112,6 +113,9 @@ class affine_smooth(smooth_atom):
     # smooth_obj(*args, **keywords)
     # else, it is assumed to be an instance of smooth_function
  
+    
+    objective_vars = {'linear':'X'}
+
     def __init__(self, smooth_atom, atransform, store_grad=True, diag=False):
         self.store_grad = store_grad
         self.sm_atom = smooth_atom
@@ -121,8 +125,14 @@ class affine_smooth(smooth_atom):
         self.shape = atransform.input_shape
         self.coefs = np.zeros(self.shape)
 
-    def latexify(self, var='x', idx=''):
-        obj = self.sm_atom.latexify(var='D_{%s}%s' % (idx, var), idx=idx)
+    def latexify(self, var=None, idx=''):
+        if var is None:
+            var = self.sm_atom.objective_vars['var']
+        if hasattr(self, 'objective_vars') and 'linear' in self.objective_vars:
+            linear = self.objective_vars['linear']
+        else:
+            linear = 'D'
+        obj = self.sm_atom.latexify(var='%s_{%s}%s' % (linear, idx, var), idx=idx)
         if not self.quadratic.iszero:
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
