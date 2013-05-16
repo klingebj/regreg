@@ -41,7 +41,6 @@ from problems.separable import separable, separable_problem
 from problems.simple import simple_problem, gengrad, nesta, tfocs
 from problems.container import container
 from algorithms import FISTA
-from problems.blocks import blockwise
 
 from problems.conjugate import conjugate
 from problems.composite import (composite, nonsmooth as nonsmooth_composite,
