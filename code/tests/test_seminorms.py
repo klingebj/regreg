@@ -2,9 +2,7 @@ import numpy as np
 import itertools
 from copy import copy
 
-import regreg.atoms as A
-import regreg.cones as C
-import regreg.linear_constraints as LC
+import regreg.atoms.seminorms as S
 import regreg.api as rr
 import nose.tools as nt
 
@@ -31,8 +29,8 @@ def test_proximal_maps():
     linq = rr.identity_quadratic(0,0,W,0)
 
     for L, atom, q, offset, FISTA, coef_stop in itertools.product([0.5,1,0.1], \
-                     [A.l1norm, A.supnorm, A.l2norm,
-                      A.positive_part, A.constrained_max],
+                     [S.l1norm, S.supnorm, S.l2norm,
+                      S.positive_part, S.constrained_max],
                                               [None, linq],
                                               [None, U],
                                               [False, True],
@@ -41,7 +39,7 @@ def test_proximal_maps():
         p = atom(shape, lagrange=lagrange, quadratic=q,
                    offset=offset)
         d = p.conjugate 
-        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L, lipschitz=1./L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
+        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
         # some arguments of the constructor
 
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
@@ -62,7 +60,7 @@ def test_proximal_maps():
 
     lagrange = 0.1
     for L, atom, q, offset, FISTA, coef_stop in itertools.product([0.5,1,0.1], \
-                     sorted(A.nonpaired_atoms),
+                     sorted(S.nonpaired_atoms),
                                               [None, linq],
                                               [None, U],
                                               [False, True],
@@ -71,7 +69,7 @@ def test_proximal_maps():
         p = atom(shape, lagrange=lagrange, quadratic=q,
                    offset=offset)
         d = p.conjugate 
-        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L, lipschitz=1./L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
+        yield ac, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom
         # some arguments of the constructor
 
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
@@ -121,7 +119,7 @@ def solveit(atom, Z, W, U, linq, L, FISTA, coef_stop):
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity %s ' % atom
 
     dproblem2 = rr.dual_problem(loss.conjugate, 
-                                rr.identity(loss.primal_shape),
+                                rr.identity(loss.shape),
                                 atom.conjugate)
     dcoef2 = dproblem2.solve(coef_stop=coef_stop, tol=1.e-14)
     yield ac, atom.proximal(q), dcoef2, 'solving prox with dual_problem with monotonicity %s ' % atom

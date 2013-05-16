@@ -1,5 +1,5 @@
 import numpy as np
-import regreg.linear_constraints as LC
+import regreg.atoms.linear_constraints as LC
 import regreg.api as rr
 import nose.tools as nt
 import itertools

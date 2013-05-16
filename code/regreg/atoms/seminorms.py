@@ -2,32 +2,29 @@ from copy import copy
 import warnings
 
 import numpy as np
-from scipy import sparse
 
-from .identity_quadratic import identity_quadratic
-from .composite import nonsmooth, smooth, smooth_conjugate
-from .affine import (linear_transform, identity as identity_transform, 
-                    affine_transform, selector)
-from .smooth import affine_smooth
-from .objdoctemplates import objective_doc_templater
-from .doctemplates import (doc_template_user, doc_template_provider)
-
+from ..identity_quadratic import identity_quadratic
+from ..affine import (linear_transform, identity as identity_transform)
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
+from ..problems.composite import smooth_conjugate
+from ..atoms import atom, _work_out_conjugate, affine_atom
 from .projl1_cython import projl1
 from .piecewise_linear import find_solution_piecewise_linear_c
 
 @objective_doc_templater()
-class atom(nonsmooth):
-
+class seminorm(atom):
     """
-    A class that defines the API for support functions.
+    An atom that can be in lagrange or bound form.
     """
-    tol = 1.0e-05
 
-    def __init__(self, primal_shape, lagrange=None, bound=None,
+    objective_vars = {'var': r'x', 'shape':'p'}
+
+    def __init__(self, shape, lagrange=None, bound=None,
                  offset=None, quadratic=None, initial=None):
 
-        nonsmooth.__init__(self, primal_shape, offset,
-                           quadratic, initial)
+        atom.__init__(self, shape, offset,
+                      quadratic, initial)
 
         if not (bound is None or lagrange is None):
             raise ValueError('An atom must be either in Lagrange form or ' 
@@ -49,22 +46,41 @@ class atom(nonsmooth):
             self._bound = bound
             self._lagrange = None
 
-    def latexify(self, var='x', idx=''):
-        template = {}
-        if self.offset is None or np.all(self.offset == 0):
-            template['var'] = var
-        else:
-            template['var'] = var + r'+\alpha_{%s}' % str(idx)
+    @doc_template_provider
+    def seminorm(self, arg, lagrange=None, check_feasibility=False):
+        r"""
+        Return :math:`\lambda \cdot %(objective)s`, where
+        :math:`\lambda` is lagrange. If `check_feasibility`
+        is True, and seminorm is unbounded, will return ``np.inf``
+        if appropriate.
 
-        obj = self.objective_template % template
-        if self.lagrange is not None:
-            obj = r'\lambda_{%s} %s' % (idx, obj)
-        else:
-            obj = r'I^{\infty}(%s \leq \epsilon_{%s})' % (obj, idx)
+        The class seminorm's seminorm just returns the appropriate lagrange
+        parameter for use by the subclasses.
+        """
+        if lagrange is None:
+            lagrange = self.lagrange
+        if lagrange is None:
+            raise ValueError('either atom must be in Lagrange mode or a ' + 
+                             'keyword "lagrange" argument must be supplied')
+        return lagrange
 
-        if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var, idx=idx), obj])
-        return obj
+    @doc_template_provider
+    def constraint(self, arg, bound=None):
+        r"""
+        Verify :math:`%(objective)s \leq \delta`, where :math:`\delta`
+        is bound.
+
+        If True, returns 0, else returns np.inf.
+
+        The class seminorm's constraint just returns the appropriate bound
+        parameter for use by the subclasses.
+        """
+        if bound is None:
+            bound = self.bound
+        if bound is None:
+            raise ValueError('either atom must be in bound mode' 
+                             + 'or a keyword "bound" argument must be supplied')
+        return bound
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -74,7 +90,7 @@ class atom(nonsmooth):
         return False
 
     def __copy__(self):
-        return self.__class__(copy(self.primal_shape),
+        return self.__class__(copy(self.shape),
                               bound=copy(self.bound),
                               lagrange=copy(self.lagrange),
                               offset=copy(self.offset),
@@ -85,13 +101,13 @@ class atom(nonsmooth):
             if self.quadratic.iszero:
                 return "%s(%s, lagrange=%f, offset=%s)" % \
                     (self.__class__.__name__,
-                     repr(self.primal_shape), 
+                     repr(self.shape), 
                      self.lagrange,
                      str(self.offset))
             else:
                 return "%s(%s, lagrange=%f, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
-                     repr(self.primal_shape), 
+                     repr(self.shape), 
                      self.lagrange,
                      str(self.offset),
                      str(self.quadratic))
@@ -100,14 +116,14 @@ class atom(nonsmooth):
             if self.quadratic.iszero:
                 return "%s(%s, bound=%f, offset=%s)" % \
                     (self.__class__.__name__,
-                     repr(self.primal_shape), 
+                     repr(self.shape), 
                      self.bound,
                      str(self.offset))
 
             else:
                 return "%s(%s, bound=%f, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
-                     repr(self.primal_shape), 
+                     repr(self.shape), 
                      self.bound,
                      str(self.offset),
                      str(self.quadratic))
@@ -128,14 +144,14 @@ class atom(nonsmooth):
 
             if self.bound is None:
                 cls = conjugate_seminorm_pairs[self.__class__]
-                conjugate_atom = cls(self.primal_shape,  \
+                conjugate_atom = cls(self.shape,  \
                            bound=self.lagrange, 
                            lagrange=None,
                            quadratic=outq,
                            offset=offset)
             else:
                 cls = conjugate_seminorm_pairs[self.__class__]
-                conjugate_atom = cls(self.primal_shape, \
+                conjugate_atom = cls(self.shape, \
                            lagrange=self.bound, 
                            bound=None,
                            quadratic=outq,
@@ -207,100 +223,7 @@ class atom(nonsmooth):
             raise AttributeError("atom is in bound mode")
     bound = property(get_bound, set_bound)
 
-    @property
-    def dual(self):
-        """
-        Return the dual of an atom. This dual is formed by making the a substitution
-        of the form v=Ax where A is the self.linear_transform.
-
-        >>> penalty
-        l1norm((30,), lagrange=2.300000, offset=None)
-        >>> penalty.dual
-        (<regreg.affine.identity object at 0x10a900bd0>, supnorm((30,), bound=2.300000, offset=0))
-
-        If there is a linear part to the penalty, the linear_transform may not be identity:
-
-        >>> D = (np.identity(4) + np.diag(-np.ones(3),1))[:-1]
-        >>> D
-        array([[ 1., -1.,  0.,  0.],
-               [ 0.,  1., -1.,  0.],
-               [ 0.,  0.,  1., -1.]])
-        >>> fused_lasso = l1norm.linear(D, lagrange=2.3)
-        >>> fused_lasso
-        affine_atom(l1norm((3,), lagrange=2.300000, offset=None), array([[ 1., -1.,  0.,  0.],
-               [ 0.,  1., -1.,  0.],
-               [ 0.,  0.,  1., -1.]]))
-        >>> fused_lasso.dual
-        (<regreg.affine.linear_transform object at 0x10a760a50>, supnorm((3,), bound=2.300000, offset=0))
-        >>> 
-
-
-        """
-        return self.linear_transform, self.conjugate
-
-    @property
-    def linear_transform(self):
-        """
-        The linear transform applied before a penalty is computed. Defaults to regreg.affine.identity
-
-        >>> penalty = l1norm(30, lagrange=3.4)
-        >>> penalty.linear_transform
-        <regreg.affine.identity object at 0x10ae825d0>
-
-        """
-        if not hasattr(self, "_linear_transform"):
-            self._linear_transform = identity_transform(self.primal_shape)
-        return self._linear_transform
-
-    @doc_template_provider
-    def seminorm(self, arg, lagrange=None, check_feasibility=False):
-        r"""
-        Return :math:`\lambda \cdot %(objective)s`, where
-        :math:`\lambda` is lagrange. If `check_feasibility`
-        is True, and seminorm is unbounded, will return ``np.inf``
-        if appropriate.
-
-        The class atom's seminorm just returns the appropriate lagrange
-        parameter for use by the subclasses.
-        """
-        if lagrange is None:
-            lagrange = self.lagrange
-        if lagrange is None:
-            raise ValueError('either atom must be in Lagrange mode or a ' + 
-                             'keyword "lagrange" argument must be supplied')
-        return lagrange
-
-    @doc_template_provider
-    def constraint(self, arg, bound=None):
-        r"""
-        Verify :math:`\cdot %(objective)s \leq \lambda`, where :math:`\lambda`
-        is bound, :math:`\alpha` is self.offset (if any).
-
-        If True, returns 0, else returns np.inf.
-
-        The class atom's constraint just returns the appropriate bound
-        parameter for use by the subclasses.
-        """
-        if bound is None:
-            bound = self.bound
-        if bound is None:
-            raise ValueError('either atom must be in bound mode' 
-                             + 'or a keyword "bound" argument must be supplied')
-        return bound
-
-    def nonsmooth_objective(self, arg, check_feasibility=False):
-        x_offset = self.apply_offset(arg)
-
-        if self.bound is not None:
-            if check_feasibility:
-                v = self.constraint(x_offset)
-            else:
-                v = 0
-        else:
-            v = self.seminorm(x_offset, check_feasibility=check_feasibility)
-        v += self.quadratic.objective(arg, 'func')
-        return v
-
+    #XXX why does this docstring not get formatted?
     @doc_template_provider
     def proximal(self, proxq, prox_control=None):
         r"""
@@ -310,10 +233,14 @@ class atom(nonsmooth):
         .. math::
 
            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v+\alpha) + \langle v, \eta \rangle
+           \|x-v\|^2_2 + \lambda h(%(var)s+\alpha) + \langle v, \eta \rangle
 
-        where :math:`\alpha` is the offset of self.affine_transform and
-        :math:`\eta` is self.linear_term.
+        where :math:`\alpha` is the offset of self.linear_transform,
+        :math:`\eta` is self.linear_term and 
+
+        .. math::
+
+           h(%(var)s) = %(objective)s
 
         If the atom is in bound mode, then this has the form
 
@@ -339,7 +266,6 @@ class atom(nonsmooth):
 
         if self.bound is not None:
             eta = self.bound_prox(prox_arg, 
-                                  lipschitz=totalq.coef, 
                                   bound=self.bound)
         else:
             eta = self.lagrange_prox(prox_arg, 
@@ -361,13 +287,10 @@ class atom(nonsmooth):
            %(var)s^{\lambda}(u) =
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
            \frac{L}{2}
-           \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
-            + \lambda   %(objective)s 
+           \|u-%(var)s\|^2_2 + \lambda %(objective)s 
 
-        Above, :math:`\lambda` is the Lagrange parameter,
-        :math:`\alpha` is self.offset (if any), 
-        :math:`\eta` is self.linear_term (if any)
-        and :math:`\tau` is self.constant_term.
+        Above, :math:`\lambda` is the Lagrange parameter and :math:`L`
+        is the Lipschitz parameter.
 
         If the argument `lagrange` is None and the atom is in lagrange mode,
         ``self.lagrange`` is used as the lagrange parameter, else an exception
@@ -385,21 +308,19 @@ class atom(nonsmooth):
         return lagrange
 
     @doc_template_provider
-    def bound_prox(self, arg, lipschitz=1, bound=None):
+    def bound_prox(self, arg, bound=None):
         r"""
         Return unique minimizer
 
         .. math::
 
-           %(var)s^{\lambda}(u) \in
+           %(var)s^{\delta}(u) =
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
-           \frac{L}{2}
-           \|u-%(var)s\|^2_2 %(linear)s %(constant)s \ 
-           \text{s.t.} \   %(objective)s \leq \lambda
+           \frac{1}{2}
+           \|u-%(var)s\|^2_2 
+           \text{s.t.} \   %(objective)s \leq \delta
 
-        Above, :math:`\lambda` is the bound parameter, :math:`\alpha` is
-        self.offset (if any), :math:`\eta` is self.linear_term (if any) and
-        :math:`\tau` is self.constant_term (if any).
+        where :math:`\delta` is the bound parameter. 
 
         If the argument `bound` is None and the atom is in bound mode,
         ``self.bound`` is used as the bound parameter, else an exception is
@@ -415,17 +336,38 @@ class atom(nonsmooth):
                              + 'a keyword "bound" argument must be supplied')
         return bound
 
+
+    def nonsmooth_objective(self, arg, check_feasibility=False):
+        """
+        The nonsmooth objective function of the atom.
+        Includes the quadratic term of the atom.
+
+        Abstract method: subclasses must implement.
+        """
+        x_offset = self.apply_offset(arg)
+
+        if self.bound is not None:
+            if check_feasibility:
+                v = self.constraint(x_offset)
+            else:
+                v = 0
+        else:
+            v = self.seminorm(x_offset, check_feasibility=check_feasibility)
+        v += self.quadratic.objective(arg, 'func')
+        return v
+
+
     @classmethod
     def affine(cls, linear_operator, offset, lagrange=None, diag=False,
                bound=None, quadratic=None):
         """
         This is the same as the linear class method but with offset as a positional argument
         """
-        if not isinstance(linear_operator, affine_transform):
+        if not isinstance(linear_operator, linear_transform):
             l = linear_transform(linear_operator, diag=diag)
         else:
             l = linear_operator
-        new_atom = cls(l.dual_shape, lagrange=lagrange, bound=bound,
+        new_atom = cls(l.output_shape, lagrange=lagrange, bound=bound,
                    offset=offset,
                    quadratic=quadratic)
         return affine_atom(new_atom, l)
@@ -433,11 +375,11 @@ class atom(nonsmooth):
     @classmethod
     def linear(cls, linear_operator, lagrange=None, diag=False,
                bound=None, quadratic=None, offset=None):
-        if not isinstance(linear_operator, affine_transform):
+        if not isinstance(linear_operator, linear_transform):
             l = linear_transform(linear_operator, diag=diag)
         else:
             l = linear_operator
-        new_atom = cls(l.dual_shape, lagrange=lagrange, bound=bound,
+        new_atom = cls(l.output_shape, lagrange=lagrange, bound=bound,
                    quadratic=quadratic, offset=offset)
         return affine_atom(new_atom, l)
 
@@ -449,26 +391,9 @@ class atom(nonsmooth):
                    quadratic=quadratic, offset=offset)
         return new_atom
 
-    def smoothed(self, smoothing_quadratic):
-        '''
-        Add quadratic smoothing term
-        '''
-        conjugate_atom = copy(self.conjugate)
-        sq = smoothing_quadratic
-        if sq.coef in [None, 0]:
-            raise ValueError('quadratic term of ' 
-                             + 'smoothing_quadratic must be non 0')
-        total_q = sq
-
-        if conjugate_atom.quadratic is not None:
-            total_q = sq + conjugate_atom.quadratic
-        conjugate_atom.quadratic = total_q
-        smoothed_atom = conjugate_atom.conjugate
-        return smoothed_atom
-
 
 @objective_doc_templater()
-class l1norm(atom):
+class l1norm(seminorm):
 
     """
     The l1 norm
@@ -476,18 +401,17 @@ class l1norm(atom):
     prox_tol = 1.0e-10
 
     objective_template = r"""\|%(var)s\|_1"""
-    objective_vars = {'var': r'x + \alpha'}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, arg, 
+        lagrange = seminorm.seminorm(self, arg, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return lagrange * np.fabs(arg).sum()
 
     @doc_template_user
     def constraint(self, arg, bound=None):
-        bound = atom.constraint(self, arg, bound=bound)
+        bound = seminorm.constraint(self, arg, bound=bound)
         inbox = np.fabs(arg).sum() <= bound * (1 + self.tol)
         if inbox:
             return 0
@@ -496,12 +420,12 @@ class l1norm(atom):
 
     @doc_template_user
     def lagrange_prox(self, arg,  lipschitz=1, lagrange=None):
-        lagrange = atom.lagrange_prox(self, arg, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
         return np.sign(arg) * np.maximum(np.fabs(arg)-lagrange/lipschitz, 0)
 
     @doc_template_user
-    def bound_prox(self, arg, lipschitz=1, bound=None):
-        bound = atom.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         arg = np.asarray(arg, np.float)
         absarg = np.fabs(arg)
         cut = find_solution_piecewise_linear_c(bound, 0, absarg)
@@ -510,25 +434,24 @@ class l1norm(atom):
         return arg
 
 @objective_doc_templater()
-class supnorm(atom):
+class supnorm(seminorm):
 
     r"""
     The :math:`\ell_{\infty}` norm
     """
 
     objective_template = r"""\|%(var)s\|_{\infty}"""
-    objective_vars = {'var': r'\beta + \alpha'}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, arg, 
+        lagrange = seminorm.seminorm(self, arg, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return lagrange * np.fabs(arg).max()
 
     @doc_template_user
     def constraint(self, arg, bound=None):
-        bound = atom.constraint(self, arg, bound=bound)
+        bound = seminorm.constraint(self, arg, bound=bound)
         inbox = np.product(np.less_equal(np.fabs(arg), bound * (1+self.tol)))
         if inbox:
             return 0
@@ -537,7 +460,7 @@ class supnorm(atom):
 
     @doc_template_user
     def lagrange_prox(self, arg,  lipschitz=1, lagrange=None):
-        lagrange = atom.lagrange_prox(self, arg, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
         arg = np.asarray(arg, np.float)
         absarg = np.fabs(arg)
         cut = find_solution_piecewise_linear_c(lagrange / lipschitz, 0, absarg)
@@ -548,32 +471,30 @@ class supnorm(atom):
         return arg - d
 
     @doc_template_user
-    def bound_prox(self, arg, lipschitz=1, bound=None):
-        bound = atom.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         return np.clip(arg, -bound, bound)
 
 
 @objective_doc_templater()
-class l2norm(atom):
+class l2norm(seminorm):
 
     """
     The l2 norm
     """
 
-    objective_template = r"""\|%(var)s\|_1"""
-    objective_vars = {'var': r'x + \alpha'}
-
+    objective_template = r"""\|%(var)s\|_2"""
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, arg, 
+        lagrange = seminorm.seminorm(self, arg, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return lagrange * np.linalg.norm(arg)
 
     @doc_template_user
     def constraint(self, arg, bound=None):
-        bound = atom.constraint(self, arg, bound=bound)
+        bound = seminorm.constraint(self, arg, bound=bound)
         inball = (np.linalg.norm(arg) <= bound * (1 + self.tol))
         if inball:
             return 0
@@ -582,7 +503,7 @@ class l2norm(atom):
 
     @doc_template_user
     def lagrange_prox(self, arg,  lipschitz=1, lagrange=None):
-        lagrange = atom.lagrange_prox(self, arg, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
         n = np.linalg.norm(arg)
         if n <= lagrange / lipschitz:
             proj = arg
@@ -591,8 +512,8 @@ class l2norm(atom):
         return arg - proj
 
     @doc_template_user
-    def bound_prox(self, arg,  lipschitz=1, bound=None):
-        bound = atom.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         n = np.linalg.norm(arg)
         if n <= bound:
             return arg
@@ -600,7 +521,7 @@ class l2norm(atom):
             return (bound / n) * arg
 
 
-def positive_part_lagrange(primal_shape, lagrange,
+def positive_part_lagrange(shape, lagrange,
                            offset=None, quadratic=None, initial=None):
     r'''
     The positive_part atom in lagrange form can be represented
@@ -609,16 +530,16 @@ def positive_part_lagrange(primal_shape, lagrange,
     :math:`[0,1]^p = [-1/2,1/2]^p + 1/2 \pmb{1}`.
 
     '''
-    lin = np.ones(primal_shape) * .5 * lagrange
+    lin = np.ones(shape) * .5 * lagrange
     linq = identity_quadratic(0,0,lin,0)
     if quadratic is not None:
         linq = linq + quadratic
-    return l1norm(primal_shape, lagrange=0.5*lagrange,
+    return l1norm(shape, lagrange=0.5*lagrange,
                   offset=offset, quadratic=linq,
                   initial=initial)
 
 
-class positive_part(atom):
+class positive_part(seminorm):
 
     """
     The positive_part seminorm (which is the support
@@ -626,19 +547,17 @@ class positive_part(atom):
     """
 
     objective_template = r"""\sum_{i=1}^{%(shape)s} %(var)s_i^+"""
-    objective_vars = {'var': r'x + \alpha',
-                      'shape': atom._doc_dict['shape']}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, arg, 
+        lagrange = seminorm.seminorm(self, arg, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return lagrange * np.maximum(arg, 0).sum()
 
     @doc_template_user
     def constraint(self, arg, bound=None):
-        bound = atom.constraint(self, arg, bound=bound)
+        bound = seminorm.constraint(self, arg, bound=bound)
         inside = np.maximum(x, 0).sum() <= bound * (1 + self.tol)
         if inside:
             return 0
@@ -647,7 +566,7 @@ class positive_part(atom):
 
     @doc_template_user
     def lagrange_prox(self, arg,  lipschitz=1, lagrange=None):
-        lagrange = atom.lagrange_prox(self, arg, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
         arg = np.asarray(arg)
         v = arg.copy()
         pos = v > 0
@@ -656,8 +575,8 @@ class positive_part(atom):
         return v.reshape(arg.shape)
 
     @doc_template_user
-    def bound_prox(self, arg,  lipschitz=1, bound=None):
-        bound = atom.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         arg = np.asarray(arg)
         v = x.copy().astype(np.float)
         v = np.atleast_1d(v)
@@ -668,19 +587,17 @@ class positive_part(atom):
 
 
 @objective_doc_templater()
-class constrained_max(atom):
+class constrained_max(seminorm):
     r"""
     The seminorm x.max() s.t. x geq 0.
     """
 
     objective_template = (r"""\|%(var)s\|_{\infty} + \sum_{i=1}^{%(shape)s} """
                           + r"""\delta_{[0,+\infty)}(%(var)s_i)) """)
-    objective_vars = {'var': r'x + \alpha',
-                      'shape': atom._doc_dict['shape']}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, arg, 
+        lagrange = seminorm.seminorm(self, arg, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         anyneg = np.any(arg < 0 + self.tol)
@@ -691,7 +608,7 @@ class constrained_max(atom):
 
     @doc_template_user
     def constraint(self, arg, bound=None):
-        bound = atom.constraint(self, arg, bound=bound)
+        bound = seminorm.constraint(self, arg, bound=bound)
         anyneg = np.any(arg < 0 + self.tol)
         inside = np.max(arg) <= bound * (1 + self.tol)
         if inside and not anyneg:
@@ -701,7 +618,7 @@ class constrained_max(atom):
 
     @doc_template_user
     def lagrange_prox(self, arg,  lipschitz=1, lagrange=None):
-        lagrange = atom.lagrange_prox(self, arg, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
         x = np.asarray(x)
         v = x.copy().astype(np.float)
         v = np.atleast_1d(v)
@@ -711,13 +628,13 @@ class constrained_max(atom):
         return arg - v.reshape(arg.shape)
 
     @doc_template_user
-    def bound_prox(self, arg,  lipschitz=1, bound=None):
-        bound = atom.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         return np.clip(arg, 0, bound)
 
 
 @objective_doc_templater()
-class constrained_positive_part(atom):
+class constrained_positive_part(seminorm):
 
     r"""
     Support function of $[-\infty,1]^p$
@@ -725,12 +642,10 @@ class constrained_positive_part(atom):
 
     objective_template = (r"""\|%(var)s\|_{1} + \sum_{i=1}^{%(shape)s} """
                           + r"""\delta_{[0,+\infty]}(%(var)s_i)""")
-    objective_vars = {'var': r'x + \alpha',
-                      'shape': atom._doc_dict['shape']}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, arg, 
+        lagrange = seminorm.seminorm(self, arg, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         anyneg = np.any(arg < 0 + self.tol)
@@ -741,7 +656,7 @@ class constrained_positive_part(atom):
 
     @doc_template_user
     def constraint(self, arg, bound=None):
-        bound = atom.constraint(self, arg, bound=bound)
+        bound = seminorm.constraint(self, arg, bound=bound)
         value = self.seminorm(arg, lagrange=1, check_feasibility=True)
         if value >= bound * (1 + self.tol):
             return np.inf
@@ -749,7 +664,7 @@ class constrained_positive_part(atom):
 
     @doc_template_user
     def lagrange_prox(self, arg,  lipschitz=1, lagrange=None):
-        lagrange = atom.lagrange_prox(self, arg, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
         arg = np.asarray(arg)
         v = np.zeros(arg.shape)
         v = np.atleast_1d(v)
@@ -759,8 +674,8 @@ class constrained_positive_part(atom):
         return v.reshape(arg.shape)
 
     @doc_template_user
-    def bound_prox(self, arg,  lipschitz=1, bound=None):
-        bound = atom.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         arg = np.asarray(arg)
         v = np.zeros(arg.shape, np.float)
         v = np.atleast_1d(v)
@@ -771,39 +686,37 @@ class constrained_positive_part(atom):
 
 
 @objective_doc_templater()
-class max_positive_part(atom):
+class max_positive_part(seminorm):
 
     """
     support function of the standard simplex
     """
 
     objective_template = r"""\|%(var)s^+\|_{\infty}"""
-    objective_vars = {'var': r'x + \alpha',
-                      'shape': atom._doc_dict['shape']}
 
     @doc_template_user
     def seminorm(self, arg, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, arg, 
+        lagrange = seminorm.seminorm(self, arg, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         return np.max(np.maximum(x,0)) * lagrange
 
     @doc_template_user
     def constraint(self, arg, bound=None):
-        bound = atom.constraint(self, arg, bound=bound)
+        bound = seminorm.constraint(self, arg, bound=bound)
         v = np.max(np.maximum(arg,0))
         if v >= bound * (1 + self.tol):
             return np.inf
         return 0
 
     @doc_template_user
-    def bound_prox(self, arg, lipschitz=1, bound=None):
-        bound = atom.bound_prox(self, arg, lipschitz, bound)
+    def bound_prox(self, arg, bound=None):
+        bound = seminorm.bound_prox(self, arg, bound)
         return np.clip(arg, -np.inf, bound)
 
     @doc_template_user
     def lagrange_prox(self, arg,  lipschitz=1, lagrange=None):
-        lagrange = atom.lagrange_prox(self, arg, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, arg, lipschitz, lagrange)
         arg = np.asarray(arg)
         v = np.zeros(arg.shape, np.float)
         v = np.atleast_1d(v)
@@ -811,99 +724,6 @@ class max_positive_part(atom):
         if np.any(pos):
             v[pos] = projl1(v[pos], lagrange / lipschitz)
         return arg - v.reshape(arg.shape)
-
-class affine_atom(object):
-    r"""
-    Given a seminorm on :math:`\mathbb{R}^p`, i.e.  :math:`\beta \mapsto
-    h_K(\beta)` this class creates a new seminorm that evaluates
-    :math:`h_K(D\beta+\alpha)`
-
-    This class does not have a prox, but its dual does. The prox of the dual is
-
-    .. math::
-
-       \text{minimize} \frac{1}{2} \|y-x\|^2_2 + x^T\alpha
-       \ \text{s.t.} \ x \in \lambda K
-
-    """
-
-    def __init__(self, atom_obj, atransform):
-        self.atom = copy(atom_obj)
-        # if the affine transform has an offset, put it into
-        # the atom. in this way, the affine_transform is actually
-        # always linear
-        if atransform.affine_offset is not None:
-            if self.atom.offset is not None:
-                self.atom.offset += atransform.affine_offset
-            else:
-                self.atom.offset = atransform.affine_offset
-            ltransform = affine_transform(atransform.linear_operator, None,
-                                          diag=atransform.diagD)
-        else:
-            ltransform = atransform
-        self.linear_transform = ltransform
-        self.primal_shape = self.linear_transform.primal_shape
-        self.dual_shape = self.linear_transform.dual_shape
-
-    def latexify(self, var='x', idx=''):
-        return self.atom.latexify(var='D_{%s}%s' % (idx, var), idx=idx)
-
-    def __repr__(self):
-        return "affine_atom(%s, %s)" % (`self.atom`,
-                                        `self.linear_transform.linear_operator`)
-
-    @property
-    def dual(self):
-        tmpatom = copy(self.atom)
-        tmpatom.primal_shape = tmpatom.dual_shape = self.dual_shape
-        return self.linear_transform, tmpatom.conjugate
-
-    def nonsmooth_objective(self, arg, check_feasibility=False):
-        """
-        Return self.atom.seminorm(self.linear_transform.linear_map(x))
-        """
-        return self.atom.nonsmooth_objective( \
-            self.linear_transform.linear_map(arg),
-            check_feasibility=check_feasibility)
-
-    def get_lagrange(self):
-        return self.atom._lagrange
-    def set_lagrange(self, lagrange):
-        if self.bound is None:
-            self.atom._lagrange = lagrange
-            self.atom.conjugate._bound = lagrange
-        else:
-            raise AttributeError("atom is in bound mode")
-    lagrange = property(get_lagrange, set_lagrange)
-
-    def get_bound(self):
-        return self.atom._bound
-
-    def set_bound(self, bound):
-        if self.lagrange is None:
-            self.atom._bound = bound
-            self.atom.conjugate._lagrange = bound
-        else:
-            raise AttributeError("atom is in lagrange mode")
-    bound = property(get_bound, set_bound)
-
-    def smoothed(self, smoothing_quadratic):
-        '''
-        Add quadratic smoothing term
-        '''
-        ltransform, conjugate_atom = self.dual
-        if conjugate_atom.quadratic is not None:
-            total_q = smoothing_quadratic + conjugate_atom.quadratic
-        else:
-            total_q = smoothing_quadratic
-        if total_q.coef in [None, 0]:
-            raise ValueError('quadratic term of '
-                             + 'smoothing_quadratic must be non 0')
-        conjugate_atom.quadratic = total_q
-        smoothed_atom = conjugate_atom.conjugate
-        value = affine_smooth(smoothed_atom, ltransform)
-        value.total_quadratic = smoothed_atom.total_quadratic
-        return value
 
 
 conjugate_seminorm_pairs = {}
@@ -915,19 +735,3 @@ for n1, n2 in [(l1norm,supnorm),
     conjugate_seminorm_pairs[n2] = n1
 
 nonpaired_atoms = [positive_part_lagrange]
-
-def _work_out_conjugate(offset, quadratic):
-    if offset is None:
-        offset = 0
-    else:
-        offset = offset
-    outq = identity_quadratic(0,0,-offset, \
-          -quadratic.constant_term + 
-          np.sum(offset * quadratic.linear_term))
-
-    if quadratic.linear_term is not None:
-        outoffset = -quadratic.linear_term
-    else:
-        outoffset = None
-    return outoffset, outq
-

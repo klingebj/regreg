@@ -3,24 +3,18 @@ from scipy import sparse
 from copy import copy
 import warnings
 
-from .composite import composite, nonsmooth, smooth_conjugate
-from .affine import (linear_transform, identity as identity_transform, 
+from .seminorms import seminorm as unweighted_seminorm
+
+from ..problems.composite import composite, nonsmooth, smooth_conjugate
+from ..affine import (linear_transform, identity as identity_transform, 
                      affine_transform, selector)
-
-from .atoms import atom as unweighted_atom, _work_out_conjugate
-from .identity_quadratic import identity_quadratic
-
-from .objdoctemplates import objective_doc_templater
-from .doctemplates import (doc_template_user, doc_template_provider)
-
-try:
-    from projl1_cython import projl1
-except:
-    warnings.warn('Cython version of projl1 not available. Using slower python version')
-    from projl1_python import projl1
+from ..identity_quadratic import identity_quadratic
+from ..atoms import _work_out_conjugate
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
 
 
-class atom(unweighted_atom):
+class seminorm(unweighted_seminorm):
 
     """
     A class that defines the API for support functions.
@@ -33,12 +27,12 @@ class atom(unweighted_atom):
                  'shape':'p',
                  'var':r'x'}
 
-    def __init__(self, primal_shape, weights, lagrange=None, bound=None, 
+    def __init__(self, shape, weights, lagrange=None, bound=None, 
                  offset=None, 
                  quadratic=None,
                  initial=None):
 
-        unweighted_atom.__init__(self, primal_shape,
+        unweighted_seminorm.__init__(self, shape,
                                  lagrange=lagrange,
                                  bound=bound,
                                  quadratic=quadratic,
@@ -46,8 +40,8 @@ class atom(unweighted_atom):
                                  offset=offset)
 
         self.weights = np.asarray(weights)
-        if self.weights.shape != self.primal_shape:
-            raise ValueError('weights should have same shape as primal_shape')
+        if self.weights.shape != self.shape:
+            raise ValueError('weights should have same shape as shape')
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -58,7 +52,7 @@ class atom(unweighted_atom):
         return False
 
     def __copy__(self):
-        return self.__class__(copy(self.primal_shape),
+        return self.__class__(copy(self.shape),
                               self.weights.copy(),
                               quadratic=self.quadratic,
                               initial=self.coefs,
@@ -71,14 +65,14 @@ class atom(unweighted_atom):
             if not self.quadratic.iszero:
                 return "%s(%s, %s, lagrange=%f, offset=%s)" % \
                     (self.__class__.__name__,
-                     `self.primal_shape`, 
+                     repr(self.shape), 
                      str(self.weights),
                      self.lagrange,
                      str(self.offset))
             else:
                 return "%s(%s, %s, lagrange=%f, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
-                     `self.primal_shape`, 
+                     repr(self.shape), 
                      str(self.weights),
                      self.lagrange,
                      str(self.offset),
@@ -87,14 +81,14 @@ class atom(unweighted_atom):
             if not self.quadratic.iszero:
                 return "%s(%s, %s, bound=%f, offset=%s)" % \
                     (self.__class__.__name__,
-                     `self.primal_shape`,
+                     repr(self.shape),
                      str(self.weights),
                      self.bound,
                      str(self.offset))
             else:
                 return "%s(%s, %s, bound=%f, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
-                     `self.primal_shape`,
+                     repr(self.shape),
                      str(self.weights),
                      self.bound,
                      str(self.offset),
@@ -109,7 +103,7 @@ class atom(unweighted_atom):
 
             if self.bound is None:
                 cls = conjugate_weighted_pairs[self.__class__]
-                atom = cls(self.primal_shape, 
+                atom = cls(self.shape, 
                            inv_weights, 
                            bound=self.lagrange, 
                            lagrange=None,
@@ -117,7 +111,7 @@ class atom(unweighted_atom):
                            quadratic=outq)
             else:
                 cls = conjugate_weighted_pairs[self.__class__]
-                atom = cls(self.primal_shape,
+                atom = cls(self.shape,
                            inv_weights,
                            lagrange=self.bound, 
                            bound=None,
@@ -139,17 +133,17 @@ class atom(unweighted_atom):
             if self.weights is not None:
                 test = self.weights == 0
                 if test.sum() and subsample:
-                    self._linear_transform = selector(~test, self.primal_shape)
+                    self._linear_transform = selector(~test, self.shape)
                 else:
-                    self._linear_transform = identity_transform(self.primal_shape)
+                    self._linear_transform = identity_transform(self.shape)
             else:
-                self._linear_transform = identity_transform(self.primal_shape)
+                self._linear_transform = identity_transform(self.shape)
         return self._linear_transform
     linear_transform = property(form_transform)
 
 
 @objective_doc_templater()
-class l1norm(atom):
+class l1norm(seminorm):
 
     """
     The l1 norm
@@ -160,7 +154,7 @@ class l1norm(atom):
     objective_vars = {'var': r'x + \alpha'}
 
     def seminorm(self, x, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, x, 
+        lagrange = seminorm.seminorm(self, x, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         finite = np.isfinite(self.weights)
@@ -172,7 +166,7 @@ class l1norm(atom):
 
     @doc_template_user
     def constraint(self, x, bound=None):
-        bound = atom.constraint(self, x, bound=bound)
+        bound = seminorm.constraint(self, x, bound=bound)
         inbox = self.seminorm(x, lagrange=1,
                               check_feasibility=True) <= bound * (1 + self.tol)
         if inbox:
@@ -182,16 +176,16 @@ class l1norm(atom):
 
     @doc_template_user
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
-        lagrange = atom.lagrange_prox(self, x, lipschitz, lagrange)
+        lagrange = seminorm.lagrange_prox(self, x, lipschitz, lagrange)
         return np.sign(x) * np.maximum(np.fabs(x)-lagrange * self.weights /lipschitz, 0)
 
     @doc_template_user
-    def bound_prox(self, x, lipschitz=1, bound=None):
+    def bound_prox(self, x, bound=None):
         raise NotImplementedError
 
 
 @objective_doc_templater()
-class supnorm(atom):
+class supnorm(seminorm):
 
     r"""
     The :math:`\ell_{\infty}` norm
@@ -202,7 +196,7 @@ class supnorm(atom):
 
     @doc_template_user
     def seminorm(self, x, lagrange=None, check_feasibility=False):
-        lagrange = atom.seminorm(self, x, 
+        lagrange = seminorm.seminorm(self, x, 
                                  check_feasibility=check_feasibility, 
                                  lagrange=lagrange)
         finite = np.isfinite(self.weights)
@@ -214,7 +208,7 @@ class supnorm(atom):
 
     @doc_template_user
     def constraint(self, x, bound=None):
-        bound = atom.constraint(self, x, bound=bound)
+        bound = seminorm.constraint(self, x, bound=bound)
         inbox = self.seminorm(x, lagrange=1,
                               check_feasibility=True) <= bound * (1+self.tol)
         if inbox:
@@ -227,8 +221,8 @@ class supnorm(atom):
         raise NotImplementedError
 
     @doc_template_user
-    def bound_prox(self, x, lipschitz=1, bound=None):
-        bound = atom.bound_prox(self, x, lipschitz, bound)
+    def bound_prox(self, x, bound=None):
+        bound = seminorm.bound_prox(self, x, bound)
         return np.clip(x, -bound/self.weights, bound/self.weights)
 
 

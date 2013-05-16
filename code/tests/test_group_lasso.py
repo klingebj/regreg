@@ -2,7 +2,7 @@ import numpy as np
 import itertools
 from copy import copy
 
-from regreg.group_lasso import group_lasso, group_lasso_conjugate
+from regreg.atoms.group_lasso import group_lasso, group_lasso_dual
 import regreg.api as rr
 import nose.tools as nt
 
@@ -31,7 +31,7 @@ def test_proximal_maps():
     linq = rr.identity_quadratic(0,0,W,0)
 
     for L, atom, q, offset, FISTA, coef_stop, weights in itertools.product([0.5,1,0.1], \
-                     [group_lasso, group_lasso_conjugate],
+                     [group_lasso, group_lasso_dual],
                                               [None, linq],
                                               [None, U],
                                               [False, True],
@@ -99,7 +99,7 @@ def solveit(atom, Z, W, U, linq, L, FISTA, coef_stop):
     yield ac, atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity %s ' % atom
 
     dproblem2 = rr.dual_problem(loss.conjugate, 
-                                rr.identity(loss.primal_shape),
+                                rr.identity(loss.shape),
                                 atom.conjugate)
     dcoef2 = dproblem2.solve(coef_stop=coef_stop, tol=1.e-14)
     yield ac, atom.proximal(q), dcoef2, 'solving prox with dual_problem with monotonicity %s ' % atom

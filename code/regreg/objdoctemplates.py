@@ -19,6 +19,8 @@ def objective_doc_templater(doc_dict=None, doc_errors=True):
             hasattr(klass, 'objective_vars')):
             doc_dict['objective'] = (klass.objective_template %
                                      klass.objective_vars)
+            for k, v in klass.objective_vars.items():
+                doc_dict[k] = v
         return doc_templater(doc_dict, doc_errors)(klass)
     return obj_kdec
 

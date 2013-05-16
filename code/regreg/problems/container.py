@@ -1,16 +1,17 @@
 import numpy as np
 from scipy import sparse
-from .algorithms import FISTA
-from .composite import (composite, nonsmooth as nonsmooth_composite,
-                        smooth as smooth_composite)
-from .affine import (vstack as afvstack, identity as afidentity, power_L,
-                     selector as afselector)
-from .separable import separable
-from .dual_problem import dual_problem, stacked_dual
-from .atoms import affine_atom as nonsmooth_affine_atom
-from .cones import zero_constraint, zero as zero_nonsmooth, affine_cone
 
-from .identity_quadratic import identity_quadratic
+from ..algorithms import FISTA
+from ..problems.composite import (composite, nonsmooth as nonsmooth_composite,
+                        smooth as smooth_composite)
+from ..affine import (vstack as afvstack, identity as afidentity, power_L,
+                     selector as afselector)
+from ..problems.separable import separable
+from ..problems.dual_problem import dual_problem, stacked_dual
+from ..atoms import affine_atom as nonsmooth_affine_atom
+from ..atoms.cones import zero_constraint, zero as zero_nonsmooth, affine_cone
+
+from ..identity_quadratic import identity_quadratic
 
 class container(composite):
     """
@@ -39,10 +40,10 @@ class container(composite):
             raise ValueError('must specify some atoms')
 
         if len(self.nonsmooth_atoms) == 0:
-            self.nonsmooth_atoms = [zero_nonsmooth(self.smooth_atoms[0].primal_shape)]
+            self.nonsmooth_atoms = [zero_nonsmooth(self.smooth_atoms[0].shape)]
 
-        self.transform, self.atom = stacked_dual(self.smooth_atoms[0].primal_shape, *self.nonsmooth_atoms)
-        self.coefs = np.zeros(self.transform.primal_shape)
+        self.transform, self.atom = stacked_dual(self.smooth_atoms[0].shape, *self.nonsmooth_atoms)
+        self.coefs = np.zeros(self.transform.input_shape)
 
         # add up all the smooth_atom quadratics
         # to be added to nonsmoooth_objective
@@ -110,7 +111,7 @@ class container(composite):
                 prox_defaults.update(prox_control)
             prox_control = prox_defaults
 
-            primal_objective = zero_nonsmooth(transform.primal_shape)
+            primal_objective = zero_nonsmooth(transform.input_shape)
             primal_objective.quadratic = proxq + self.smoothq + self.quadratic
             dual_objective = primal_objective.conjugate
             dualp = dual_problem(dual_objective,

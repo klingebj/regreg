@@ -5,18 +5,8 @@ problems.
 
 """
 import numpy as np
-from atoms import atom, conjugate_seminorm_pairs
 import warnings
-from affine import linear_transform, composition, affine_sum, power_L
-from smooth import smooth_atom
-from composite import composite
-from algorithms import FISTA
-
-try:
-    from projl1_cython import projl1
-except:
-    warnings.warn('Cython version of projl1 not available. Using slower python version')
-    from projl1_python import projl1
+from ..affine import linear_transform, composition, affine_sum, power_L
 
 class factored_matrix(object):
 
@@ -56,8 +46,8 @@ class factored_matrix(object):
     def _setX(self,transform):
         if isinstance(transform, np.ndarray):
             transform = linear_transform(transform)
-        self.primal_shape = transform.primal_shape
-        self.dual_shape = transform.dual_shape
+        self.input_shape = transform.input_shape
+        self.output_shape = transform.output_shape
         U, D, VT = compute_iterative_svd(transform, min_singular=self.min_singular, tol=self.tol, initial_rank = self.initial_rank, initial=self.initial, debug=self.debug)
         self.SVD = [U,D,VT]
 
@@ -77,8 +67,8 @@ class factored_matrix(object):
             SVD[1] = SVD[1].reshape((1,1))
             SVD[2] = SVD[2].reshape((1,SVD[2].flatten().shape[0]))
             self.rankone = True
-        self.primal_shape = (SVD[2].shape[1],)
-        self.dual_shape = (SVD[0].shape[0],)
+        self.input_shape = (SVD[2].shape[1],)
+        self.output_shape = (SVD[0].shape[0],)
         self._SVD = SVD
     SVD = property(_getSVD, _setSVD)
 
@@ -114,8 +104,8 @@ def compute_iterative_svd(transform,
     if isinstance(transform, np.ndarray):
         transform = linear_transform(transform)
 
-    n = transform.dual_shape[0]
-    p = transform.primal_shape[0]
+    n = transform.output_shape[0]
+    p = transform.input_shape[0]
     
     if initial_rank is None:
         r = np.round(np.min([n,p]) * 0.1) + 1
@@ -155,8 +145,8 @@ def partial_svd(transform,
     if isinstance(transform, np.ndarray):
         transform = linear_transform(transform)
 
-    n = transform.dual_shape[0]
-    p = transform.primal_shape[0]
+    n = transform.output_shape[0]
+    p = transform.input_shape[0]
 
 
     r = np.int(np.min([r,p]))
@@ -212,7 +202,7 @@ def soft_threshold_svd(X, c=0.):
     singular_values = X.SVD[1]
     ind = np.where(singular_values >= c)[0]
     if len(ind) == 0:
-        X.SVD = [np.zeros(X.dual_shape[0]), np.zeros(1), np.zeros(X.primal_shape[0])]
+        X.SVD = [np.zeros(X.output_shape[0]), np.zeros(1), np.zeros(X.input_shape[0])]
     else:
         X.SVD = [X.SVD[0][:,ind], np.maximum(singular_values[ind] - c,0), X.SVD[2][ind,:]]
 

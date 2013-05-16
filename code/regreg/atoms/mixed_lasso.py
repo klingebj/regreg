@@ -3,14 +3,14 @@ import warnings
 
 import numpy as np
 
-from .composite import composite, nonsmooth, smooth_conjugate
-from .affine import linear_transform, identity as identity_transform, selector
-from .identity_quadratic import identity_quadratic
-from .atoms import _work_out_conjugate
-from .smooth import affine_smooth
+from ..problems.composite import composite, nonsmooth, smooth_conjugate
+from ..affine import linear_transform, identity as identity_transform, selector
+from ..identity_quadratic import identity_quadratic
+from ..atoms import _work_out_conjugate
+from ..smooth import affine_smooth
 
-from .objdoctemplates import objective_doc_templater
-from .doctemplates import (doc_template_user, doc_template_provider)
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
 
 # Constants used below
 
@@ -52,14 +52,14 @@ class mixed_lasso(nonsmooth):
                  offset=None,
                  quadratic=None,
                  initial=None):
-        primal_shape = np.asarray(penalty_structure).shape
-        nonsmooth.__init__(self, primal_shape, offset,
+        shape = np.asarray(penalty_structure).shape
+        nonsmooth.__init__(self, shape, offset,
                            quadratic, initial)
 
         self.weights = weights
         self.lagrange = lagrange
         self.penalty_structure = penalty_structure
-        self._groups = -np.ones(self.primal_shape, np.int)
+        self._groups = -np.ones(self.shape, np.int)
         groups = set(np.unique(self.penalty_structure)).difference(
             set(reserved))
         self._weight_array = np.zeros(len(groups))
@@ -76,7 +76,7 @@ class mixed_lasso(nonsmooth):
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
-            return (self.primal_shape == other.primal_shape and 
+            return (self.shape == other.shape and 
                     np.all(self.penalty_structure == other.penalty_structure)
                     and np.all(self.weights == other.weights)
                     and self.lagrange == other.lagrange)
@@ -130,7 +130,7 @@ class mixed_lasso(nonsmooth):
     @property
     def linear_transform(self):
         if not hasattr(self, "_linear_transform"):
-            self._linear_transform = identity_transform(self.primal_shape)
+            self._linear_transform = identity_transform(self.shape)
         return self._linear_transform
     
     def latexify(self, var='x', idx=''):
@@ -250,7 +250,7 @@ class mixed_lasso_conjugate(mixed_lasso):
 
     def __eq__(self, other):
         if self.__class__ == other.__class__:
-            return (self.primal_shape == other.primal_shape and 
+            return (self.shape == other.shape and 
                     np.all(self.penalty_structure == other.penalty_structure)
                     and np.all(self.weights == other.weights)
                     and self.bound == other.bound)
@@ -304,7 +304,7 @@ class mixed_lasso_conjugate(mixed_lasso):
     @property
     def linear_transform(self):
         if not hasattr(self, "_linear_transform"):
-            self._linear_transform = identity_transform(self.primal_shape)
+            self._linear_transform = identity_transform(self.shape)
         return self._linear_transform
     
     def latexify(self, var='x', idx=''):

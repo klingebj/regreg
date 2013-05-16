@@ -1,7 +1,7 @@
 import numpy as np
 
 import regreg.api as rr
-from regreg.simple import gengrad
+from regreg.problems.simple import gengrad
 import nose.tools as nt
 
 from test_seminorms import ac

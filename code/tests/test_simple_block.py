@@ -1,7 +1,7 @@
 import numpy as np
 
 import regreg.api as rr
-from regreg.simple import gengrad
+from regreg.problems.simple import gengrad
 import nose.tools as nt
 
 from test_seminorms import ac
@@ -25,14 +25,14 @@ def test_simple():
     prox_coef = p.proximal(q)
 
     p2 = copy(p)
-    p2.set_quadratic(L, Z, 0, 0)
+    p2.quadratic = rr.identity_quadratic(L, Z, 0, 0)
     problem = rr.simple_problem.nonsmooth(p2)
     solver = rr.FISTA(problem)
     solver.fit(tol=1.0e-14, debug=True)
     simple_nonsmooth_coef = solver.composite.coefs
 
     p = rr.l1_l2((10,10), lagrange=0.13)
-    p.set_quadratic(L, Z, 0, 0)
+    p.quadratic = rr.identity_quadratic(L, Z, 0, 0)
     problem = rr.simple_problem.nonsmooth(p)
     simple_nonsmooth_gengrad = gengrad(problem, L, tol=1.0e-10)
 

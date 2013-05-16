@@ -5,11 +5,11 @@ try:
 except ImportError:
     warnings.warn('cannot import some cholesky solvers from scipy')
 
-from .affine import affine_transform
-from .smooth import smooth_atom
-from .composite import smooth_conjugate
-from .cones import zero
-from .identity_quadratic import identity_quadratic
+from ..affine import affine_transform
+from ..smooth import smooth_atom
+from ..problems.composite import smooth_conjugate
+from ..atoms.cones import zero
+from ..identity_quadratic import identity_quadratic
 
 class quadratic(smooth_atom):
     """
@@ -23,12 +23,12 @@ class quadratic(smooth_atom):
 
     objective_template = r"""\ell^{Q}\left(%(var)s\right)"""
 
-    def __init__(self, primal_shape, coef=1., Q=None, Qdiag=False,
+    def __init__(self, shape, coef=1., Q=None, Qdiag=False,
                  offset=None,
                  quadratic=None,
                  initial=None):
         smooth_atom.__init__(self,
-                             primal_shape,
+                             shape,
                              coef=coef,
                              offset=offset,
                              quadratic=quadratic,
@@ -81,27 +81,27 @@ class quadratic(smooth_atom):
             totalq = q + self.quadratic
             totalq_conj = totalq.conjugate.collapsed()
             if as_quadratic:
-                return quadratic(self.primal_shape, 
+                return quadratic(self.shape, 
                                  offset=totalq_conj.linear_term/totalq_conj.coef,
                                  coef=totalq_conj.coef,
                                  quadratic=identity_quadratic(0,0,0,-totalq.constant_term))
             else:
-                return smooth_conjugate(zero(self.primal_shape,
+                return smooth_conjugate(zero(self.shape,
                                              quadratic=totalq))
         else:
             sq = self.quadratic.collapsed()
             if self.offset is not None:
                 sq.linear_term += self.scale(self.Q_transform.linear_map(self.offset))
             if self.Q_transform.diagD:
-                return quadratic(self.primal_shape,
+                return quadratic(self.shape,
                                  Q=1./(self.coef*self.Q_transform.linear_operator + sq.coef),
                                  offset=offset,
                                  quadratic=outq, 
                                  coef=1.,
                                  Qdiag=True)
             elif factor:
-                return quadratic(self.primal_shape,
-                             Q=cholesky(self.coef * self.Q + sq.coef*np.identity(self.primal_shape)),
+                return quadratic(self.shape,
+                             Q=cholesky(self.coef * self.Q + sq.coef*np.identity(self.shape)),
                              Qdiag=False,
                              offset=offset,
                              quadratic=outq,
@@ -126,8 +126,8 @@ class cholesky(object):
     '''
 
     def __init__(self, Q, cholesky=None, banded=False):
-        self.primal_shape = Q.shape[0]
-        self.dual_shape = Q.shape[0]
+        self.input_shape = Q.shape[0]
+        self.output_shape = Q.shape[0]
         self.affine_offset = None
         self._Q = Q
         self.banded = banded

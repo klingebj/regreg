@@ -5,33 +5,32 @@ from copy import copy
 
 # local imports
 
-from .identity_quadratic import identity_quadratic as sq
-from .algorithms import FISTA
+from ..identity_quadratic import identity_quadratic as sq
+from ..algorithms import FISTA
 
+from ..objdoctemplates import objective_doc_templater
+from ..doctemplates import (doc_template_user, doc_template_provider)
+
+@objective_doc_templater()
 class composite(object):
     """
     A generic way to specify a problem in composite form.
     """
 
-    objective_template = r'''f(%(var)s)'''
-    _doc_dict = {'objective': '',
-                 'shape':'p',
-                 'var':r'x',
-                 'linear':'',
-                 'constant':''}
+    objective_template = r"""f(%(var)s)"""
+    objective_vars = {'var': r'x'}
 
-    def __init__(self, primal_shape, offset=None,
+    def __init__(self, shape, offset=None,
                  quadratic=None, initial=None):
 
         self.offset = offset
         if offset is not None:
             self.offset = array(offset)
 
-        if type(primal_shape) == type(1):
-            self.primal_shape = (primal_shape,)
+        if type(shape) == type(1):
+            self.shape = (shape,)
         else:
-            self.primal_shape = primal_shape
-        self.dual_shape = self.primal_shape
+            self.shape = shape
 
         if quadratic is not None:
             self.quadratic = quadratic
@@ -39,7 +38,7 @@ class composite(object):
             self.quadratic = sq(0,0,0,0)
 
         if initial is None:
-            self.coefs = zeros(self.primal_shape)
+            self.coefs = zeros(self.shape)
         else:
             self.coefs = initial.copy()
 
@@ -56,6 +55,9 @@ class composite(object):
             return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
         return obj
 
+    def _repr_latex_(self):
+        return self.latexify('x')
+
     def nonsmooth_objective(self, x, check_feasibility=False):
         return self.quadratic.objective(x, 'func')
 
@@ -68,19 +70,22 @@ class composite(object):
     def objective(self, x, check_feasibility=False):
         return self.smooth_objective(x,mode='func', check_feasibility=check_feasibility) + self.nonsmooth_objective(x, check_feasibility=check_feasibility)
 
+    @doc_template_provider
     def proximal_optimum(self, quadratic):
         r"""
         Returns
 
         .. math::
 
-           \inf_{v \in \mathbb{R}^p} \frac{L}{2}
-           \|x-v\|^2_2 + \lambda h(v)
+           \inf_{x \in \mathbb{R}^p} Q(x)
+            + h(x)
 
-        where $p$ = ``x.shape[0]`` and $h(v)$ = ``self.seminorm(v)``.
+        where $p$ = ``x.shape[0]``, $Q(x)=$ `self.quadratic` and
 
-        Here, h represents the nonsmooth part and the quadratic
-        part of the composite object.
+        .. math::
+        
+            h(%(var)s) = %(ns_objective)s
+
         """
         argmin = self.proximal(quadratic)
         if self.quadratic is None:
@@ -101,14 +106,23 @@ class composite(object):
             return self.proximal(quadratic, prox_control=prox_control)
 
     def apply_offset(self, x):
+        """
+        If self.offset is not None, return x+self.offset, else return x.
+        """
         if self.offset is not None:
             return x + self.offset
         return x
 
     def set_quadratic(self, quadratic):
+        """
+        Set the quadratic part of the composite.
+        """
         self._quadratic = quadratic
 
     def get_quadratic(self):
+        """
+        Get the quadratic part of the composite.
+        """
         if not hasattr(self, "_quadratic"):
             self._quadratic = sq(None, None, None, None)
         return self._quadratic
@@ -129,17 +143,6 @@ class composite(object):
         conjugate_atom.set_quadratic(total_q)
         smoothed_atom = conjugate_atom.conjugate
         return smoothed_atom
-
-    def get_lipschitz(self):
-        if hasattr(self, '_lipschitz'):
-            return self._lipschitz + self.quadratic.coef
-        return self.quadratic.coef
-
-    def set_lipschitz(self, value):
-        if value < 0:
-            raise ValueError('Lipschitz constant must be non-negative')
-        self._lipschitz = value
-    lipschitz = property(get_lipschitz, set_lipschitz)
 
     def solve(self, quadratic=None, return_optimum=False, **fit_args):
         raise NotImplementedError('subclasses must implement their own solve methods')
@@ -176,17 +179,16 @@ class smooth(composite):
     is a null-op.
     """
 
-#     def __init__(self, smooth_objective, 
-#                  primal_shape, offset=None,
-#                  quadratic=None, initial=None):
-#         """
-#         Create a new smooth class from a smooth_objective function.
-#         """
-#         self._smooth_objective = smooth_objective
-#         composite.__init__(self, primal_shape,
-#                            offset=offset,
-#                            quadratic=quadratic,
-#                            initial=initial)
+    def get_lipschitz(self):
+        if hasattr(self, '_lipschitz'):
+            return self._lipschitz + self.quadratic.coef
+        return self.quadratic.coef
+
+    def set_lipschitz(self, value):
+        if value < 0:
+            raise ValueError('Lipschitz constant must be non-negative')
+        self._lipschitz = value
+    lipschitz = property(get_lipschitz, set_lipschitz)
 
     def smooth_objective(self, x, mode='func', check_feasibility=False):
         return self._smooth_objective(x, mode=mode, check_feasibility=check_feasibility)
@@ -207,7 +209,6 @@ class smooth(composite):
             return self.objective(self.coefs), self.coefs
         else:
             return self.coefs
-
 
 class smooth_conjugate(smooth):
 
@@ -233,7 +234,7 @@ class smooth_conjugate(smooth):
         if self.total_quadratic.coef in [0,None]:
             raise ValueError('the atom must have non-zero quadratic term to compute ensure smooth conjugate')
 
-        self.primal_shape = atom.primal_shape
+        self.shape = atom.shape
 
     # A smooth conjugate is the conjugate of some $f$ with an identity quadratic added to it, or
     # $$
@@ -299,7 +300,7 @@ class smooth_conjugate(smooth):
                 sq_ = self.smoothing_quadratic
                 newq = sq_ + q.conjugate
                 new_smooth = smooth_conjugate(self.atom, quadratic=newq)
-                output = smooth(self.atom.primal_shape,
+                output = smooth(self.atom.shape,
                                 offset=None,
                                 quadratic=sq(1./r, q.linear_term, 0, 0),
                                 initial=None)

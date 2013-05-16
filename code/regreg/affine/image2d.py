@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import sparse
-import affine
+from ..affine import affine_transform
 
 def formD_smaller(m, n):
     """
@@ -208,15 +208,15 @@ def formD(m, n):
 
     return D1 + D2 + D3 + D4 + D5 + D6 + D7 + D8
 
-class image2d_differences(affine.affine_transform):
+class image2d_differences(affine_transform):
 
     def __init__(self, image_shape, affine_offset=None):
         self.image_shape = image_shape
         self.D = formD(*image_shape)
         self.DT = self.D.T.tocsr()
-        self.primal_shape = image_shape
-        m, n = self.primal_shape
-        self.dual_shape = (m*n-1,2)
+        self.input_shape = image_shape
+        m, n = self.input_shape
+        self.output_shape = (m*n-1,2)
         self.affine_offset = affine_offset
 
     def linear_map(self, x, copy=True):
@@ -238,7 +238,7 @@ class image2d_differences(affine.affine_transform):
             `x` transformed with linear component
         """
         v = self.D * x.reshape(-1)
-        return v.reshape(self.dual_shape[::-1]).T
+        return v.reshape(self.output_shape[::-1]).T
 
     def affine_map(self, x, copy=True):
         r"""Apply linear part of transform to `x`
@@ -281,4 +281,4 @@ class image2d_differences(affine.affine_transform):
             `u` transformed with linear component
         """
         v = self.DT * u.T.reshape(-1)
-        return v.reshape(self.primal_shape)
+        return v.reshape(self.input_shape)

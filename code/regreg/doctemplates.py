@@ -132,8 +132,8 @@ def doc_templater(doc_dict=None, doc_error=True):
                 klass._doc_templates[obj.func_name] = obj._doc_template
             if hasattr(obj, '_uses_doc_template') and hasattr(obj, 'func_name'):
                 if doc_error and not obj.func_doc is None:
-                    raise ValueError("Refusing to discard unexpected docstring"
-                                     " - set `doc_error` to False if you want "
+                    raise ValueError("Refusing to discard unexpected docstring for %s" % repr(obj) +
+                                     " - set `doc_error` to False if you want " + 
                                      "to allow this")
                 template = klass._doc_templates[obj.func_name]
                 obj.func_doc = template % klass_doc_dict
