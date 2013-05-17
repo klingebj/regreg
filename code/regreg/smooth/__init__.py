@@ -46,7 +46,9 @@ class smooth_atom(smooth_composite):
         if not acceptable_init_args(cls, kws):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
         
-        atom = cls(l.output_shape, coef=coef, offset=offset, quadratic=quadratic, **kws)
+        # We switch the signs because for atoms, offsets are subtracted
+        # but for affine_transforms they are added
+        atom = cls(l.output_shape, coef=coef, offset=-offset, quadratic=quadratic, **kws)
         
         return affine_smooth(atom, l)
 
@@ -118,7 +120,7 @@ class affine_smooth(smooth_atom):
 
     def __init__(self, smooth_atom, atransform, store_grad=True, diag=False):
         self.store_grad = store_grad
-        self.sm_atom = smooth_atom
+        self.atom = smooth_atom
         if not isinstance(atransform, affine_transform):
             atransform = linear_transform(atransform, diag=diag)
         self.affine_transform = atransform
@@ -126,43 +128,51 @@ class affine_smooth(smooth_atom):
         self.coefs = np.zeros(self.shape)
 
     def _get_coef(self):
-        return self.sm_atom.coef
+        return self.atom.coef
 
     def _set_coef(self, coef):
-        self.sm_atom.coef = coef
+        self.atom.coef = coef
     coef = property(_get_coef, _set_coef)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         eta = self.affine_transform.affine_map(x)
         if mode == 'both':
-            v, g = self.sm_atom.smooth_objective(eta, mode='both')
+            v, g = self.atom.smooth_objective(eta, mode='both')
             if self.store_grad:
                 self.grad = g
             g = self.affine_transform.adjoint_map(g).reshape(self.shape)
             return v, g
         elif mode == 'grad':
-            g = self.sm_atom.smooth_objective(eta, mode='grad')
+            g = self.atom.smooth_objective(eta, mode='grad')
             if self.store_grad:
                 self.grad = g
             g = self.affine_transform.adjoint_map(g).reshape(self.shape)
             return g 
         elif mode == 'func':
-            v = self.sm_atom.smooth_objective(eta, mode='func')
+            v = self.atom.smooth_objective(eta, mode='func')
             return v 
 
     @property
     def dual(self):
         try: 
-            conj = self.sm_atom.conjugate
+            conj = self.atom.conjugate
             return self.affine_transform, conj
         except:
             return None
 
     def __repr__(self):
         return ("affine_smooth(%s, %s, store_grad=%s)" % 
-                (str(self.sm_atom),
+                (str(self.atom),
                 str(self.affine_transform),
                 self.store_grad))
+
+    def latexify(self, var=None, idx=''):
+        template_dict = self.atom.objective_vars.copy()
+        template_dict['linear'] = self.objective_vars['linear']
+        if var is not None:
+            template_dict['var'] = var
+        template_dict['idx'] = idx
+        return self.atom.latexify(var='%(linear)s_{%(idx)s}%(var)s' % template_dict, idx=idx)
 
 class zero(smooth_atom):
 

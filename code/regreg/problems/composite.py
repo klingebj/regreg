@@ -11,6 +11,7 @@ from ..algorithms import FISTA
 from ..objdoctemplates import objective_doc_templater
 from ..doctemplates import (doc_template_user, doc_template_provider)
 
+
 @objective_doc_templater()
 class composite(object):
     """
@@ -58,7 +59,7 @@ class composite(object):
         return obj
 
     def _repr_latex_(self):
-        return self.latexify('x')
+        return r'\begin{equation}' + self.latexify() + r'\end{equation}'
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         return self.quadratic.objective(x, 'func')
@@ -295,9 +296,9 @@ class smooth_conjugate(smooth):
                 newq.constant_term -= q.constant_term
                 offset = -q.linear_term
                 if atom.offset is not None:
-                    offset += atom.offset
+                    offset -= atom.offset
                 atom = copy(atom)
-                atom.offset = offset
+                atom.offset = -offset
                 atom.quadratic=newq
                 return atom
             if q.coef != 0:

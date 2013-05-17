@@ -37,8 +37,28 @@ class quadratic(smooth_atom):
                              initial=initial)
         
         self.Q = Q
+        self.Qdiag = Qdiag
         if self.Q is not None:
             self.Q_transform = affine_transform(Q, None, Qdiag)
+
+    def __repr__(self):
+        if self.quadratic.iszero:
+            return "%s(%s, coef=%s, Q=%s, Qdiag=%s, offset=%s)" % \
+                (self.__class__.__name__,
+                 repr(self.shape), 
+                 repr(self.coef),
+                 repr(self.Q),
+                 repr(self.Qdiag),
+                 str(self.offset))
+        else:
+            return "%s(%s, coef=%s, Q=%s, Qdiag=%s, offset=%s, quadratic=%s)" % \
+                (self.__class__.__name__,
+                 repr(self.shape), 
+                 repr(self.coef),
+                 repr(self.Q),
+                 repr(self.Qdiag),
+                 str(self.offset),
+                 self.quadratic)
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
@@ -79,7 +99,7 @@ class quadratic(smooth_atom):
     def get_conjugate(self, factor=False, as_quadratic=False):
 
         if self.Q is None:
-            q = identity_quadratic(self.coef, -self.offset, 0, 0).collapsed()
+            q = identity_quadratic(self.coef, self.offset, 0, 0).collapsed()
             totalq = q + self.quadratic
             totalq_conj = totalq.conjugate.collapsed()
             if as_quadratic:
@@ -93,7 +113,7 @@ class quadratic(smooth_atom):
         else:
             sq = self.quadratic.collapsed()
             if self.offset is not None:
-                sq.linear_term += self.scale(self.Q_transform.linear_map(self.offset))
+                sq.linear_term -= self.scale(self.Q_transform.linear_map(self.offset))
             if self.Q_transform.diagD:
                 return quadratic(self.shape,
                                  Q=1./(self.coef*self.Q_transform.linear_operator + sq.coef),
@@ -163,8 +183,8 @@ def squared_error(X, Y, coef=1):
 
     """
     atom = quadratic.affine(X, -Y, coef=coef)
-    atom.sm_atom.objective_vars['offset'] = 'Y'
-    atom.sm_atom.objective_template = r"""\frac{%(coef)s}{2}\left\|%(var)s\right\|^2_2"""
+    atom.atom.objective_vars['offset'] = 'Y'
+    atom.atom.objective_template = r"""\frac{%(coef)s}{2}\left\|%(var)s\right\|^2_2"""
     return atom
 
 def signal_approximator(signal, coef=1):
@@ -177,8 +197,8 @@ def signal_approximator(signal, coef=1):
 
     """
     atom = quadratic.shift(-signal, coef=coef)    
-    atom.sm_atom.objective_vars['offset'] = 'Y'
-    atom.sm_atom.objective_template = r"""\frac{%(coef)s}{2}\left\|%(var)s\right\|^2_2"""
+    atom.atom.objective_vars['offset'] = 'Y'
+    atom.atom.objective_template = r"""\frac{%(coef)s}{2}\left\|%(var)s\right\|^2_2"""
     return atom
 
 

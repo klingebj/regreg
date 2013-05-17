@@ -270,18 +270,19 @@ class seminorm(atom):
 
         """
         offset, totalq = (self.quadratic + proxq).recenter(self.offset)
+
         if totalq.coef == 0:
             raise ValueError('lipschitz + quadratic coef must be positive')
 
         prox_arg = -totalq.linear_term / totalq.coef
 
-        debug = False
         if debug:
             print '='*80
             print 'atom: ', self
             print 'proxq: ', proxq
             print 'proxarg: ', prox_arg
             print 'totalq: ', totalq
+            print 'offset: ', offset
 
         if self.bound is not None:
             eta = self.bound_prox(prox_arg, 
@@ -294,7 +295,7 @@ class seminorm(atom):
         if offset is None:
             return eta
         else:
-            return eta - offset
+            return eta + offset
 
     @doc_template_provider
     def lagrange_prox(self, arg, lipschitz=1, lagrange=None):
