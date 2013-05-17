@@ -59,16 +59,16 @@ def projl1_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
     np.fabs(coef).sum() <= bound.
     """
 
-    cdef np.ndarray[DTYPE_float_t, ndim=1] x = center[1:]
+    cdef np.ndarray[DTYPE_float_t, ndim=1] x = center[:-1]
     cdef np.ndarray[DTYPE_float_t, ndim=1] result = np.zeros_like(center)
-    cdef DTYPE_float_t norm = center[0]
+    cdef DTYPE_float_t norm = center[-1]
     cdef double cut = find_solution_piecewise_linear_c(norm, 1, np.fabs(x))
     cdef double cut2 = find_solution_piecewise_linear(norm, 1, np.fabs(x),
                                                       np.ones_like(x))
 
     if cut < np.inf:
-        result[0] = norm + cut
-        result[1:] = soft_threshold(x, cut)
+        result[:-1] = norm + cut
+        result[-1] = soft_threshold(x, cut)
     else:
         result = center
     return result

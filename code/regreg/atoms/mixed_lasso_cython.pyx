@@ -362,9 +362,9 @@ def mixed_lasso_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center,
                          np.ndarray[DTYPE_int_t, ndim=1] groups, 
                          np.ndarray[DTYPE_float_t, ndim=1] weights):
 
-    cdef np.ndarray[DTYPE_float_t, ndim=1] x = center[1:]
+    cdef np.ndarray[DTYPE_float_t, ndim=1] x = center[:-1]
     cdef np.ndarray[DTYPE_float_t, ndim=1] result = np.zeros_like(center)
-    cdef DTYPE_float_t norm = center[0]
+    cdef DTYPE_float_t norm = center[-1]
 
     cdef int p = groups.shape[0]
     cdef int stop, i, j
@@ -412,8 +412,8 @@ def mixed_lasso_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center,
         projection[positive_part] = np.minimum(cut, x[positive_part])
         projection[nonnegative] = np.minimum(x[nonnegative], 0)
 
-        result[1:] = x - projection
-        result[0] = norm + cut
+        result[:-1] = x - projection
+        result[-1] = norm + cut
     else:
         result[:] = center
 

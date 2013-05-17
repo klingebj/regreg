@@ -24,7 +24,7 @@ class group_lasso(seminorm):
     The group lasso seminorm.
     """
 
-    objective_template = r"""\sum_g \|%(var)s_g\|_2"""
+    objective_template = r"""\sum_g \|%(var)s[g]\|_2"""
 
     tol = 1.0e-05
 
@@ -189,7 +189,7 @@ class group_lasso_dual(group_lasso):
     The dual of the group lasso seminorm.
     """
 
-    objective_template = r"""\max_g \|%(var)s_g\|_2"""
+    objective_template = r"""\max_g \|%(var)s[g]\|_2"""
 
     tol = 1.0e-05
 
@@ -250,19 +250,6 @@ class group_lasso_dual(group_lasso):
                  `self.groups`,
                  `self.weights`,
                  str(self.quadratic))
-
-    def latexify(self, var='x', idx=''):
-        d = {}
-        if self.offset is None:
-            d['var'] = var
-        else:
-            d['var'] = var + r'+\alpha_{%s}' % str(idx)
-
-        obj = self.objective_template % d
-
-        if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
-        return obj
 
     @doc_template_user
     def constraint(self, x, bound=None):
@@ -368,7 +355,8 @@ class group_lasso_epigraph(group_lasso_cone):
     The epigraph of the group lasso seminorm.
     """
 
-    objective_template = r"""1_{\{(%(var)s: \sum_g \|%(var)s[1:]_g\|_2 \leq %(var)s[0]\}}"""
+    objective_template = (r"""I^{\infty}\left(\sum_g \|%(var)s[g]\|_2 """
+                          + r"""\leq %(var)s[-1]\right)""")
 
     def __init__(self, groups,
                  weights={},
@@ -413,7 +401,8 @@ class group_lasso_epigraph_polar(group_lasso_cone):
     The polar of the epigraph of the group lasso seminorm.
     """
 
-    objective_template = r"""1_{\{(%(var)s: \max_g \|%(var)s[1:]_g\|_2 \leq -%(var)s[0]\}}"""
+    objective_template = (r"""I^{\infty}(\max_g \|%(var)s[g]\|_2 \leq """
+                          + r"""-%(var)s[-1]\)""")
 
     def __init__(self, groups,
                  weights={},
@@ -461,7 +450,8 @@ class group_lasso_dual_epigraph(group_lasso_cone):
     The group LASSO conjugate epigraph constraint.
     """
 
-    objective_template = r"""1_{\{(%(var)s: \max_g \|%(var)s[1:]_g\|_2 \leq %(var)s[0]\}}"""
+    objective_template = (r"""I^{\infty}(%(var)s: \max_g """ + 
+                          r"""\|%(var)s[1:][g]\|_2 \leq %(var)s[0])""")
 
     def __init__(self, groups,
                  weights={},
@@ -508,7 +498,8 @@ class group_lasso_dual_epigraph_polar(group_lasso_cone):
     The polar of the group LASSO dual epigraph constraint.
     """
 
-    objective_template = r"""1_{\{(%(var)s: \sum_g \|%(var)s[1:]_g\|_2 \leq -%(var)s[0]\}}"""
+    objective_template = (r"""I^{\infty}(%(var)s: \sum_g \|%(var)s[g]\|_2 \leq """
+                          + r"""-%(var)s[-1]\}}""")
 
     def __init__(self, groups,
                  weights={},

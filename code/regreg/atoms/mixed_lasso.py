@@ -6,7 +6,7 @@ import numpy as np
 from ..problems.composite import composite, nonsmooth, smooth_conjugate
 from ..affine import linear_transform, identity as identity_transform, selector
 from ..identity_quadratic import identity_quadratic
-from ..atoms import _work_out_conjugate
+from ..atoms import _work_out_conjugate, atom
 from ..smooth import affine_smooth
 
 from ..objdoctemplates import objective_doc_templater
@@ -34,13 +34,9 @@ except ImportError:
     raise ImportError('need cython module mixed_lasso_cython')
 
 @objective_doc_templater()
-class mixed_lasso(nonsmooth):
+class mixed_lasso(atom):
 
-    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
+    objective_template = 'needs a template'
 
     """
     A class that defines the API for cone constraints.
@@ -133,19 +129,6 @@ class mixed_lasso(nonsmooth):
             self._linear_transform = identity_transform(self.shape)
         return self._linear_transform
     
-    def latexify(self, var='x', idx=''):
-        d = {}
-        if self.offset is None:
-            d['var'] = var
-        else:
-            d['var'] = var + r'+\alpha_{%s}' % str(idx)
-
-        obj = self.objective_template % d
-
-        if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
-        return obj
-
     @doc_template_provider
     def constraint(self, x, bound=None):
         r"""
@@ -307,19 +290,6 @@ class mixed_lasso_conjugate(mixed_lasso):
             self._linear_transform = identity_transform(self.shape)
         return self._linear_transform
     
-    def latexify(self, var='x', idx=''):
-        d = {}
-        if self.offset is None:
-            d['var'] = var
-        else:
-            d['var'] = var + r'+\alpha_{%s}' % str(idx)
-
-        obj = self.objective_template % d
-
-        if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
-        return obj
-
     @doc_template_user
     def constraint(self, x, bound=None):
         if bound is None:

@@ -21,12 +21,6 @@ class seminorm(unweighted_seminorm):
     """
     tol = 1.0e-05
 
-    _doc_dict = {'linear':r' + \langle \eta, x \rangle',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':'p',
-                 'var':r'x'}
-
     def __init__(self, shape, weights, lagrange=None, bound=None, 
                  offset=None, 
                  quadratic=None,
@@ -150,8 +144,7 @@ class l1norm(seminorm):
     """
     prox_tol = 1.0e-10
 
-    objective_template = r"""\|%(var)s\|_1"""
-    objective_vars = {'var': r'x + \alpha'}
+    objective_template = r"""\|W%(var)s\|_1"""
 
     def seminorm(self, x, lagrange=None, check_feasibility=False):
         lagrange = seminorm.seminorm(self, x, 
@@ -191,8 +184,7 @@ class supnorm(seminorm):
     The :math:`\ell_{\infty}` norm
     """
 
-    objective_template = r"""\|%(var)s\|_{\infty}"""
-    objective_vars = {'var': r'\beta + \alpha'}
+    objective_template = r"""\|W%(var)s\|_{\infty}"""
 
     @doc_template_user
     def seminorm(self, x, lagrange=None, check_feasibility=False):

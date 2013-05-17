@@ -57,12 +57,9 @@ class svd_obj(object):
 
 @objective_doc_templater()
 class svd_atom(seminorm, svd_obj):
-
-    _doc_dict = {'linear':r' + \text{Tr}(\eta^T X)',
-                 'constant':r' + \tau',
-                 'objective': '',
-                 'shape':r'p \times q',
-                 'var':r'X'}
+    objective_vars = seminorm.objective_vars.copy()
+    objective_vars['var'] = 'X'
+    objective_vars['shape'] = r'n \times p'
 
     @doc_template_provider
     def lagrange_prox(self, X, lipschitz=1, lagrange=None):
@@ -73,13 +70,10 @@ class svd_atom(seminorm, svd_obj):
            %(var)s^{\lambda}(U) =
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
            \frac{L}{2}
-           \|U-%(var)s\|^2_F %(linear)s %(constant)s \ 
+           \|U-%(var)s\|^2_F
             + \lambda   %(objective)s 
 
-        Above, :math:`\lambda` is the Lagrange parameter,
-        :math:`A` is self.offset (if any), 
-        :math:`\eta` is self.linear_term (if any)
-        and :math:`\tau` is self.constant_term.
+        Above, :math:`\lambda` is the Lagrange parameter.
 
         If the argument `lagrange` is None and the atom is in lagrange mode,
         self.lagrange is used as the lagrange parameter, else an exception is
@@ -104,13 +98,10 @@ class svd_atom(seminorm, svd_obj):
            %(var)s^{\lambda}(U) \in 
            \text{argmin}_{%(var)s \in \mathbb{R}^{%(shape)s}} 
            \frac{1}{2}
-           \|U-%(var)s\|^2_F %(linear)s %(constant)s \ 
-           \text{s.t.} \   %(objective)s \leq \lambda
+           \|U-%(var)s\|^2_F 
+           \text{s.t.} \   %(objective)s \leq \delta
 
-        Above, :math:`\lambda` is the bound parameter,
-        :math:`A` is self.offset (if any), 
-        :math:`\eta` is self.linear_term (if any)
-        and :math:`\tau` is self.constant_term (if any).
+        Above, :math:`\delta` is the bound parameter.
 
         If the argument `bound` is None and the atom is in bound mode,
         self.bound is used as the bound parameter, else an exception is raised.
@@ -134,7 +125,6 @@ class nuclear_norm(svd_atom):
     prox_tol = 1.0e-10
 
     objective_template = r"""\|%(var)s\|_*"""
-    objective_vars = {'var': r'X + A'}
 
     @doc_template_user
     def seminorm(self, X, check_feasibility=False,
@@ -197,7 +187,6 @@ class operator_norm(svd_atom):
     prox_tol = 1.0e-10
 
     objective_template = r"""\|%(var)s\|_{\text{op}}"""
-    objective_vars = {'var': r'X + A'}
 
     @doc_template_user
     def seminorm(self, X, lagrange=None, check_feasibility=False):
@@ -245,7 +234,7 @@ class operator_norm(svd_atom):
         self._X = np.dot(U, D[:,np.newaxis] * V)
         return self.X
 
-#@objective_doc_templater()
+@objective_doc_templater()
 class svd_cone(cone, svd_obj):
 
     def __repr__(self):
@@ -288,8 +277,7 @@ class svd_cone(cone, svd_obj):
         self._conjugate._conjugate = self
         return self._conjugate
 
-
-#@objective_doc_templater()
+@objective_doc_templater()
 class nuclear_norm_epigraph(svd_cone):
 
     def constraint(self, normX):
@@ -307,35 +295,23 @@ class nuclear_norm_epigraph(svd_cone):
         return np.inf
 
     def cone_prox(self, normX,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
-        norm = normX[0]
-        X = normX[1:].reshape(self.matrix_shape)
+        norm = normX[-1]
+        X = normX[:-1].reshape(self.matrix_shape)
         self.X = X
         U, D, V = self.SVD
         newD = np.zeros(D.shape[0]+1)
-        newD[0] = norm
-        newD[1:] = D
+        newD[-1] = norm
+        newD[:-1] = D
         newD = projl1_epigraph(newD)
         result = np.zeros_like(normX)
-        result[0] = newD[0] 
-        self.X = np.dot(U, newD[1:,np.newaxis] * V)
-        result[1:] = self.X.reshape(-1)
+        result[-1] = newD[-1] 
+        self.X = np.dot(U, newD[:-1,np.newaxis] * V)
+        result[:-1] = self.X.reshape(-1)
         return result
 
-#@objective_doc_templater()
+@objective_doc_templater()
 class nuclear_norm_epigraph_polar(svd_cone):
     
-
     def constraint(self, normX):
         """
         The non-negative constraint of x.
@@ -353,39 +329,24 @@ class nuclear_norm_epigraph_polar(svd_cone):
 
 
     def cone_prox(self, normX,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
-        norm = normX[0]
-        X = normX[1:].reshape(self.matrix_shape)
+        norm = normX[-1]
+        X = normX[:-1].reshape(self.matrix_shape)
         self.X = X
         U, D, V = self.SVD
         newD = np.zeros(D.shape[0]+1)
-        newD[0] = norm
-        newD[1:] = D
+        newD[-1] = norm
+        newD[:-1] = D
         newD = projl1_epigraph(newD) - newD
         result = np.zeros_like(normX)
-        result[0] = newD[0]
-        self.X = np.dot(U, newD[1:,np.newaxis] * V)
-        result[1:] = self.X.reshape(-1)
+        result[-1] = newD[-1]
+        self.X = np.dot(U, newD[:-1,np.newaxis] * V)
+        result[:-1] = self.X.reshape(-1)
         return result
 
-#@objective_doc_templater()
+@objective_doc_templater()
 class operator_norm_epigraph(svd_cone):
     
     def constraint(self, normX):
-        """
-        The non-negative constraint of x.
-        """
-
         norm = normX[0]
         X = normX[1:].reshape(self.matrix_shape)
         self.X = X
@@ -396,41 +357,25 @@ class operator_norm_epigraph(svd_cone):
             return 0
         return np.inf
 
-
     def cone_prox(self, normX,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
-        norm = normX[0]
-        X = normX[1:].reshape(self.matrix_shape)
+        norm = normX[-1]
+        X = normX[:-1].reshape(self.matrix_shape)
         self.X = X
         U, D, V = self.SVD
         newD = np.zeros(D.shape[0]+1)
-        newD[0] = norm
-        newD[1:] = D
+        newD[-1] = norm
+        newD[:-1] = D
         newD = newD + projl1_epigraph(-newD)
         result = np.zeros_like(normX)
-        result[0] = newD[0]
-        self.X = np.dot(U, newD[1:,np.newaxis] * V)
-        result[1:] = self.X.reshape(-1)
+        result[-1] = newD[-1]
+        self.X = np.dot(U, newD[:-1,np.newaxis] * V)
+        result[:-1] = self.X.reshape(-1)
         return result
 
-#@objective_doc_templater()
+@objective_doc_templater()
 class operator_norm_epigraph_polar(svd_cone):
     
     def constraint(self, normX):
-        """
-        The non-negative constraint of x.
-        """
-
         norm = normX[0]
         X = normX[1:].reshape(self.matrix_shape)
         self.X = X
@@ -441,33 +386,20 @@ class operator_norm_epigraph_polar(svd_cone):
             return 0
         return np.inf
 
-
     def cone_prox(self, normX,  lipschitz=1):
-        r"""
-        Return (unique) minimizer
-
-        .. math::
-
-            v^{\lambda}(x) = \text{argmin}_{v \in \mathbb{R}^p} \frac{L}{2}
-            \|x-v\|^2_2 \ \text{s.t.} \  v \in \mathbf{epi}(\ell_1)
-
-        where *p*=x.shape[0], :math:`\lambda` = self.lagrange. 
-
-        """
-        norm = normX[0]
-        X = normX[1:].reshape(self.matrix_shape)
+        norm = normX[-1]
+        X = normX[:-1].reshape(self.matrix_shape)
         self.X = X
         U, D, V = self.SVD
         newD = np.zeros(D.shape[0]+1)
-        newD[0] = norm
-        newD[1:] = D
+        newD[-1] = norm
+        newD[:-1] = D
         newD = -projl1_epigraph(-newD)
         result = np.zeros_like(normX)
-        result[0] = newD[0]
-        self.X = np.dot(U, newD[1:,np.newaxis] * V)
-        result[1:] = self.X.reshape(-1)
+        result[-1] = newD[-1]
+        self.X = np.dot(U, newD[:-1,np.newaxis] * V)
+        result[:-1] = self.X.reshape(-1)
         return result
-
 
 
 conjugate_svd_pairs = {}

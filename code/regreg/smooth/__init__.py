@@ -125,18 +125,6 @@ class affine_smooth(smooth_atom):
         self.shape = atransform.input_shape
         self.coefs = np.zeros(self.shape)
 
-    def latexify(self, var=None, idx=''):
-        if var is None:
-            var = self.sm_atom.objective_vars['var']
-        if hasattr(self, 'objective_vars') and 'linear' in self.objective_vars:
-            linear = self.objective_vars['linear']
-        else:
-            linear = 'D'
-        obj = self.sm_atom.latexify(var='%s_{%s}%s' % (linear, idx, var), idx=idx)
-        if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var,idx=idx),obj])
-        return obj
-
     def _get_coef(self):
         return self.sm_atom.coef
 

@@ -23,7 +23,7 @@ class quadratic(smooth_atom):
 
     objective_vars = smooth_atom.objective_vars.copy()
     objective_vars['Q'] = 'Q'
-    objective_template = r"""%(coef)s \cdot %(var)s^T %(Q)s %(var)s"""
+    objective_template = r"""\frac{%(coef)s}{2} \cdot %(var)s^T %(Q)s %(var)s"""
 
     def __init__(self, shape, coef=1., Q=None, Qdiag=False,
                  offset=None,
@@ -155,14 +155,30 @@ class cholesky(object):
 
 def squared_error(X, Y, coef=1):
     """
-    
+    Least squares with design $X$
+
+    .. math::
+
+       \frac{C}{2} \|X\beta-Y\|^2_2
+
     """
     atom = quadratic.affine(X, -Y, coef=coef)
-
     atom.sm_atom.objective_vars['offset'] = 'Y'
-    atom.sm_atom.objective_template = r"""%(coef)s\left\|%(var)s\right\|^2_2"""
+    atom.sm_atom.objective_template = r"""\frac{%(coef)s}{2}\left\|%(var)s\right\|^2_2"""
     return atom
 
 def signal_approximator(signal, coef=1):
-    return quadratic.shift(-signal, coef=coef)
+    """
+    Least squares with design $I$
+
+    .. math::
+
+       \frac{C}{2} \|\beta-Y\|^2_2
+
+    """
+    atom = quadratic.shift(-signal, coef=coef)    
+    atom.sm_atom.objective_vars['offset'] = 'Y'
+    atom.sm_atom.objective_template = r"""\frac{%(coef)s}{2}\left\|%(var)s\right\|^2_2"""
+    return atom
+
 
