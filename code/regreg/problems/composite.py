@@ -58,7 +58,7 @@ class composite(object):
         return obj
 
     def _repr_latex_(self):
-        return r'\begin{equation}' + self.latexify() + r'\end{equation}'
+        return r'$$' + self.latexify() + r'$$'
 
     def nonsmooth_objective(self, x, check_feasibility=False):
         return self.quadratic.objective(x, 'func')
@@ -347,13 +347,13 @@ class smooth_conjugate(smooth):
         if var is not None:
             template_dict['var'] = var
 
-        template_dict['f'] = self.atom.latexify(var='\cdot', idx=idx)
+        template_dict['f'] = self.atom.latexify(var='u', idx=idx)
 
-        objective = '(%(f)s)^*(%(var)s)' % template_dict
+        objective = r' \sup_{u \in \mathbb{R}^{%(shape)s} } \left[ \langle %(var)s, u \rangle - \left(%(f)s \right) \right]' % template_dict
         return objective
 
     def __repr__(self):
-        return 'smooth_conjugate(%s,%s)' % (str(self.atom), str(self.quadratic))
+        return 'smooth_conjugate(%s,%s)' % (repr(self.atom), repr(self.quadratic))
 
     def smooth_objective(self, x, mode='both', check_feasibility=False):
         """
