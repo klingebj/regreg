@@ -39,13 +39,13 @@ class cone(atom):
             return "%s(%s, offset=%s)" % \
                 (self.__class__.__name__,
                  repr(self.shape), 
-                 str(self.offset))
+                 repr(self.offset))
         else:
             return "%s(%s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
                  repr(self.shape), 
-                 str(self.offset),
-                 str(self.quadratic))
+                 repr(self.offset),
+                 repr(self.quadratic))
 
     @property
     def conjugate(self):

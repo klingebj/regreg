@@ -26,7 +26,7 @@ class dual_problem(composite):
 
     .. math::
 
-       \text{minimize}_{u_i} f^*(-D^Tu) + g^*(u)
+       \text{minimize}_{u} f^*(-D^Tu) + g^*(u)
 
     while the primal variable is stored in the computation of the gradient of
     :math:`f^*`.

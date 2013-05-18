@@ -195,8 +195,8 @@ def _work_out_conjugate(offset, quadratic):
         offset = 0
     else:
         offset = offset
-    outq = identity_quadratic(0,0,-offset, \
-          -quadratic.constant_term + 
+    outq = identity_quadratic(0,0,offset, \
+          -quadratic.constant_term - 
           np.sum(offset * quadratic.linear_term))
 
     if quadratic.linear_term is not None:

@@ -4,7 +4,7 @@ import regreg.api as rr
 import nose.tools as nt
 import itertools
 
-from test_seminorms import solveit
+from test_seminorms import Solver
 
 def test_proximal_maps():
     shape = 20
@@ -26,5 +26,5 @@ def test_proximal_maps():
         p = atom(shape, basis, quadratic=q,
                    offset=offset)
 
-        for t in solveit(p, Z, W, U, linq, L, FISTA, coef_stop):
+        for t in Solver(p, Z, W, U, linq, L, FISTA, coef_stop).all():
             yield t

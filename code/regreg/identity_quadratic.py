@@ -4,9 +4,9 @@ a quadratic of the form
 
 .. math::
 
-   \frac{\kappa}{2} \|x-\mu\|^2_2 + \beta^Tx + \gamma
+   \frac{L}{2} \|x-\mu\|^2_2 + \langle \eta, x \rangle + \gamma
 
-with :math:`\kappa, \mu, \beta, \gamma` = (coef, center, linear_term,
+with :math:`L, \mu, \eta, \gamma` = (coef, center, linear_term,
 constant_term).
 """
 
@@ -104,7 +104,7 @@ class identity_quadratic(object):
             raise ValueError("Mode incorrectly specified")
 
     def __repr__(self):
-        return 'identity_quadratic(%f, %s, %s, %f)' % (self.coef, str(self.center), str(self.linear_term), self.constant_term)
+        return 'identity_quadratic(%f, %s, %s, %f)' % (self.coef, repr(self.center), repr(self.linear_term), self.constant_term)
 
     def __add__(self, other):
         """ Return an identity quadratic given by the sum in the obvious way.
@@ -183,18 +183,23 @@ class identity_quadratic(object):
 
         return identity_quadratic(coef, 0, linear_term, constant_term)
 
-    def latexify(self, var='x', idx=''):
+    def latexify(self, var=r'\beta', idx=''):
         self.zeroify()
         v = ' '
         if self.coef != 0:
-            v += r'\frac{\kappa_{%s}}{2} ' % idx
+            v += r'\frac{L_{%s}}{2} ' % idx
             if not all(self.center == 0):
                 v += r'\|%s-\mu_{%s}\|^2_2 + ' % (var, idx)
+            else:
+                v += r'\|%s\|^2_2 + ' % var
         if not all(self.linear_term == 0):
-            v += r' \beta_{%s}^T%s ' % (idx, var)
+            v += r' \left \langle \eta_{%s}, %s \right \rangle ' % (idx, var)
         if self.constant_term != 0:
             v += r' + \gamma_{%s} ' % idx
         return v
+
+    def _repr_latex_(self):
+        return r'''\begin{equation*} %s \end{equation*} ''' % self.latexify()
 
     @property
     def true_center(self):
@@ -213,6 +218,6 @@ class identity_quadratic(object):
                                       -a.constant_term)
         else:
             # possible import problem here
-            from .cones import zero_constraint
+            from ..atoms.cones import zero_constraint
             q = identity_quadratic(0,0,0,-a.constant_term)
             return zero_constraint(a.linear_term.shape, offset=-a.linear_term, quadratic=q)

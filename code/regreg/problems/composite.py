@@ -11,7 +11,6 @@ from ..algorithms import FISTA
 from ..objdoctemplates import objective_doc_templater
 from ..doctemplates import (doc_template_user, doc_template_provider)
 
-
 @objective_doc_templater()
 class composite(object):
     """
@@ -150,6 +149,7 @@ class composite(object):
     def solve(self, quadratic=None, return_optimum=False, **fit_args):
         raise NotImplementedError('subclasses must implement their own solve methods')
 
+@objective_doc_templater()
 class nonsmooth(composite):
     """
     A composite subclass that explicitly returns 0
@@ -174,6 +174,7 @@ class nonsmooth(composite):
         else:
             return self.coefs
 
+@objective_doc_templater()
 class smooth(composite):
 
     """
@@ -242,44 +243,44 @@ class smooth_conjugate(smooth):
 
         self.shape = atom.shape
 
-    # A smooth conjugate is the conjugate of some $f$ with an identity quadratic added to it, or
-    # $$
-    # h(u) = \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x) \right).
-    # $$
-    # Suppose we add a quadratic to $h$ to get
-    # $$
-    # \tilde{h}(u) = \frac{r}{2} \|u\|^2_2 + u^T\gamma + a + h(u)$$
-    # and take the conjugate again:
-    # $$
-    # \begin{aligned}
-    # g(v) &= \sup_{u} u^Tv - \tilde{h}(u) \\
-    # &= \sup_u u^Tv -  \frac{r}{2} \|u\|^2_2 - u^T\gamma-a - h(u) \\
-    # &=  \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a  - \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x)  \right)\\
-    # &= \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a + \inf_x \left(  \frac{\kappa}{2} \|x\|^2_2  +\beta^Tx + c +f(x) - u^Tx  \right)\\
-    # &= \sup_u \inf_x u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
-    # &=  \inf_x \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2  + \beta^Tx + c +f(x) - u^Tx \\
-    # &=  \inf_x \sup_u \left(u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma- u^Tx\right)-a +  \frac{\kappa}{2} \|x\|^2_2 +   \beta^Tx + c +f(x)  \\
-    # &=  \inf_x \frac{1}{2r} \|x+\gamma-v\|^2_2 -a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x)  \\
-    # &= c-a + \frac{1}{2r} \|\gamma-v\|^2_2 - \sup_x \left((v/r)^Tx - \left(\frac{1}{r} + \kappa\right) \|x\|^2_2 - x^T(\beta+\gamma/r) - f(x) \right) \\
-    # \end{aligned}
-    # $$
+        # A smooth conjugate is the conjugate of some $f$ with an identity quadratic added to it, or
+        # $$
+        # h(u) = \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x) \right).
+        # $$
+        # Suppose we add a quadratic to $h$ to get
+        # $$
+        # \tilde{h}(u) = \frac{r}{2} \|u\|^2_2 + u^T\gamma + a + h(u)$$
+        # and take the conjugate again:
+        # $$
+        # \begin{aligned}
+        # g(v) &= \sup_{u} u^Tv - \tilde{h}(u) \\
+        # &= \sup_u u^Tv -  \frac{r}{2} \|u\|^2_2 - u^T\gamma-a - h(u) \\
+        # &=  \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a  - \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x)  \right)\\
+        # &= \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a + \inf_x \left(  \frac{\kappa}{2} \|x\|^2_2  +\beta^Tx + c +f(x) - u^Tx  \right)\\
+        # &= \sup_u \inf_x u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+        # &=  \inf_x \sup_u u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2  + \beta^Tx + c +f(x) - u^Tx \\
+        # &=  \inf_x \sup_u \left(u^Tv - \frac{r}{2} \|u\|^2_2 - u^T\gamma- u^Tx\right)-a +  \frac{\kappa}{2} \|x\|^2_2 +   \beta^Tx + c +f(x)  \\
+        # &=  \inf_x \frac{1}{2r} \|x+\gamma-v\|^2_2 -a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x)  \\
+        # &= c-a + \frac{1}{2r} \|\gamma-v\|^2_2 - \sup_x \left((v/r)^Tx - \left(\frac{1}{r} + \kappa\right) \|x\|^2_2 - x^T(\beta+\gamma/r) - f(x) \right) \\
+        # \end{aligned}
+        # $$
 
-    # This says that for $r > 0$ the conjugate of a smooth conjugate with a quadratic added to it is a quadratic plus a modified smooth conjugate evaluated at $v/r$.
+        # This says that for $r > 0$ the conjugate of a smooth conjugate with a quadratic added to it is a quadratic plus a modified smooth conjugate evaluated at $v/r$.
 
-    # What if $r=0$? Well,
-    # then 
-    # $$
-    # \begin{aligned}
-    # g(v) &= \sup_{u} u^Tv - \tilde{h}(u) \\
-    # &= \sup_u u^Tv  - u^T\gamma-a - h(u) \\
-    # &=  \sup_u u^Tv  - u^T\gamma-a  - \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x)  \right)\\
-    # &= \sup_u u^Tv - u^T\gamma-a + \inf_x \left(  \frac{\kappa}{2} \|x\|^2_2  +\beta^Tx + c +f(x) - u^Tx  \right)\\
-    # &= \sup_u \inf_x u^Tv - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
-    # &= \inf_x \sup_u u^Tv - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
-    # &=   \frac{\kappa}{2} \|v-\gamma\|^2_2 + \beta^T(v-\gamma) + c-a +f(v-\gamma) \\
-    # \end{aligned}
-    # $$
-    # where, in the last line we have used the fact that the $\sup$ over $u$ in the second to last line is infinite unless $x=v-\gamma$.
+        # What if $r=0$? Well,
+        # then 
+        # $$
+        # \begin{aligned}
+        # g(v) &= \sup_{u} u^Tv - \tilde{h}(u) \\
+        # &= \sup_u u^Tv  - u^T\gamma-a - h(u) \\
+        # &=  \sup_u u^Tv  - u^T\gamma-a  - \sup_x \left( u^Tx - \frac{\kappa}{2} \|x\|^2_2 - \beta^Tx-c-f(x)  \right)\\
+        # &= \sup_u u^Tv - u^T\gamma-a + \inf_x \left(  \frac{\kappa}{2} \|x\|^2_2  +\beta^Tx + c +f(x) - u^Tx  \right)\\
+        # &= \sup_u \inf_x u^Tv - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+        # &= \inf_x \sup_u u^Tv - u^T\gamma-a +  \frac{\kappa}{2} \|x\|^2_2 + \beta^Tx + c +f(x) - u^Tx \\
+        # &=   \frac{\kappa}{2} \|v-\gamma\|^2_2 + \beta^T(v-\gamma) + c-a +f(v-\gamma) \\
+        # \end{aligned}
+        # $$
+        # where, in the last line we have used the fact that the $\sup$ over $u$ in the second to last line is infinite unless $x=v-\gamma$.
 
     def get_conjugate(self):
         if self.quadratic.iszero:
@@ -339,6 +340,17 @@ class smooth_conjugate(smooth):
                                                                         smooth)
                 return output
     conjugate = property(get_conjugate)
+
+    def latexify(self, var=None, idx=''):
+        template_dict = self.atom.objective_vars.copy()
+        template_dict['idx'] = idx
+        if var is not None:
+            template_dict['var'] = var
+
+        template_dict['f'] = self.atom.latexify(var='\cdot', idx=idx)
+
+        objective = '(%(f)s)^*(%(var)s)' % template_dict
+        return objective
 
     def __repr__(self):
         return 'smooth_conjugate(%s,%s)' % (str(self.atom), str(self.quadratic))

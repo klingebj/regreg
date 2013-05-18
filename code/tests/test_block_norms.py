@@ -4,7 +4,7 @@ import regreg.api as rr
 import nose.tools as nt
 import itertools
 
-from test_seminorms import solveit, all_close
+from test_seminorms import Solver, all_close
 
 @np.testing.dec.slow
 def test_proximal_maps():
@@ -42,12 +42,12 @@ def test_proximal_maps():
             nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
             nt.assert_raises(AttributeError, setattr, d, 'lagrange', 4.)
 
-            for t in solveit(p, Z, quadratic, L, FISTA, coef_stop):
+            for t in Solver(p, Z, quadratic, L, FISTA, coef_stop).all():
                 yield t
 
             b = atom(shape, bound=bound, quadratic=q,
                      offset=offset)
 
-            for t in solveit(b, Z, quadratic, L, FISTA, coef_stop):
+            for t in Solver(b, Z, quadratic, L, FISTA, coef_stop).all():
                 yield t
 

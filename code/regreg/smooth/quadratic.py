@@ -197,8 +197,8 @@ def signal_approximator(signal, coef=1):
 
     """
     atom = quadratic.shift(signal, coef=coef)    
-    atom.atom.objective_vars['offset'] = 'Y'
-    atom.atom.objective_template = r"""\frac{%(coef)s}{2}\left\|%(var)s\right\|^2_2"""
+    atom.objective_vars['offset'] = 'Y'
+    atom.objective_template = r"""\frac{%(coef)s}{2}\left\|%(var)s\right\|^2_2"""
     return atom
 
 

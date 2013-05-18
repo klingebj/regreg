@@ -15,6 +15,7 @@ from ..doctemplates import (doc_template_user, doc_template_provider)
 from .seminorms import seminorm, conjugate_seminorm_pairs
 from .cones import cone
 from .mixed_lasso_cython import (mixed_lasso_bound_prox,
+                                 mixed_lasso_lagrange_prox,
                                  mixed_lasso_epigraph)
 
 @objective_doc_templater()
@@ -76,32 +77,32 @@ class group_lasso(seminorm):
             if self.quadratic.iszero:
                 return "%s(%s, lagrange=%s, weights=%s, offset=%s)" % \
                     (self.__class__.__name__,
-                     `self.groups`,
+                     repr(self.groups),
                      self.lagrange,
-                     `self.weights`,
-                     str(self.offset))
+                     repr(self.weights),
+                     repr(self.offset))
             else:
                 return "%s(%s, lagrange=%s, weights=%s, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
-                     `self.groups`,
+                     repr(self.groups),
                      self.lagrange, 
-                     `self.weights`,
-                     str(self.quadratic))
+                     repr(self.weights),
+                     repr(self.quadratic))
         if self.bound is not None:
             if self.quadratic.iszero:
                 return "%s(%s, bound=%s, weights=%s, offset=%s)" % \
                     (self.__class__.__name__,
-                     `self.groups`,
+                     repr(self.groups),
                      self.bound,
-                     `self.weights`,
-                     str(self.offset))
+                     repr(self.weights),
+                     repr(self.offset))
             else:
                 return "%s(%s, bound=%s, weights=%s, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
-                     `self.groups`,
+                     repr(self.groups),
                      self.bound,
-                     `self.weights`,
-                     str(self.quadratic))
+                     repr(self.weights),
+                     repr(self.quadratic))
 
     @property
     def conjugate(self):
@@ -158,22 +159,20 @@ class group_lasso(seminorm):
     @doc_template_user
     def lagrange_prox(self, x,  lipschitz=1, lagrange=None):
         lagrange = seminorm.lagrange_prox(self, x, lipschitz, lagrange)
-        result = np.zeros_like(x)
-        lf = self.lagrange / lipschitz
-        ngroups = self._weight_array.shape[0]
-        for i in range(ngroups):
-            s = self._groups == i
-            xi = x[s]
-            normx = np.linalg.norm(xi)
-            factor = max(1. - self._weight_array[i] * lf / normx, 0)
-            result[s] = xi * factor
-        return result
+        x = np.asarray(x, np.float)
+        return mixed_lasso_lagrange_prox(x, float(lagrange),
+                                         float(lipschitz),
+                                         np.array([], np.int),
+                                         np.array([], np.int),
+                                         np.array([], np.int),
+                                         np.array([], np.int),
+                                         self._groups,
+                                         self._weight_array)
 
     @doc_template_user
     def bound_prox(self, x, bound=None):
         bound = seminorm.bound_prox(self, x, bound)
         x = np.asarray(x, np.float)
-
         return mixed_lasso_bound_prox(x, float(bound),
                                       np.array([], np.int),
                                       np.array([], np.int),
@@ -240,16 +239,16 @@ class group_lasso_dual(group_lasso):
             return "%s(%s, %s, weights=%s, offset=%s)" % \
                 (self.__class__.__name__,
                  self.bound,
-                 `self.groups`,
-                 `self.weights`,
-                 str(self.offset))
+                 repr(self.groups),
+                 repr(self.weights),
+                 repr(self.offset))
         else:
             return "%s(%s, %s, weights=%s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
                  self.bound, 
-                 `self.groups`,
-                 `self.weights`,
-                 str(self.quadratic))
+                 repr(self.groups),
+                 repr(self.weights),
+                 repr(self.quadratic))
 
     @doc_template_user
     def constraint(self, x, bound=None):
@@ -315,14 +314,14 @@ class group_lasso_cone(cone):
                 (self.__class__.__name__,
                  repr(self.groups),
                  repr(self.weights),
-                 str(self.offset))
+                 repr(self.offset))
         else:
             return "%s(%s, weights=%s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
                  repr(self.groups),
                  repr(self.weights),
-                 str(self.offset),
-                 str(self.quadratic))
+                 repr(self.offset),
+                 repr(self.quadratic))
 
     @property
     def conjugate(self):

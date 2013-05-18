@@ -25,8 +25,8 @@ class seminorm(atom):
         template_dict['idx'] = idx
         if var is not None:
             template_dict['var'] = var
-        if self.offset is not None and np.any(self.offset == 0):
-            template_dict['var'] = (r'%(offset)s_{%(idx)s}' % template_dict) + var
+        if self.offset is not None and np.any(self.offset != 0):
+            template_dict['var'] = template_dict['var'] + (r' - %(offset)s_{%(idx)s}' % template_dict) 
 
         obj = self.objective_template % template_dict
         template_dict['obj'] = obj
@@ -36,7 +36,7 @@ class seminorm(atom):
             obj = r'I^{\infty}(%(obj)s \leq \delta_{%(idx)s})' % template_dict
 
         if not self.quadratic.iszero:
-            return ' + '.join([self.quadratic.latexify(var=var, idx=idx), obj])
+            return ' + '.join([obj, self.quadratic.latexify(var=var, idx=idx)])
         return obj
 
     def __init__(self, shape, lagrange=None, bound=None,
@@ -122,14 +122,14 @@ class seminorm(atom):
                     (self.__class__.__name__,
                      repr(self.shape), 
                      self.lagrange,
-                     str(self.offset))
+                     repr(self.offset))
             else:
                 return "%s(%s, lagrange=%f, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
                      repr(self.shape), 
                      self.lagrange,
-                     str(self.offset),
-                     str(self.quadratic))
+                     repr(self.offset),
+                     repr(self.quadratic))
 
         else:
             if self.quadratic.iszero:
@@ -137,15 +137,15 @@ class seminorm(atom):
                     (self.__class__.__name__,
                      repr(self.shape), 
                      self.bound,
-                     str(self.offset))
+                     repr(self.offset))
 
             else:
                 return "%s(%s, bound=%f, offset=%s, quadratic=%s)" % \
                     (self.__class__.__name__,
                      repr(self.shape), 
                      self.bound,
-                     str(self.offset),
-                     str(self.quadratic))
+                     repr(self.offset),
+                     repr(self.quadratic))
 
     def get_conjugate(self):
         """
@@ -276,6 +276,7 @@ class seminorm(atom):
 
         prox_arg = -totalq.linear_term / totalq.coef
 
+        debug = False
         if debug:
             print '='*80
             print 'atom: ', self

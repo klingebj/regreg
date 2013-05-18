@@ -60,13 +60,13 @@ class linear_constraint(cone):
                 (self.__class__.__name__,
                  repr(self.basis),
                  repr(self.shape), 
-                 str(self.offset))
+                 repr(self.offset))
         else:
             return "%s(%s, %s, offset=%s, quadratic=%s)" % \
                 (self.__class__.__name__,
                  repr(self.basis),
                  repr(self.shape), 
-                 str(self.offset),
+                 repr(self.offset),
                  self.quadratic)
 
     @property
