@@ -33,10 +33,6 @@ comparison: %0.3f
 x : %s
 y : %s
 """ % (msg, np.linalg.norm(x-y) / max([1, np.linalg.norm(x), np.linalg.norm(y)]), x, y))
-        try:
-            get_ipython().push('solver')
-        except NameError:
-            pass
     if not hasattr(solver, 'interactive') or not solver.interactive:
         nt.assert_true(v)
 
