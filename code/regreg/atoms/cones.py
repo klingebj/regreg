@@ -147,6 +147,10 @@ class cone(atom):
         """
         raise NotImplementedError
 
+    # the minus signs below for offset is there until affine transforms SUBTRACT 
+    # their offset until add. 
+    # for atoms, the offset is really the "center"
+
     @classmethod
     def linear(cls, linear_operator, diag=False,
                offset=None,
@@ -156,7 +160,7 @@ class cone(atom):
         else:
             l = linear_operator
         cone = cls(l.output_shape, 
-                   offset=offset,
+                   offset=-offset,
                    quadratic=quadratic)
         return affine_cone(cone, l)
 
@@ -168,7 +172,7 @@ class cone(atom):
         else:
             l = linear_operator
         cone = cls(l.output_shape, 
-                   offset=offset,
+                   offset=-offset,
                    quadratic=quadratic)
         return affine_cone(cone, l)
 

@@ -46,8 +46,10 @@ class smooth_atom(smooth_composite):
         if not acceptable_init_args(cls, kws):
             raise ValueError("Invalid arguments being passed to initialize " + cls.__name__)
         
-        # We switch the signs because for atoms, offsets are subtracted
-        # but for affine_transforms they are added
+        # the minus signs below for offset is there until affine transforms SUBTRACT 
+        # their offset until add. 
+        # for atoms, the offset is really the "center"
+
         atom = cls(l.output_shape, coef=coef, offset=-offset, quadratic=quadratic, **kws)
         
         return affine_smooth(atom, l)
