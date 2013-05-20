@@ -146,6 +146,9 @@ class affine_atom(object):
         self.input_shape = self.linear_transform.input_shape
         self.output_shape = self.linear_transform.output_shape
 
+    def _repr_latex_(self):
+        return r'$$' + self.latexify() + r'$$'
+
     def latexify(self, var=None, idx=''):
         template_dict = self.atom.objective_vars.copy()
         template_dict['linear'] = self.objective_vars['linear']

@@ -193,9 +193,9 @@ class identity_quadratic(object):
             else:
                 v += r'\|%s\|^2_2 + ' % var
         if not all(self.linear_term == 0):
-            v += r' \left \langle \eta_{%s}, %s \right \rangle + ' % (idx, var)
+            v += r' \left \langle \eta_{%s}, %s \right \rangle ' % (idx, var)
         if self.constant_term != 0:
-            v += r'\gamma_{%s} ' % idx
+            v += r' + \gamma_{%s} ' % idx
         return v
 
     def _repr_latex_(self):
