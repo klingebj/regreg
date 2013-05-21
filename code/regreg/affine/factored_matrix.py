@@ -6,12 +6,14 @@ problems.
 """
 import numpy as np
 import warnings
-from ..affine import linear_transform, composition, affine_sum, power_L
+from ..affine import (linear_transform, composition, affine_sum, 
+                      power_L, astransform)
 
 class factored_matrix(object):
 
     """
-    A class for storing the SVD of a linear_tranform. Has affine_transform attributes like linear_map
+    A class for storing the SVD of a linear_tranform. 
+    Has affine_transform attributes like linear_map.
     """
 
     def __init__(self,
@@ -34,18 +36,16 @@ class factored_matrix(object):
         else:
             raise ValueError("Minimum singular value must be non-negative")
         
-        if type(linear_operator) == type([]) and len(linear_operator) == 3:
+        if type(linear_operator) in type([],()) and len(linear_operator) == 3:
             self.SVD = linear_operator
         else:
             self.X = linear_operator
-
 
     def copy(self):
         return factored_matrix([self.SVD[0].copy(), self.SVD[1].copy(), self.SVD[2].copy()])
 
     def _setX(self,transform):
-        if isinstance(transform, np.ndarray):
-            transform = linear_transform(transform)
+        transform = astransform(transform)
         self.input_shape = transform.input_shape
         self.output_shape = transform.output_shape
         U, D, VT = compute_iterative_svd(transform, min_singular=self.min_singular, tol=self.tol, initial_rank = self.initial_rank, initial=self.initial, debug=self.debug)
@@ -86,9 +86,15 @@ class factored_matrix(object):
 
     def affine_map(self,x):
         if self.affine_offset is None:
-            return self.linear_map(x)
+            return self.offset_map(self.linear_map(x))
         else:
-            return self.linear_map(x) + affine_offset
+            return self.offset_map(self.linear_map(x))
+
+    def offset_map(self, x, copy=False):
+        if self.affine_offset is not None:
+            return x + self.affine_offset
+        else:
+            return x
 
 def compute_iterative_svd(transform,
                           initial_rank = None,
@@ -127,7 +133,6 @@ def compute_iterative_svd(transform,
 
     ind = np.where(D >= min_singular)[0]
     return U[:,ind], D[ind],  VT[ind,:]
-
 
 def partial_svd(transform,
                 r=1,

@@ -388,8 +388,12 @@ class seminorm(atom):
             l = linear_transform(linear_operator, diag=diag)
         else:
             l = linear_operator
+        # the minus signs below for offset is there until affine transforms SUBTRACT 
+        # their offset until add. 
+        # for atoms, the offset is really the "center"
+
         new_atom = cls(l.output_shape, lagrange=lagrange, bound=bound,
-                   offset=offset,
+                   offset=-offset,
                    quadratic=quadratic)
         return affine_atom(new_atom, l)
 
@@ -401,7 +405,7 @@ class seminorm(atom):
         else:
             l = linear_operator
         new_atom = cls(l.output_shape, lagrange=lagrange, bound=bound,
-                   quadratic=quadratic, offset=offset)
+                   quadratic=quadratic, offset=-offset)
         return affine_atom(new_atom, l)
 
 
@@ -409,7 +413,7 @@ class seminorm(atom):
     def shift(cls, offset, lagrange=None, diag=False,
               bound=None, quadratic=None):
         new_atom = cls(offset.shape, lagrange=lagrange, bound=bound,
-                   quadratic=quadratic, offset=offset)
+                       quadratic=quadratic, offset=-offset)
         return new_atom
 
 
