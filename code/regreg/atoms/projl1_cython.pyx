@@ -67,8 +67,8 @@ def projl1_epigraph(np.ndarray[DTYPE_float_t, ndim=1] center):
                                                       np.ones_like(x))
 
     if cut < np.inf:
-        result[:-1] = norm + cut
-        result[-1] = soft_threshold(x, cut)
+        result[-1] = norm + cut
+        result[:-1] = soft_threshold(x, cut)
     else:
         result = center
     return result
