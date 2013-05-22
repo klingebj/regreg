@@ -337,8 +337,7 @@ class l1_epigraph(cone):
 class l1_epigraph_polar(cone):
 
     """
-    The polar l1_epigraph constraint which is just the
-    negative of the linf_epigraph.
+    The polar l1_epigraph constraint.
     """
 
     objective_template = r"""I^{\infty}(\|%(var)s[:-1]\|_{\infty} \leq - %(var)s[-1])"""
@@ -387,7 +386,6 @@ class linf_epigraph_polar(cone):
 
     @doc_template_user
     def constraint(self, x):
-        
         incone = np.fabs(-x[:-1]).sum() <= (1 + self.tol) * (-x[-1])
         if incone:
             return 0
