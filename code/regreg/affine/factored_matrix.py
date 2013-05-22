@@ -7,7 +7,7 @@ problems.
 import numpy as np
 import warnings
 from ..affine import (linear_transform, composition, affine_sum, 
-                      power_L, astransform)
+                      power_L, astransform, adjoint)
 
 class factored_matrix(object):
 
@@ -104,7 +104,48 @@ def compute_iterative_svd(transform,
                           debug=False):
 
     """
-    Compute the SVD of a matrix using partial_svd
+    Compute the SVD of a matrix using partial_svd. If no initial
+    rank is given, it assumes a rank of size min(n,p) / 10.
+
+    Iteratively calls partial_svd until the singular_values are small enough.
+
+    Parameters
+    ----------
+
+    transform : [linear_transform, ndarray]
+        Linear_transform whose SVD is computed. If an
+        ndarray, it is first cast with :func:`astransform()`
+
+    initial_rank : None or int, optional
+        A guess at the rank of the matrix.
+
+    initial : np.ndarray(np.float), optional
+        A guess at the left singular vectors of the matrix.
+
+    min_singular : np.float, optional 
+        Stop when the singular value has this relative tolerance.    
+    
+    tol: np.float, optional
+        Tolerance at which the norm of the singular values are deemed
+        to have converged.
+
+    debug: bool, optional
+        Print debugging statements.
+
+    Returns
+    -------
+
+    U, D, VT : np.ndarray(np.float)
+        An SVD of the transform.
+
+    >>> np.random.seed(0)
+    >>> X = np.random.standard_normal((100, 200))
+    >>> U, D, VT = compute_iterative_svd(X)
+    >>> np.linalg.norm(np.dot(U.T, U) - np.identity(100)) < 1.e-6
+    True
+    >>> np.linalg.norm(np.dot(VT, VT.T) - np.identity(100)) < 1.e-6
+    True
+
     """
 
     if isinstance(transform, np.ndarray):
@@ -113,29 +154,37 @@ def compute_iterative_svd(transform,
     n = transform.output_shape[0]
     p = transform.input_shape[0]
     
+    need_to_transpose = False
+    if n < p:
+        transform = adjoint(transform)
+        need_to_transpose = True
+
     if initial_rank is None:
-        r = np.round(np.min([n,p]) * 0.1) + 1
+        rank = np.round(np.min([n,p]) * 0.1) + 1
     else:
-        r = np.max([initial_rank,1])
+        rank = np.max([initial_rank,1])
 
     min_so_far = 1.
     D = [np.inf]
-    while D[-1] >= min_singular:
+    while D[-1] >= min_singular * np.max(D):
         if debug:
-            print "Trying rank", r
-        U, D, VT = partial_svd(transform, r=r, extra_rank=5, tol=tol, initial=initial, return_full=True, debug=debug)
+            print "Trying rank", rank
+        U, D, VT = partial_svd(transform, rank=rank, extra_rank=5, tol=tol, initial=initial, return_full=True, debug=debug)
         if D[0] < min_singular:
             return U[:,0], np.zeros((1,1)), VT[0,:]
-        if len(D) < r:
+        if len(D) < rank:
             break
         initial = 1. * U 
-        r *= 2
+        rank *= 2
 
     ind = np.where(D >= min_singular)[0]
-    return U[:,ind], D[ind],  VT[ind,:]
+    if not need_to_transpose:
+        return U[:,ind], D[ind],  VT[ind,:]
+    else:
+        return VT[ind,:].T, D[ind],  U[:,ind].T
 
 def partial_svd(transform,
-                r=1,
+                rank=1,
                 extra_rank=2,
                 max_its = 1000,
                 tol = 1e-8,
@@ -144,18 +193,69 @@ def partial_svd(transform,
                 debug=False):
 
     """
-    Compute the partial SVD of the linear_transform X using the Mazumder/Hastie algorithm in (TODO: CITE)
+    Compute the partial SVD of the linear_transform X using the Mazumder/Hastie 
+    algorithm in (TODO: CITE)
+
+    Parameters
+    ----------
+
+    transform : [linear_transform, ndarray]
+        Linear_transform whose SVD is computed. If an
+        ndarray, it is first cast with :func:`astransform()`
+
+    rank : int, optional
+        What rank of SVD to compute.
+
+    padding : int, optional
+        Compute a few further singular values / vectors. This results
+        in a better estimator of the rank of interest.
+
+    max_its : int, optional
+        How many iterations of the full cycle to complete.
+
+    tol : np.float, optional
+        Tolerance at which the norm of the singular values are deemed
+        to have converged.
+
+    initial : np.ndarray(np.float), optional
+        A guess at the left singular vectors of the matrix.
+
+    return_full: bool, optional
+        Return a singular values / vectors from padding?
+    
+    debug: bool, optional
+        Print debugging statements.
+
+    Returns
+    -------
+
+    U, D, VT : np.ndarray(np.float)
+        An SVD up to `rank` of the transform.
+
+    >>> np.random.seed(0)
+    >>> X = np.random.standard_normal((100, 200))
+    >>> U, D, VT = partial_svd(X, rank=10)
+    >>> np.linalg.norm(np.dot(U.T, U) - np.identity(10)) < 1.e-4
+    True
+    >>> np.linalg.norm(np.dot(VT, VT.T) - np.identity(10)) < 1.e-4
+    True
+    >>> U_np, D_np, VT_np = np.linalg.svd(X, full_matrices=False)
+    >>> np.linalg.norm(U - np.dot(U, np.dot(U_np.T[:10], U_np[:,:10]))) < 1.e-4
+    True
+    >>> np.linalg.norm(VT - np.dot(VT, np.dot(VT_np[:10].T, VT_np[:10]))) < 1.e-4
+    True
+    >>> 
+
     """
 
     if isinstance(transform, np.ndarray):
         transform = linear_transform(transform)
 
-    n = transform.output_shape[0]
-    p = transform.input_shape[0]
+    n = np.product(transform.output_shape)
+    p = np.product(transform.input_shape)
 
-
-    r = np.int(np.min([r,p]))
-    q = np.min([r + extra_rank, p])
+    rank = np.int(np.min([rank,p]))
+    q = np.min([rank + padding, p])
     if initial is not None:
         if initial.shape == (n,q):
             U = initial
@@ -169,23 +269,22 @@ def partial_svd(transform,
     if return_full:
         ind = np.arange(q)
     else:
-        ind = np.arange(r)
-    old_singular_values = np.zeros(r)
-    change_ind = np.arange(r)
+        ind = np.arange(rank)
+    old_singular_values = np.zeros(rank)
+    change_ind = np.arange(rank)
 
     itercount = 0
     singular_rel_change = 1.
 
-
     while itercount < max_its and singular_rel_change > tol:
         if debug and itercount > 0:
             print itercount, singular_rel_change, np.sum(np.fabs(singular_values)>1e-12), np.fabs(singular_values[range(np.min([5,len(singular_values)]))])
-        V,_ = np.linalg.qr(transform.adjoint_map(U))
+        V, _ = np.linalg.qr(transform.adjoint_map(U))
         X_V = transform.linear_map(V)
-        U,R = np.linalg.qr(X_V)
+        U, R = np.linalg.qr(X_V)
         singular_values = np.diagonal(R)[change_ind]
         singular_rel_change = np.linalg.norm(singular_values - old_singular_values)/np.linalg.norm(singular_values)
-        old_singular_values = singular_values * 1.
+        old_singular_values[:] = singular_values
         itercount += 1
     singular_values = np.diagonal(R)[ind]
 
@@ -194,7 +293,6 @@ def partial_svd(transform,
         return U[:,ind[nonzero]] * np.sign(singular_values[nonzero]), np.fabs(singular_values[nonzero]),  V[:,ind[nonzero]].T
     else:
         return U[:,ind[0]], np.zeros((1,1)),  V[:,ind[0]].T
-
 
 def soft_threshold_svd(X, c=0.):
 

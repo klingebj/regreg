@@ -366,7 +366,6 @@ class seminorm(atom):
         Abstract method: subclasses must implement.
         """
         x_offset = self.apply_offset(arg)
-
         if self.bound is not None:
             if check_feasibility:
                 v = self.constraint(x_offset)

@@ -256,8 +256,8 @@ class svd_cone(cone, svd_obj):
                  initial=None):
 
         self.matrix_shape = input_shape
-        input_shape = np.product(input_shape)+1
-        cone.__init__(self, input_shape, offset=offset,
+        shape = np.product(input_shape)+1
+        cone.__init__(self, shape, offset=offset,
                       quadratic=quadratic,
                       initial=initial)
 
@@ -284,8 +284,9 @@ class nuclear_norm_epigraph(svd_cone):
         """
         The non-negative constraint of x.
         """
-        norm = normX[0]
-        X = normX[1:].reshape(self.matrix_shape)
+        norm = normX[-1]
+        import sys; sys.stderr.write(`(normX.shape, self.matrix_shape)`+'\n')
+        X = normX[:-1].reshape(self.matrix_shape)
         self.X = X
         U, D, V = self.SVD
 
@@ -317,8 +318,8 @@ class nuclear_norm_epigraph_polar(svd_cone):
         The non-negative constraint of x.
         """
         
-        norm = normX[0]
-        X = normX[1:].reshape(self.matrix_shape)
+        norm = normX[-1]
+        X = normX[:-1].reshape(self.matrix_shape)
         self.X = X
         U, D, V = self.SVD
 
@@ -336,7 +337,7 @@ class nuclear_norm_epigraph_polar(svd_cone):
         newD = np.zeros(D.shape[0]+1)
         newD[-1] = norm
         newD[:-1] = D
-        newD = projl1_epigraph(newD) - newD
+        newD = newD - projl1_epigraph(newD)
         result = np.zeros_like(normX)
         result[-1] = newD[-1]
         self.X = np.dot(U, newD[:-1,np.newaxis] * V)
@@ -347,8 +348,8 @@ class nuclear_norm_epigraph_polar(svd_cone):
 class operator_norm_epigraph(svd_cone):
     
     def constraint(self, normX):
-        norm = normX[0]
-        X = normX[1:].reshape(self.matrix_shape)
+        norm = normX[-1]
+        X = normX[:-1].reshape(self.matrix_shape)
         self.X = X
         U, D, V = self.SVD
 
@@ -376,8 +377,8 @@ class operator_norm_epigraph(svd_cone):
 class operator_norm_epigraph_polar(svd_cone):
     
     def constraint(self, normX):
-        norm = normX[0]
-        X = normX[1:].reshape(self.matrix_shape)
+        norm = normX[-1]
+        X = normX[:-1].reshape(self.matrix_shape)
         self.X = X
         U, D, V = self.SVD
 

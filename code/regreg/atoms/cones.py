@@ -132,7 +132,7 @@ class cone(atom):
         if offset is None:
             return eta
         else:
-            return eta - offset
+            return eta + offset
 
     @doc_template_provider
     def cone_prox(self, x):
@@ -269,7 +269,7 @@ class l2_epigraph(cone):
     @doc_template_user
     def constraint(self, x):
         
-        incone = np.linalg.norm(x[1:]) / x[0] <= 1 + self.tol
+        incone = np.linalg.norm(x[:-1]) <= (1 + self.tol) * x[-1]
         if incone:
             return 0
         return np.inf
@@ -297,7 +297,7 @@ class l2_epigraph_polar(cone):
 
     @doc_template_user
     def constraint(self, x):
-        incone = np.linalg.norm(x[1:]) / -x[0] <= 1 + self.tol
+        incone = np.linalg.norm(x[:-1]) <= (1 + self.tol) * (-x[-1])
         if incone:
             return 0
         return np.inf
@@ -325,11 +325,10 @@ class l1_epigraph(cone):
 
     @doc_template_user
     def constraint(self, x):
-        incone = np.fabs(x[1:]).sum() / x[0] <= 1 + self.tol
+        incone = np.fabs(x[:-1]).sum() <= (1 + self.tol) * x[-1]
         if incone:
             return 0
         return np.inf
-
 
     @doc_template_user
     def cone_prox(self, x):
@@ -338,8 +337,7 @@ class l1_epigraph(cone):
 class l1_epigraph_polar(cone):
 
     """
-    The polar l1_epigraph constraint which is just the
-    negative of the linf_epigraph.
+    The polar l1_epigraph constraint.
     """
 
     objective_template = r"""I^{\infty}(\|%(var)s[:-1]\|_{\infty} \leq - %(var)s[-1])"""
@@ -347,7 +345,7 @@ class l1_epigraph_polar(cone):
     @doc_template_user
     def constraint(self, x):
         
-        incone = np.fabs(-x[1:]).max() / -x[0] <= 1 + self.tol
+        incone = np.fabs(-x[:-1]).max() <= (1 + self.tol) * ( -x[-1])
         if incone:
             return 0
         return np.inf
@@ -355,7 +353,7 @@ class l1_epigraph_polar(cone):
 
     @doc_template_user
     def cone_prox(self, x):
-        return projl1_epigraph(x) - x
+        return x - projl1_epigraph(x)
 
 class linf_epigraph(cone):
 
@@ -368,7 +366,7 @@ class linf_epigraph(cone):
     @doc_template_user
     def constraint(self, x):
 
-        incone = np.fabs(x[1:]).max() / x[0] <= 1 + self.tol
+        incone = np.fabs(x[:-1]).max() <= (1 + self.tol) * x[-1]
         if incone:
             return 0
         return np.inf
@@ -388,12 +386,10 @@ class linf_epigraph_polar(cone):
 
     @doc_template_user
     def constraint(self, x):
-        
-        incone = np.fabs(-x[1:]).sum() / -x[0] <= 1 + self.tol
+        incone = np.fabs(-x[:-1]).sum() <= (1 + self.tol) * (-x[-1])
         if incone:
             return 0
         return np.inf
-
 
     @doc_template_user
     def cone_prox(self, x):

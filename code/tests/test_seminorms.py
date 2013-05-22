@@ -59,7 +59,7 @@ def test_proximal_maps():
         p = atom(shape, lagrange=lagrange, quadratic=q,
                    offset=offset)
         d = p.conjugate 
-        yield all_close, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom, None
+        yield all_close, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L)/L, 'testing lagrange_prox and bound_prox starting from atom\n %s ' % atom, None
         # some arguments of the constructor
 
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
@@ -88,7 +88,7 @@ def test_proximal_maps():
         p = atom(shape, lagrange=lagrange, quadratic=q,
                    offset=offset)
         d = p.conjugate 
-        yield all_close, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L)/L, 'testing lagrange_prox and bound_prox starting from atom %s ' % atom, None
+        yield all_close, p.lagrange_prox(Z, lipschitz=L), Z-d.bound_prox(Z*L)/L, 'testing lagrange_prox and bound_prox starting from atom %s\n ' % atom, None
         # some arguments of the constructor
 
         nt.assert_raises(AttributeError, setattr, p, 'bound', 4.)
@@ -117,12 +117,12 @@ class Solver(object):
         self.q = rr.identity_quadratic(L, Z, 0, 0)
         self.loss = rr.quadratic.shift(Z, coef=L)
 
-    def duality_of_projections(self):
+    def test_duality_of_projections(self):
         tests = []
 
         d = self.atom.conjugate
         q = rr.identity_quadratic(1, self.Z, 0, 0)
-        tests.append((self.Z-self.atom.proximal(q), d.proximal(q), 'testing duality of projections starting from atom %s ' % str(self)))
+        tests.append((self.Z-self.atom.proximal(q), d.proximal(q), 'testing duality of projections starting from atom\n %s ' % str(self)))
 
         if not self.interactive:
             for test in tests:
@@ -131,7 +131,7 @@ class Solver(object):
             for test in tests:
                 yield all_close(*((test + (self,))))
 
-    def simple_problem_nonsmooth(self):
+    def test_simple_problem_nonsmooth(self):
         tests = []
         atom, q = self.atom, self.q
         loss = self.loss
@@ -142,14 +142,14 @@ class Solver(object):
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-14, FISTA=self.FISTA, coef_stop=self.coef_stop)
 
-        tests.append((atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with monotonicity %s ' % str(self)))
+        tests.append((atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with monotonicity\n %s ' % str(self)))
 
         # use the solve method
 
         p3 = copy(atom)
         p3.quadratic = atom.quadratic + q
         soln = p3.solve(tol=1.e-14, min_its=10)
-        tests.append((atom.proximal(q), soln, 'solving prox with solve method %s ' % str(self)))
+        tests.append((atom.proximal(q), soln, 'solving prox with solve method\n %s ' % str(self)))
         print 'stop'
 
         p4 = copy(atom)
@@ -159,7 +159,7 @@ class Solver(object):
         solver.fit(tol=1.0e-14, monotonicity_restart=False, coef_stop=self.coef_stop,
                    FISTA=self.FISTA)
 
-        tests.append((atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with no monotonocity %s ' % str(self)))
+        tests.append((atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem.nonsmooth with no monotonocity\n %s ' % str(self)))
 
         if not self.interactive:
             for test in tests:
@@ -168,7 +168,7 @@ class Solver(object):
             for test in tests:
                 yield all_close(*((test + (self,))))
 
-    def simple_problem(self):
+    def test_simple_problem(self):
         tests = []
         atom, q, Z, L = self.atom, self.q, self.Z, self.L
         loss = self.loss
@@ -177,7 +177,7 @@ class Solver(object):
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12, FISTA=self.FISTA, coef_stop=self.coef_stop)
 
-        tests.append((atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity: %s' % str(self)))
+        tests.append((atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem with monotonicity\n %s' % str(self)))
 
         # write the loss in terms of a quadratic for the smooth loss and a smooth function...
 
@@ -191,14 +191,14 @@ class Solver(object):
                             FISTA=self.FISTA, 
                             tol=1.0e-12), 
                'solving prox with simple_problem ' +
-               'with monotonicity  but loss has identity_quadratic %s ' % str(self)))
+               'with monotonicity  but loss has identity_quadratic %s\n ' % str(self)))
 
         problem = rr.simple_problem(loss, atom)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12, monotonicity_restart=False,
                    coef_stop=self.coef_stop, FISTA=self.FISTA)
 
-        tests.append((atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem %s no monotonicity_restart' % str(self)))
+        tests.append((atom.proximal(q), solver.composite.coefs, 'solving prox with simple_problem no monotonicity_restart\n %s' % str(self)))
 
         d = atom.conjugate
         problem = rr.simple_problem(loss, d)
@@ -209,7 +209,7 @@ class Solver(object):
                                                 FISTA=self.FISTA,
                                                 coef_stop=self.coef_stop,
                                                 monotonicity_restart=False), 
-               'solving dual prox with simple_problem no monotonocity %s ' % str(self)))
+               'solving dual prox with simple_problem no monotonocity\n %s ' % str(self)))
 
         if not self.interactive:
             for test in tests:
@@ -218,30 +218,29 @@ class Solver(object):
             for test in tests:
                 yield all_close(*((test + (self,))))
 
-    def dual_problem(self):
+    def test_dual_problem(self):
         tests = []
         atom, q, Z, L = self.atom, self.q, self.Z, self.L
         loss = self.loss
 
         dproblem = rr.dual_problem.fromprimal(loss, atom)
         dcoef = dproblem.solve(coef_stop=self.coef_stop, tol=1.0e-14)
-        tests.append((atom.proximal(q), dcoef, 'solving prox with dual_problem.fromprimal with monotonicity %s ' % str(self)))
+        tests.append((atom.proximal(q), dcoef, 'solving prox with dual_problem.fromprimal with monotonicity \n %s ' % str(self)))
 
         dproblem2 = rr.dual_problem(loss.conjugate, 
                                     rr.identity(loss.shape),
                                     atom.conjugate)
         dcoef2 = dproblem2.solve(coef_stop=self.coef_stop, tol=1.e-14)
-        tests.append((atom.proximal(q), dcoef2, 'solving prox with dual_problem with monotonicity %s ' % str(self)))
+        tests.append((atom.proximal(q), dcoef2, 'solving prox with dual_problem with monotonicity %s \n' % str(self)))
 
         if not self.interactive:
-            print 'here'
             for test in tests:
                 yield (all_close,) + test + (self,)
         else:
             for test in tests:
                 yield all_close(*((test + (self,))))
 
-    def separable(self):
+    def test_separable(self):
         tests = []
         atom, q, Z, L = self.atom, self.q, self.Z, self.L
         loss = self.loss
@@ -251,7 +250,7 @@ class Solver(object):
         solver.fit(tol=1.0e-12, 
                    coef_stop=self.coef_stop, FISTA=self.FISTA)
 
-        tests.append((atom.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton %s ' % str(self)))
+        tests.append((atom.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton \n%s ' % str(self)))
 
 
         d = atom.conjugate
@@ -260,7 +259,7 @@ class Solver(object):
         solver.fit(tol=1.0e-12, 
                    coef_stop=self.coef_stop, FISTA=self.FISTA)
 
-        tests.append((d.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton %s ' % str(self)))
+        tests.append((d.proximal(q), solver.composite.coefs, 'solving atom prox with separable_atom.singleton \n%s ' % str(self)))
 
         if not self.interactive:
             for test in tests:
@@ -269,7 +268,7 @@ class Solver(object):
             for test in tests:
                 yield all_close(*((test + (self,))))
 
-    def container(self):
+    def test_container(self):
         tests = []
         atom, q, Z, L = self.atom, self.q, self.Z, self.L
         loss = self.loss
@@ -279,7 +278,7 @@ class Solver(object):
         solver.fit(tol=1.0e-12, 
                    coef_stop=self.coef_stop, FISTA=self.FISTA)
 
-        tests.append((atom.proximal(q), solver.composite.coefs, 'solving atom prox with container %s ' % str(self)))
+        tests.append((atom.proximal(q), solver.composite.coefs, 'solving atom prox with container\n %s ' % str(self)))
 
         # write the loss in terms of a quadratic for the smooth loss and a smooth function...
 
@@ -291,14 +290,14 @@ class Solver(object):
 
         tests.append((atom.proximal(q), 
                problem.solve(tol=1.e-12,FISTA=self.FISTA,coef_stop=self.coef_stop), 
-               'solving prox with container with monotonicity but loss has identity_quadratic %s ' % str(self)))
+               'solving prox with container with monotonicity but loss has identity_quadratic\n %s ' % str(self)))
 
         d = atom.conjugate
         problem = rr.container(d, loss)
         solver = rr.FISTA(problem)
         solver.fit(tol=1.0e-12, 
                    coef_stop=self.coef_stop, FISTA=self.FISTA)
-        tests.append((d.proximal(q), solver.composite.coefs, 'solving dual prox with container %s ' % str(self)))
+        tests.append((d.proximal(q), solver.composite.coefs, 'solving dual prox with container\n %s ' % str(self)))
 
         if not self.interactive:
             for test in tests:
@@ -308,12 +307,13 @@ class Solver(object):
                 yield all_close(*((test + (self,))))
 
     def all(self):
-        for group in [self.simple_problem,
-                  self.separable,
-                  self.dual_problem,
-                  self.container,
-                  self.simple_problem_nonsmooth,
-                  self.duality_of_projections]:
+        for group in [self.test_simple_problem,
+                      self.test_separable,
+                      #self.test_dual_problem,
+                      #self.test_container,
+                      self.test_simple_problem_nonsmooth,
+                      #self.test_duality_of_projections,
+                      ]:
             for t in group():
                 yield t
                   
