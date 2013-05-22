@@ -7,6 +7,7 @@ from ..problems.composite import smooth as smooth_composite
 from ..affine import affine_transform, linear_transform
 from ..identity_quadratic import identity_quadratic
 
+#TODO: create proximal methods for known smooth things
 class smooth_atom(smooth_composite):
 
     """
