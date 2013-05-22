@@ -7,7 +7,7 @@ problems.
 import numpy as np
 import warnings
 from ..affine import (linear_transform, composition, affine_sum, 
-                      power_L, astransform)
+                      power_L, astransform, adjoint)
 
 class factored_matrix(object):
 
@@ -104,7 +104,19 @@ def compute_iterative_svd(transform,
                           debug=False):
 
     """
-    Compute the SVD of a matrix using partial_svd
+    Compute the SVD of a matrix using partial_svd. If no initial
+    rank is given, it assumes a rank of size min(n,p) / 10.
+
+    Iteratively calls partial_svd until the singular_values are small enough.
+
+    >>> np.random.seed(0)
+    >>> X = np.random.standard_normal((100, 200))
+    >>> U, D, VT = compute_iterative_svd(X)
+    >>> np.linalg.norm(np.dot(U.T, U) - np.identity(100)) < 1.e-6
+    True
+    >>> np.linalg.norm(np.dot(VT, VT.T) - np.identity(100)) < 1.e-6
+    True
+
     """
 
     if isinstance(transform, np.ndarray):
@@ -113,6 +125,11 @@ def compute_iterative_svd(transform,
     n = transform.output_shape[0]
     p = transform.input_shape[0]
     
+    need_to_transpose = False
+    if n < p:
+        transform = adjoint(transform)
+        need_to_transpose = True
+
     if initial_rank is None:
         rank = np.round(np.min([n,p]) * 0.1) + 1
     else:
@@ -120,7 +137,7 @@ def compute_iterative_svd(transform,
 
     min_so_far = 1.
     D = [np.inf]
-    while D[-1] >= min_singular:
+    while D[-1] >= min_singular * D.max():
         if debug:
             print "Trying rank", rank
         U, D, VT = partial_svd(transform, rank=rank, extra_rank=5, tol=tol, initial=initial, return_full=True, debug=debug)
@@ -129,10 +146,13 @@ def compute_iterative_svd(transform,
         if len(D) < rank:
             break
         initial = 1. * U 
-        r *= 2
+        rank *= 2
 
     ind = np.where(D >= min_singular)[0]
-    return U[:,ind], D[ind],  VT[ind,:]
+    if not need_to_transpose:
+        return U[:,ind], D[ind],  VT[ind,:]
+    else:
+        return VT[ind,:].T, D[ind],  U[:,ind].T
 
 def partial_svd(transform,
                 rank=1,
