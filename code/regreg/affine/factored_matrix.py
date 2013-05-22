@@ -109,6 +109,35 @@ def compute_iterative_svd(transform,
 
     Iteratively calls partial_svd until the singular_values are small enough.
 
+    Parameters
+    ----------
+
+    transform : [linear_transform, ndarray]
+        Linear_transform whose SVD is computed. If an
+        ndarray, it is first cast with :func:`astransform()`
+
+    initial_rank : None or int, optional
+        A guess at the rank of the matrix.
+
+    initial : np.ndarray(np.float), optional
+        A guess at the left singular vectors of the matrix.
+
+    min_singular : np.float, optional 
+        Stop when the singular value has this relative tolerance.    
+    
+    tol: np.float, optional
+        Tolerance at which the norm of the singular values are deemed
+        to have converged.
+
+    debug: bool, optional
+        Print debugging statements.
+
+    Returns
+    -------
+
+    U, D, VT : np.ndarray(np.float)
+        An SVD of the transform.
+
     >>> np.random.seed(0)
     >>> X = np.random.standard_normal((100, 200))
     >>> U, D, VT = compute_iterative_svd(X)
@@ -137,7 +166,7 @@ def compute_iterative_svd(transform,
 
     min_so_far = 1.
     D = [np.inf]
-    while D[-1] >= min_singular * D.max():
+    while D[-1] >= min_singular * np.max(D):
         if debug:
             print "Trying rank", rank
         U, D, VT = partial_svd(transform, rank=rank, extra_rank=5, tol=tol, initial=initial, return_full=True, debug=debug)
@@ -167,6 +196,42 @@ def partial_svd(transform,
     Compute the partial SVD of the linear_transform X using the Mazumder/Hastie 
     algorithm in (TODO: CITE)
 
+    Parameters
+    ----------
+
+    transform : [linear_transform, ndarray]
+        Linear_transform whose SVD is computed. If an
+        ndarray, it is first cast with :func:`astransform()`
+
+    rank : int, optional
+        What rank of SVD to compute.
+
+    padding : int, optional
+        Compute a few further singular values / vectors. This results
+        in a better estimator of the rank of interest.
+
+    max_its : int, optional
+        How many iterations of the full cycle to complete.
+
+    tol : np.float, optional
+        Tolerance at which the norm of the singular values are deemed
+        to have converged.
+
+    initial : np.ndarray(np.float), optional
+        A guess at the left singular vectors of the matrix.
+
+    return_full: bool, optional
+        Return a singular values / vectors from padding?
+    
+    debug: bool, optional
+        Print debugging statements.
+
+    Returns
+    -------
+
+    U, D, VT : np.ndarray(np.float)
+        An SVD up to `rank` of the transform.
+
     >>> np.random.seed(0)
     >>> X = np.random.standard_normal((100, 200))
     >>> U, D, VT = partial_svd(X, rank=10)
@@ -190,7 +255,7 @@ def partial_svd(transform,
     p = np.product(transform.input_shape)
 
     rank = np.int(np.min([rank,p]))
-    q = np.min([rank + extra_rank, p])
+    q = np.min([rank + padding, p])
     if initial is not None:
         if initial.shape == (n,q):
             U = initial

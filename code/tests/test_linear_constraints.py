@@ -12,19 +12,20 @@ def test_proximal_maps():
     Z = np.random.standard_normal(shape) * 2
     W = 0.02 * np.random.standard_normal(shape)
     U = 0.02 * np.random.standard_normal(shape)
-    linq = rr.identity_quadratic(0,0,W,0)
+    quadratic = rr.identity_quadratic(0,0,W,0)
 
     basis = np.linalg.svd(np.random.standard_normal((4,20)), full_matrices=0)[2]
 
     for L, atom, q, offset, FISTA, coef_stop in itertools.product([0.5,1,0.1], 
                                                        sorted(LC.conjugate_cone_pairs.keys()),
-                                              [None, linq],
+                                              [None, quadratic],
                                               [None, U],
                                               [False, True],
                                               [False, True]):
 
-        p = atom(shape, basis, quadratic=q,
-                   offset=offset)
+        constraint_instance = atom(shape, basis, quadratic=q,
+                                   offset=offset)
 
-        for t in Solver(p, Z, W, U, linq, L, FISTA, coef_stop).all():
+        for t in Solver(constraint_instance, Z, L, FISTA, coef_stop).all():
             yield t
+
