@@ -33,11 +33,11 @@ def test_proximal_maps():
             else:
                 U = None
 
-            cone_instance = atom(shape, quadratic=q,
-                                 offset=U)
-            Z = np.random.standard_normal(cone_instance.shape)
+        cone_instance = atom(shape, quadratic=q,
+                             offset=U)
+        Z = np.random.standard_normal(cone_instance.shape)
 
-            if U is not None:
-                cone_instance.offset = 0.02 * np.random.standard_normal(cone_instance.shape)
-            for t in Solver(cone_instance, Z, L, FISTA, coef_stop).all():
-                yield t
+        if U is not None:
+            cone_instance.offset = 0.02 * np.random.standard_normal(cone_instance.shape)
+        for t in Solver(cone_instance, Z, L, FISTA, coef_stop).all():
+            yield t
