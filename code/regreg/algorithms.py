@@ -221,6 +221,22 @@ class FISTA(algorithm):
                 itercount += 1
                 current_obj = trial_obj
 
+        # Make convergence parameters available from the FISTA class
+        # Allows for programatic checking of convergence
+        if coef_stop:
+            self.convergence_params = (itercount, 
+                current_obj, 
+                self.inv_step, 
+                obj_rel_change, 
+                coef_rel_change, 
+                tol)
+        else:
+            self.convergence_params = (itercount, 
+                current_obj, 
+                self.inv_step, 
+                obj_rel_change, 
+                tol)
+
 
         if self.debug:
             if itercount == max_its:
